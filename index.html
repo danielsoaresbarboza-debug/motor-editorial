@@ -2242,6 +2242,25 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       try { const r = await fetch(base + extra); respondeu = true; if (r.ok) { const j = await r.json(); res = res.concat(j.results || []); } } catch (e) {}
       if (res.length >= 12) break;
     }
+    // Segundo banco: Wikimedia Commons (fotos livres, aceita acesso direto do navegador)
+    if (res.length < 8) {
+      try {
+        const u = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=30'
+          + '&gsrsearch=' + encodeURIComponent(q + ' filetype:bitmap') + '&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=1600';
+        const r = await fetch(u); respondeu = true;
+        if (r.ok) {
+          const j = await r.json(); const pages = Object.values((j.query && j.query.pages) || {}).sort((a, b) => (a.index || 0) - (b.index || 0));
+          const limpa = (h) => String(h || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+          pages.forEach(pg => {
+            const ii = pg.imageinfo && pg.imageinfo[0]; if (!ii || !ii.thumburl) return;
+            const md = ii.extmetadata || {};
+            res.push({ url: ii.thumburl, thumbnail: ii.thumburl.replace(/\/(\d+)px-/, '/400px-'), width: ii.width, height: ii.height,
+              title: (pg.title || '').replace(/^File:/, ''), tags: [], creator: limpa(md.Artist && md.Artist.value).slice(0, 60),
+              licenca: limpa(md.LicenseShortName && md.LicenseShortName.value), source: 'Wikimedia Commons' });
+          });
+        }
+      } catch (e) {}
+    }
     if (!respondeu) throw { code: 'rede' };
     const vistos = new Set();
     res = res.filter(x => x && x.url && !vistos.has(x.url) && vistos.add(x.url) && !usadas.has(x.url)
@@ -2257,6 +2276,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
     return notas.filter(Boolean).sort((a, b) => b.nota - a.nota).map(n => n.x);
   }
   function creditoDe(x) {
+    if (x.licenca) return (x.creator || 'autor desconhecido') + ' (' + x.licenca + ')';
     const lic = [x.license ? 'CC ' + String(x.license).toUpperCase() : '', x.license_version || ''].join(' ').trim();
     return (x.creator || 'autor desconhecido') + (lic ? ' (' + lic + ')' : '');
   }
@@ -2294,7 +2314,8 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
         if (!lista.length && q.split(' ').length > 2) lista = await candidatos(q.split(' ').slice(0, 2).join(' '), sl.tipo !== 'imagem', usadas);
       } catch (e) {
         autoRodando = false; $('auto-fotos').disabled = false; buscaBloqueada = true; renderFotos();
-        st.innerHTML = 'Aqui dentro do app do Claude o Motor não pode buscar fotos na internet. Caminho mais curto: toque em <b>Unsplash</b> no slide, segure a foto, <b>Copiar imagem</b>, volte e toque em <b>Colar</b>. Unsplash é de uso livre.';
+        st.innerHTML = (!modoFotos ? 'Aqui dentro do app do Claude o Motor não pode buscar fotos na internet.' : 'Os bancos de fotos não responderam agora (internet ou limite de uso). Tente de novo em alguns minutos.')
+          + ' Caminho manual: toque em <b>Unsplash</b> no slide, segure a foto, <b>Copiar imagem</b>, volte e toque em <b>Colar</b>.';
         st.className = 'status err'; return;
       }
       fotoCands.set(c.id + ':' + k, lista);

@@ -258,7 +258,7 @@
         <p class="hint">Duas imagens soltas do mesmo tema: uma frase em que a pessoa se reconhece e manda para alguém. Use <code>**palavra**</code> para destacar.</p>
         <p class="status" id="fr-st"></p>
         <div class="fr-lista" id="fr-lista"></div>
-        <div class="row"><button class="btn primary" id="fr-baixar">Baixar as 2 imagens</button></div>
+        <div class="row"><button class="btn primary" id="fr-baixar">Baixar os 2 posts</button><button class="btn" id="fr-baixar-story">Baixar os 2 Stories</button></div>
       </div>
       <div class="so-fotos fotos" id="fotos" hidden>
         <div class="row between">
@@ -563,7 +563,8 @@
       frases: Array.isArray(o.frases) ? o.frases.slice(0, 2).map((f, k) => ({
         texto: String((f && (f.texto || f.frase)) || (typeof f === 'string' ? f : '')),
         legenda: String((f && f.legenda) || ''),
-        design: f && ['vidro', 'manchete'].includes(f.design) ? f.design : (k ? 'manchete' : 'vidro')
+        para: String((f && f.para) || ''),
+        design: f && ['vidro', 'manchete', 'nota'].includes(f.design) ? f.design : (k ? 'manchete' : 'vidro')
       })) : []
     };
   }
@@ -717,6 +718,14 @@
         const ulT = Math.max(2, Math.round(L.size * 0.05));
         line.tokens.forEach((t, ti) => {
           ctx.font = fontStr(o.fam, L.size, t.b ? o.wb : o.w);
+          if (t.b && o.marca && t.text.trim()) {
+            // marca-texto atrás das palavras em negrito (design Nota)
+            const nx = line.tokens[ti + 1], pv = line.tokens[ti - 1];
+            const pe = pv && pv.b ? 0 : Math.round(L.size * 0.1), pd = nx && nx.b ? 0 : Math.round(L.size * 0.1);
+            ctx.fillStyle = o.marca; ctx.fillRect(cx - pe, base - Math.round(L.size * 0.78), t.w + pe + pd, Math.round(L.size * 1.0));
+          } else if (t.b && o.marca && /^\s+$/.test(t.text) && line.tokens[ti - 1] && line.tokens[ti - 1].b && line.tokens[ti + 1] && line.tokens[ti + 1].b) {
+            ctx.fillStyle = o.marca; ctx.fillRect(cx, base - Math.round(L.size * 0.78), t.w, Math.round(L.size * 1.0));
+          }
           ctx.fillStyle = t.b && o.accent ? o.accent : o.color;
           ctx.fillText(t.text, cx, base);
           const next = line.tokens[ti + 1];
@@ -2495,20 +2504,48 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
   const FR_ACENTO = { vidro: '#C9C2FF', manchete: '#D9452B' };
   function frasesDe(c) {
     if (!Array.isArray(c.frases)) c.frases = [];
-    while (c.frases.length < 2) c.frases.push({ texto: '', legenda: '', design: c.frases.length ? 'manchete' : 'vidro' });
+    while (c.frases.length < 2) c.frases.push({ texto: '', legenda: '', para: '', design: c.frases.length ? 'manchete' : 'vidro' });
     return c.frases;
   }
   function drawFrase(fr) {
     const txt = (fr.texto || '').trim() || 'Escreva a frase ao lado.';
+    const para = (fr.para || '').trim();
     ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left';
-    if (fr.design === 'manchete') {
+    if (fr.design === 'nota') {
+      // Nota de celular: parece uma anotação pessoal, não um anúncio (é o formato que mais vai para os Stories)
+      ctx.fillStyle = '#FBFAF6'; ctx.fillRect(0, 0, W, H);
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#D9A21B'; ctx.font = fontStr(SANS, 32, 500);
+      ctx.beginPath(); ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#D9A21B';
+      ctx.moveTo(M + 14, 92); ctx.lineTo(M, 108); ctx.lineTo(M + 14, 124); ctx.stroke();
+      ctx.fillText('Notas', M + 30, 120);
+      const d = new Date(); const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+      const data = `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()} às ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      ctx.fillStyle = '#8E8E93'; ctx.font = fontStr(SANS, 22, 400); ctx.textAlign = 'center'; ctx.fillText(data, W / 2, 200); ctx.textAlign = 'left';
+      let y = 290;
+      if (para) {
+        const P = fit([para], { fam: SANS, w: 500, wb: 600, lh: 1.3, maxW: CW, max: 30, min: 24 }, 120);
+        drawLayout(P, { fam: SANS, w: 500, wb: 600, color: '#8E8E93' }, M, y, 'left'); y += P.h + 44;
+      }
+      const L = fit([txt], { fam: SANS, w: 500, wb: 600, lh: 1.26, maxW: CW, max: 88, min: 42 }, 1080 - y);
+      drawLayout(L, { fam: SANS, w: 500, wb: 600, color: '#1C1C1E', marca: '#FFE27A' }, M, y, 'left');
+      // cursor piscando depois da última palavra
+      const ult = L.blocks[L.blocks.length - 1], lin = ult[ult.length - 1];
+      const nl = L.blocks.reduce((a, b) => a + b.length, 0);
+      ctx.fillStyle = '#D9A21B'; ctx.fillRect(M + lin.width + 8, y + (nl - 1) * L.lh + Math.round(L.size * 0.02), 4, Math.round(L.size * 1.02));
+      const r = 26, sy = FOOT + 30;
+      avatarCircle(M + r, sy, r, null);
+      ctx.fillStyle = '#1C1C1E'; ctx.font = fontStr(SANS, 21, 600); ctx.fillText(NAME, M + r * 2 + 16, sy - 2);
+      ctx.fillStyle = '#8E8E93'; ctx.font = fontStr(SANS, 18, 400); ctx.fillText(HANDLE, M + r * 2 + 16, sy + 22);
+    } else if (fr.design === 'manchete') {
       ctx.fillStyle = PAPEL; ctx.fillRect(0, 0, W, H);
       ambiente(false, false);
       ctx.fillStyle = alpha(TINTA, 0.7); ctx.font = fontStr(SANS, 23, 500); spaced(0.2); ctx.textBaseline = 'alphabetic';
       ctx.fillText(HANDLE, M, TOP); spaced(0);
-      const L = fit([txt], { fam: SERIF, w: 500, wb: 600, lh: 1.06, maxW: CW, max: 112, min: 56 }, 760);
-      const y = Math.max(BODY_T + 80, 1050 - L.h);
+      const L = fit([txt], { fam: SERIF, w: 500, wb: 600, lh: 1.06, maxW: CW, max: 112, min: 56 }, para ? 680 : 760);
+      const y = Math.max(BODY_T + 80 + (para ? 70 : 0), 1050 - L.h);
       ctx.fillStyle = FR_ACENTO.manchete; ctx.fillRect(M, y - 70, 96, 7);
+      if (para) { ctx.save(); ctx.fillStyle = alpha(TINTA, 0.62); ctx.font = fontStr(SANS, 26, 500); ctx.textBaseline = 'alphabetic'; ctx.fillText(para, M, y - 104); ctx.restore(); }
       drawLayout(L, { fam: SERIF, w: 500, wb: 600, color: TINTA, accent: FR_ACENTO.manchete }, M, y, 'left');
       ctx.fillStyle = alpha(TINTA, 0.18); ctx.fillRect(M, FOOT, CW, 1.5);
       const r = 26, sy = FOOT + 46;
@@ -2529,6 +2566,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       const bh = L.h + pad * 2 + 40;
       const by = Math.round(H * 0.47 - bh / 2);
       const tinta = vidro(bx, by, bw, bh, 56, { dark: true });
+      if (para) { ctx.save(); ctx.fillStyle = alpha(FR_ACENTO.vidro, 0.95); ctx.font = fontStr(SANS, 25, 500); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; ctx.fillText(para, W / 2, by - 40); ctx.restore(); }
       ctx.fillStyle = alpha(FR_ACENTO.vidro, 0.9); ctx.fillRect(bx + pad, by + pad - 6, 56, 4);
       drawLayout(L, { fam: SERIF, w: 500, wb: 600, color: tinta, accent: FR_ACENTO.vidro }, bx + pad, by + pad + 34, 'left');
       // assinatura em pílula + chamada para enviar
@@ -2543,10 +2581,22 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
     }
     ctx.restore();
   }
+  // Versão para Stories (1080 × 1920): o próprio post no centro, sobre ele mesmo desfocado.
+  function storyDoCanvas() {
+    const sc = document.createElement('canvas'); sc.width = 1080; sc.height = 1920; const g = sc.getContext('2d');
+    if ('filter' in g) g.filter = 'blur(46px) brightness(0.62) saturate(1.2)';
+    g.drawImage(canvas, -232, -40, 1544, 2000); g.filter = 'none';
+    const pw = 930, ph = Math.round(pw * H / W), px = (1080 - pw) / 2, py = Math.round((1920 - ph) / 2) + 20;
+    g.save(); g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 60; g.shadowOffsetY = 24;
+    g.beginPath(); g.roundRect ? g.roundRect(px, py, pw, ph, 36) : g.rect(px, py, pw, ph); g.fillStyle = '#000'; g.fill(); g.restore();
+    g.save(); g.beginPath(); g.roundRect ? g.roundRect(px, py, pw, ph, 36) : g.rect(px, py, pw, ph); g.clip(); g.drawImage(canvas, px, py, pw, ph); g.restore();
+    g.fillStyle = 'rgba(255,255,255,0.85)'; g.font = fontStr(SANS, 30, 600); g.textAlign = 'center'; g.fillText(HANDLE, 540, py - 50);
+    return sc;
+  }
   // Desenha a frase no canvas principal e devolve a imagem; depois volta o slide da prévia.
-  function fotoFrase(fr, tipo, q) {
+  function fotoFrase(fr, tipo, q, story) {
     drawFrase(fr);
-    const u = canvas.toDataURL(tipo || 'image/jpeg', q || 0.92);
+    const u = story ? storyDoCanvas().toDataURL(tipo || 'image/jpeg', q || 0.92) : canvas.toDataURL(tipo || 'image/jpeg', q || 0.92);
     lastCover = null; drawSlide(active(), state.cur);
     return u;
   }
@@ -2568,24 +2618,29 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       ta.oninput = () => { f.texto = ta.value; persist(); clearTimeout(frT); frT = setTimeout(() => { im.src = fotoFrase(f, 'image/jpeg', 0.7); }, 350); };
       if (modoFotos) { ta.readOnly = true; ta.title = 'Para mudar o texto, use o Motor azul (Escrita).'; }
       const seg = document.createElement('div'); seg.className = 'seg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Design');
-      [['vidro', 'Vidro'], ['manchete', 'Manchete']].forEach(([v, rot]) => {
+      [['vidro', 'Vidro'], ['manchete', 'Manchete'], ['nota', 'Nota']].forEach(([v, rot]) => {
         const b = document.createElement('button'); b.type = 'button'; b.textContent = rot; b.setAttribute('aria-pressed', String(f.design === v));
         b.onclick = () => { f.design = v; persist(); seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); im.src = fotoFrase(f, 'image/jpeg', 0.7); };
         seg.append(b);
       });
-      fx.append(ta, seg);
+      const pq = document.createElement('input'); pq.type = 'text'; pq.value = f.para || ''; pq.placeholder = 'Para quem é (ex.: Para quem posta toda semana e ninguém lembra)';
+      pq.setAttribute('aria-label', `Para quem é a frase ${k + 1}`);
+      pq.oninput = () => { f.para = pq.value; persist(); clearTimeout(frT); frT = setTimeout(() => { im.src = fotoFrase(f, 'image/jpeg', 0.7); }, 350); };
+      if (modoFotos) pq.readOnly = true;
+      fx.append(pq, ta, seg);
       const acts = document.createElement('div'); acts.className = 'acts';
-      const bb = document.createElement('button'); bb.className = 'btn primary'; bb.textContent = 'Baixar imagem'; bb.onclick = () => baixarFrases([k]);
+      const bb = document.createElement('button'); bb.className = 'btn primary'; bb.textContent = 'Baixar post'; bb.onclick = () => baixarFrases([k]);
+      const bs = document.createElement('button'); bs.className = 'btn'; bs.textContent = 'Baixar Story'; bs.onclick = () => baixarFrases([k], true);
       const bl = document.createElement('button'); bl.className = 'btn ghost'; bl.textContent = 'Copiar legenda';
       bl.hidden = !f.legenda; bl.onclick = async () => toast(await copyText(f.legenda) ? 'Legenda copiada.' : 'Não consegui copiar.');
-      acts.append(bb, bl);
+      acts.append(bb, bs, bl);
       item.append(im, fx, acts); lista.append(item);
     });
   }
-  function abrirFrases(ks) {
+  function abrirFrases(ks, story) {
     const c = active(); const fr = frasesDe(c); const box = $('overlay-imgs'); box.innerHTML = '';
     ks.forEach(k => {
-      const im = document.createElement('img'); im.src = fotoFrase(fr[k], 'image/png'); im.alt = `Frase ${k + 1}`;
+      const im = document.createElement('img'); im.src = fotoFrase(fr[k], 'image/png', 0.92, story); im.alt = `Frase ${k + 1}`;
       const cap = document.createElement('small'); cap.textContent = `Frase ${k + 1}`;
       box.append(im, cap);
     });
@@ -2593,14 +2648,14 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
     $('overlay-msg').innerHTML = 'Segure cada imagem e toque em <strong>Salvar na galeria</strong>.';
     $('overlay').hidden = false; document.body.style.overflow = 'hidden';
   }
-  async function baixarFrases(ks) {
+  async function baixarFrases(ks, story) {
     const c = active(); const fr = frasesDe(c);
     if (ks.some(k => !fr[k].texto.trim())) { toast('Escreva a frase antes de baixar.'); return; }
     if (ajustando) setAjuste(false);
     if (ks.length === 1 && fr[ks[0]].legenda) await copyText(fr[ks[0]].legenda);
-    if (!downloads) { abrirFrases(ks); return; }
+    if (!downloads) { abrirFrases(ks, story); return; }
     for (const k of ks) {
-      const file = dataUrlFile(fotoFrase(fr[k]), `${slug(c.title)}-frase-${k + 1}.jpg`);
+      const file = dataUrlFile(fotoFrase(fr[k], 'image/jpeg', 0.92, story), `${slug(c.title)}-frase-${k + 1}${story ? '-story' : ''}.jpg`);
       let tent = 0;
       for (;;) {
         try { await downloads.save({ filename: file.name, data: file }); break; }
@@ -2608,13 +2663,14 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
           const code = (e && e.code) || 'unavailable';
           if (code === 'rate_limited' && tent++ < 4) { await espera(1200); continue; }
           if (code === 'declined') { toast('Download cancelado.'); return; }
-          toast('Não deu para baixar aqui. Abrindo a tela de salvar.'); abrirFrases(ks); return;
+          toast('Não deu para baixar aqui. Abrindo a tela de salvar.'); abrirFrases(ks, story); return;
         }
       }
     }
-    toast(ks.length > 1 ? '2 imagens salvas.' : (fr[ks[0]].legenda ? 'Imagem salva. Legenda copiada.' : 'Imagem salva.'));
+    toast(ks.length > 1 ? (story ? '2 Stories salvos.' : '2 imagens salvas.') : (fr[ks[0]].legenda ? 'Imagem salva. Legenda copiada.' : 'Imagem salva.'));
   }
   $('fr-baixar').onclick = () => baixarFrases([0, 1]);
+  $('fr-baixar-story').onclick = () => baixarFrases([0, 1], true);
   const FRASES_PROMPT = `Você escreve 2 frases para posts de imagem única do Instagram @danielbarboza.pro, para quem vive do próprio trabalho e quer ser lembrado (conteúdo, marca, atenção e IA). Nunca chame Daniel de designer. As duas saem do mesmo tema e da mesma abordagem do carrossel abaixo.
 
 O objetivo é compartilhamento: a pessoa lê, se reconhece na hora e manda para alguém ou reposta no story, porque a frase diz em voz alta algo que ela vive e não sabia dizer.
@@ -2626,6 +2682,7 @@ Regras:
 - 8 a 20 palavras, uma ou duas frases curtas. Português do Brasil coloquial e correto.
 - Marque de 1 a 3 palavras com **negrito**: a palavra que dá o soco.
 - Ângulos diferentes: a frase 1 nomeia a situação ou a dor; a frase 2 é a virada, o que a pessoa precisa perceber.
+- Para cada frase, um "para": de 6 a 12 palavras começando com "Para quem", descrevendo a pessoa que se reconhece nela (ex.: "Para quem posta toda semana e sente que ninguém lembra"). É o que faz a pessoa pensar em alguém e enviar sem ninguém pedir.
 - Sem emoji, sem hashtag, sem ponto de exclamação.
 - Para cada frase, uma legenda de 2 a 4 linhas que expande a ideia com um exemplo do dia a dia e termina com uma pergunta que a pessoa responde com a própria experiência. Sem engagement bait ("marca alguém", "compartilha", "comenta X").
 
@@ -2633,7 +2690,7 @@ CARROSSEL:
 [CARROSSEL]
 
 Responda só com JSON válido, sem texto antes ou depois:
-{"frases":[{"texto":"...","legenda":"..."},{"texto":"...","legenda":"..."}]}`;
+{"frases":[{"texto":"...","para":"Para quem ...","legenda":"..."},{"texto":"...","para":"Para quem ...","legenda":"..."}]}`;
   $('fr-gerar').onclick = async () => {
     if (!sampleRef) return;
     const c = active(); const st = $('fr-st'); const btn = $('fr-gerar');
@@ -2645,7 +2702,7 @@ Responda só com JSON válido, sem texto antes ou depois:
       const ok = arr.filter(f => f && typeof f.texto === 'string' && f.texto.trim()).slice(0, 2);
       if (ok.length < 2) throw { code: 'formato' };
       const fr = frasesDe(c);
-      ok.forEach((f, k) => { fr[k].texto = f.texto.trim(); fr[k].legenda = String(f.legenda || '').trim(); });
+      ok.forEach((f, k) => { fr[k].texto = f.texto.trim(); fr[k].legenda = String(f.legenda || '').trim(); fr[k].para = String(f.para || '').trim(); });
       persist(); frChave = ''; renderFrases();
       st.textContent = 'Pronto. Ajuste o texto se quiser e baixe.'; st.className = 'status ok';
       btn.textContent = '↻ Outras 2 frases';

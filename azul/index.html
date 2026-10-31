@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Motor · Escrita</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2F55E8">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: radial-gradient(120% 80% at 50% 0%, #2F55E8 0%, #0A123A 70%); color: #F5F3EE; font: 16px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px; text-align: center; }
+  main { max-width: 360px; display: flex; flex-direction: column; gap: 18px; align-items: center; }
+  img { width: 96px; height: 96px; border-radius: 24px; box-shadow: 0 16px 40px rgba(0,0,0,.4); }
+  h1 { margin: 0; font-size: 22px; font-weight: 600; }
+  p { margin: 0; color: rgba(245,243,238,.75); font-size: 14px; }
+  a.btn { display: block; width: 100%; padding: 16px 20px; border-radius: 999px; background: #F5F3EE; color: #0A123A; font-weight: 600; text-decoration: none; font-size: 17px; }
+</style>
+</head>
+<body>
+<main>
+  <img src="icone-192.png" alt="">
+  <h1>Motor · Escrita</h1>
+  <p id="msg">Abrindo o Motor azul no app do Claude…</p>
+  <a class="btn" id="abrir" href="https://claude.ai/artifact/TdgW9c4yqisDShsuLXrXSA">Abrir o Motor azul</a>
+  <p>Se não abrir sozinho, toque no botão.</p>
+</main>
+<script>
+  // Atalho do Motor azul: no Android tenta abrir direto no app do Claude; senão, abre o link normal.
+  var URL_AZUL = 'https://claude.ai/artifact/TdgW9c4yqisDShsuLXrXSA';
+  var android = /Android/i.test(navigator.userAgent);
+  var destino = android
+    ? 'intent://claude.ai/artifact/TdgW9c4yqisDShsuLXrXSA#Intent;scheme=https;package=com.anthropic.claude;S.browser_fallback_url=' + encodeURIComponent(URL_AZUL) + ';end'
+    : URL_AZUL;
+  document.getElementById('abrir').href = destino;
+  setTimeout(function () { location.href = destino; }, 250);
+</script>
+</body>
+</html>

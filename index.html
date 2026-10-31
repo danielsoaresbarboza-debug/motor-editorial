@@ -329,6 +329,10 @@
 
       <section class="so-escrita card" id="gen-card" hidden>
         <p class="label">Gerar a partir de uma ideia</p>
+        <div class="seg" id="gen-formato" role="group" aria-label="Formato">
+          <button type="button" data-g="editorial" aria-pressed="true">Editorial</button>
+          <button type="button" data-g="twitter" aria-pressed="false">Conversa (Twitter)</button>
+        </div>
         <textarea id="gen-input" rows="3" placeholder="Ex.: o rebranding da Jaguar em 2024 e a reação do público"></textarea>
         <div class="row">
           <select id="gen-pilar" aria-label="Pilar">
@@ -377,6 +381,7 @@
             <option value="numero">Número grande</option>
             <option value="comparar">Antes e depois</option>
             <option value="fecho">Fecho (pergunta)</option>
+            <option value="tweet">Conversa (tweet)</option>
           </select>
           <div class="seg" id="fundo" role="group" aria-label="Fundo">
             <button type="button" data-f="escuro">Escuro</button>
@@ -484,7 +489,7 @@
   const LS_KEY = 'dan_editorial_v1';
   const LS_AVATAR = 'dan_editorial_avatar_v1';
   const LS_COR = 'dan_editorial_cor_v1';
-  const TIPOS = ['capa', 'texto', 'imagem', 'foto', 'lista', 'numero', 'comparar', 'fecho'];
+  const TIPOS = ['capa', 'texto', 'imagem', 'foto', 'lista', 'numero', 'comparar', 'fecho', 'tweet'];
   const PILARES = {
     'marca-decodificada': 'Marca Decodificada', 'olho-do-designer': 'Olho de quem cria',
     'ia-na-criacao': 'IA na Criação', 'bastidor': 'Bastidor dos 58M', 'repertorio': 'Repertório'
@@ -534,7 +539,7 @@
     else if (tipo === 'capa' || tipo === 'fecho') paras = asParas(s.texto || s.manchete || s.pergunta).slice(0, 1).concat(asParas(s.texto || '').slice(1));
     else paras = asParas(s.texto || s.text);
     if (Array.isArray(s.paras)) paras = s.paras.map(String);
-    const fundo = ['escuro', 'claro', 'cor'].includes(s.fundo) ? s.fundo : (tipo === 'imagem' ? 'claro' : 'escuro');
+    const fundo = ['escuro', 'claro', 'cor'].includes(s.fundo) ? s.fundo : (tipo === 'imagem' || tipo === 'tweet' ? 'claro' : 'escuro');
     const out = { tipo, fundo, paras };
     if (s.imgSuggestion) out.imgSuggestion = String(s.imgSuggestion);
     if (s.imgBusca) out.imgBusca = String(s.imgBusca);
@@ -560,6 +565,7 @@
       grupo: o.grupo || '', versao: o.versao || '', fonte: o.fonte || '',
       reservaPara: o.reservaPara || 0, agora: !!o.agora, postadoEm: o.postadoEm || 0,
       capas: Array.isArray(o.capas) ? o.capas.map(String).filter(x => x.trim()).slice(0, 4) : [],
+      formato: o.formato === 'twitter' || (Array.isArray(o.slides) && o.slides.length && o.slides.every(x => x && x.tipo === 'tweet')) ? 'twitter' : 'editorial',
       frases: Array.isArray(o.frases) ? o.frases.slice(0, 2).map((f, k) => ({
         texto: String((f && (f.texto || f.frase)) || (typeof f === 'string' ? f : '')),
         legenda: String((f && f.legenda) || ''),
@@ -1293,6 +1299,25 @@
       drawLayout(F.A, { fam: SERIF, w: 500, wb: 600, color: ink, accent: acento }, W / 2, y, 'center');
       if (F.B) drawLayout(F.B, { fam: SANS, w: 400, wb: 600, color: alpha(ink, 0.72) }, W / 2, y + F.A.h + 36, 'center');
       chrome(c, i, n, ink, !!fundoFoto);
+    } else if (s.tipo === 'tweet') {
+      // Conversa (estilo tweet): perfil em cima e o texto como se fosse uma postagem. Sem foto, sem chrome editorial.
+      const escuro = s.fundo === 'escuro', cor = s.fundo === 'cor';
+      const bg = escuro ? '#000000' : (cor ? corFundo : '#FFFFFF');
+      const ink = escuro ? '#E7E9EA' : (cor && isDarkHex(corFundo) ? '#F2F0EB' : '#0F1419');
+      const cinza = escuro ? '#71767B' : (cor && isDarkHex(corFundo) ? 'rgba(242,240,235,0.65)' : '#536471');
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+      const B = fit(s.paras.length ? s.paras : [' '], { fam: SANS, w: 400, wb: 600, lh: 1.38, maxW: CW, max: 58, min: 32, gap: 0.62 }, 860);
+      const cab = 112, gap = 46, total = cab + gap + B.h;
+      const y0 = Math.max(110, Math.round((H - total) / 2) - 20);
+      const r = 50;
+      avatarCircle(M + r, y0 + r, r, null);
+      ctx.save(); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+      ctx.fillStyle = ink; ctx.font = fontStr(SANS, 36, 600); ctx.fillText(NAME, M + r * 2 + 24, y0 + 44);
+      ctx.fillStyle = cinza; ctx.font = fontStr(SANS, 30, 400); ctx.fillText(HANDLE, M + r * 2 + 24, y0 + 86);
+      ctx.restore();
+      drawLayout(B, { fam: SANS, w: 400, wb: 600, color: ink }, M, y0 + cab + gap, 'left');
+      ctx.save(); ctx.fillStyle = cinza; ctx.font = fontStr(SANS, 24, 500); ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(`${i + 1}/${n}`, W - M, H - 70); ctx.restore();
     } else if (s.tipo === 'lista') {
       // Slide para salvar: título + itens numerados (é o slide que a pessoa printa)
       const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
@@ -1436,7 +1461,8 @@
     texto: 'Um parágrafo por bloco. Deixe uma linha em branco entre parágrafos.',
     imagem: 'Primeiro bloco é o título em cima da foto. Depois de uma linha em branco, o texto embaixo.',
     foto: 'Cada bloco vira uma caixa branca sobre a foto. Separe as caixas com uma linha em branco.',
-    fecho: 'A pergunta final. Um segundo bloco opcional aparece menor, embaixo.'
+    fecho: 'A pergunta final. Um segundo bloco opcional aparece menor, embaixo.',
+    tweet: 'Texto da conversa, como um tweet. Um parágrafo por bloco; frases curtas. Fundo Claro ou Escuro muda o tema.'
   };
   function updateUI() {
     const c = active();
@@ -1868,6 +1894,44 @@ ENTRADA DE DANIEL:
 Responda só com JSON válido, sem texto antes ou depois, neste formato:
 {"formato":"editorial","pilar":"...","title":"título curto até 40 caracteres","capas":["outra capa 1","outra capa 2","outra capa 3"],"slides":[...],"legenda":"..."}`;
 
+
+  // ─── Formato Conversa (Twitter): método do Elton Luiz adaptado ao posicionamento v4 ───
+  const TWITTER_PROMPT = `Você escreve UM carrossel no formato CONVERSA (cada slide parece um tweet) para @danielbarboza.pro. É texto puro, como se Daniel estivesse contando a um amigo o que aconteceu. Método de referência: Elton Luiz (cena real, conversa direta, frases curtas), adaptado à voz e ao posicionamento de Daniel. Não copie frases do Elton.
+
+POSICIONAMENTO v4: missão (filtro interno) ajudar quem vive do próprio trabalho a ser lembrado, com a própria voz e com a IA carregando o peso, não o pensamento. Pergunta-guia: por que isso foi lembrado — e o que você faz com isso? Nunca chame Daniel de designer. Público: quem vive do próprio trabalho e trava no conteúdo.
+
+REGRA DE OURO: use só fatos que estão na ENTRADA. Não invente nome, número, lugar, data, diálogo, cliente ou cena. Se a entrada não tem um detalhe, escreva sem ele. É melhor um texto mais simples do que uma história falsa.
+
+ESTRUTURA (4 a 8 slides, todos do tipo "tweet"):
+1. Slide 1: gancho de CENA, nunca de conceito. Um momento concreto da entrada: quando, onde, o que aconteceu, com número ou nome se a entrada trouxer. Nada de "Você já parou pra pensar", "3 dicas", "A verdade sobre", "IA vai mudar tudo".
+2. Miolo: a história continua. O texto pode atravessar slides (uma frase começa num e termina no outro), o que faz deslizar. Frases curtas, muitas quebras de linha, diálogo entre aspas só se estiver na entrada, detalhes reais do dia.
+3. Penúltimo: a virada. A opinião de Daniel em primeira pessoa, honesta, às vezes desconfortável.
+4. Último: fecha a conversa. Se fizer sentido, um convite dentro da história ("Se quiser, me chama no direct que eu te conto como fiz."). Nunca banner, nunca palavra-chave para comentar, nunca pedir curtida, compartilhamento ou marcação.
+
+VOZ: português do Brasil falado. "Você", "a gente", "cara" com moderação, perguntas curtas ("Sabe?", "Né?"). Palavrão no máximo um, e só se a entrada tiver esse tom. Sem marketing (estratégia, framework, método, alavancar, transformador, revolucionário, jornada). Sem hype de IA. Números específicos.
+LIMITES: nunca política, nunca fé como gancho, nunca o Exército, nunca clientes políticos.
+CADA SLIDE: até 55 palavras, 1 a 4 parágrafos curtos. **negrito** em no máximo uma frase por slide.
+LEGENDA: 2 a 5 linhas que continuam a conversa e terminam com uma pergunta que a pessoa responde com o próprio caso. No máximo 3 hashtags.
+FRASES: devolva também 2 "frases" para posts de imagem única tiradas da história (texto com 1 a 3 palavras em **negrito**, "para" começando com "Para quem", legenda curta).
+
+ENTRADA DE DANIEL (o que aconteceu, contado por ele):
+"""
+[STORY]
+"""
+
+Responda só com JSON válido, sem texto antes ou depois:
+{"formato":"twitter","title":"título curto até 40 caracteres","slides":[{"tipo":"tweet","fundo":"claro","texto":["parágrafo","parágrafo"]}],"legenda":"...","frases":[{"texto":"...","para":"Para quem ...","legenda":"..."},{"texto":"...","para":"Para quem ...","legenda":"..."}]}`;
+  let genFormato = 'editorial';
+  document.querySelectorAll('#gen-formato button').forEach(b => b.addEventListener('click', () => {
+    genFormato = b.dataset.g;
+    document.querySelectorAll('#gen-formato button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $('gen-pilar').hidden = genFormato === 'twitter';
+    $('gen-input').placeholder = genFormato === 'twitter'
+      ? 'Conte o que aconteceu, com detalhes reais: quando, onde, quem, números. Ex.: ontem às 23h fiquei 2 horas refazendo uma capa…'
+      : 'Ex.: o rebranding da Jaguar em 2024 e a reação do público';
+    $('gen-btn').textContent = genFormato === 'twitter' ? 'Gerar conversa' : 'Gerar carrossel';
+  }));
+
   async function initSample() {
     if (!window.claude || typeof window.claude.use !== 'function') { sampleChecado = true; renderTr(); return; }
     let sample = null;
@@ -1882,7 +1946,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       $('gen-btn').disabled = true;
       st.textContent = 'Escrevendo o carrossel. Leva de 30 segundos a 1 minuto.'; st.className = 'status';
       try {
-        const v = await sample.json(GEN_PROMPT.replace('[PILAR]', $('gen-pilar').value).replace('[STORY]', story), { modelTier: 'default' });
+        const v = await sample.json(genFormato === 'twitter' ? TWITTER_PROMPT.replace('[STORY]', story) : GEN_PROMPT.replace('[PILAR]', $('gen-pilar').value).replace('[STORY]', story), { modelTier: 'default' });
         const arr = (Array.isArray(v) ? v : [v]).map(normCarousel).filter(Boolean);
         if (!arr.length) throw { code: 'formato' };
         addCarousels(arr);

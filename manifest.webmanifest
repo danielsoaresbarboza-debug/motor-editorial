@@ -1,11 +1,11 @@
 {
-  "name": "Motor Editorial",
-  "short_name": "Motor",
+  "name": "Motor · Fotos e postagem",
+  "short_name": "Motor Fotos",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0F0F10",
-  "theme_color": "#0F0F10",
+  "theme_color": "#C2362B",
   "icons": [
     {
       "src": "icone-192.png",

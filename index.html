@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icone-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#0F0F10"><title>Motor Editorial</title></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icone-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#C2362B"><title>Motor · Fotos e postagem</title></head><body>
 <title>Motor Editorial</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -174,6 +174,16 @@
   .fontes { display: flex; gap: 6px; flex-wrap: wrap; }
   .fontes .btn { min-height: 36px; padding: 7px 12px; }
   [hidden] { display: none !important; }
+  /* Dois Motores, uma página: dentro do Claude = Escrita (azul); fora, pelo ícone = Fotos e postagem (vermelho) */
+  html.modo-fotos .so-escrita, html.modo-escrita .so-fotos { display: none !important; }
+  html.modo-fotos { --ink: #C2362B; --ink-soft: rgba(194, 54, 43, 0.10); }
+  @media (prefers-color-scheme: dark) { html.modo-fotos:not([data-theme="light"]) { --ink: #FF7A6E; --ink-soft: rgba(255, 122, 110, 0.14); } }
+  html.modo-escrita { --ink: #2F55E8; --ink-soft: rgba(47, 85, 232, 0.10); }
+  @media (prefers-color-scheme: dark) { html.modo-escrita:not([data-theme="light"]) { --ink: #7C93FF; --ink-soft: rgba(124, 147, 255, 0.14); } }
+  html.modo-fotos body, html.modo-escrita body { border-top: 5px solid var(--ink); }
+  .modo { display: inline-flex; align-items: center; gap: 6px; font: 600 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: 5px 10px; border-radius: 999px; vertical-align: middle; margin-left: 10px; }
+  html.modo-fotos .btn.primary, html.modo-escrita .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  html.modo-fotos .seg button[aria-pressed="true"], html.modo-escrita .seg button[aria-pressed="true"], html.modo-fotos .dot[aria-current="true"], html.modo-escrita .dot[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -181,8 +191,9 @@
 
 <div class="app">
   <header class="top">
-    <h1>Motor <span>Editorial</span></h1>
-    <p>Carrossel estilo revista · @danielbarboza.pro</p>
+    <h1>Motor <span>Editorial</span><b class="modo so-escrita">Escrita</b><b class="modo so-fotos">Fotos e postagem</b></h1>
+    <p class="so-escrita">Aqui você escreve. Fotos e envio ficam no Motor vermelho (ícone na tela inicial).</p>
+    <p class="so-fotos">Aqui ficam as fotos e o envio. Para escrever, use o Motor azul, dentro do Claude.</p>
   </header>
 
   <div class="grid">
@@ -198,10 +209,10 @@
       <div>
         <p class="ctitle" id="ctitle">—</p>
         <span class="meta" id="cmeta"></span>
-        <div class="row" style="margin-top:8px"><button class="btn" id="postado-btn" type="button">Marcar como postado</button><button class="btn" id="outra-capa" type="button" hidden>↻ Outra capa</button></div>
-        <div class="capa-check" id="capa-check" hidden></div>
+        <div class="row" style="margin-top:8px"><button class="btn" id="postado-btn" type="button">Marcar como postado</button><button class="so-escrita btn" id="outra-capa" type="button" hidden>↻ Outra capa</button></div>
+        <div class="so-escrita capa-check" id="capa-check" hidden></div>
       </div>
-      <div class="row">
+      <div class="row so-fotos">
         <span class="label">Acabamento</span>
         <div class="seg" id="acab" role="group" aria-label="Acabamento dos slides">
           <button type="button" data-a="limpo">Limpo</button>
@@ -209,14 +220,14 @@
           <button type="button" data-a="vidro">Vidro</button>
         </div>
       </div>
-      <div class="row">
+      <div class="row so-fotos">
         <span class="label">Pista de deslize</span>
         <div class="seg" id="pista" role="group" aria-label="Pista de deslize entre os slides">
           <button type="button" data-p="balao">Alça de vidro</button>
           <button type="button" data-p="nenhuma">Nenhuma</button>
         </div>
       </div>
-      <div class="row" id="tom-row">
+      <div class="so-fotos row" id="tom-row">
         <span class="label">Tom do vidro</span>
         <div class="seg" id="tom" role="group" aria-label="Tom do vidro sobre a foto">
           <button type="button" data-t="auto">Automático</button>
@@ -225,14 +236,14 @@
         </div>
       </div>
       <div class="row">
-        <a class="btn primary" id="abrir-fora" href="#" target="_blank" rel="noopener" hidden>Abrir para fotos e postar ↗</a>
-        <button class="btn ig" id="enviar-ig">Enviar ao Instagram</button>
-        <button class="btn" id="finalizar">Salvar imagens</button>
-        <button class="btn" id="zip" hidden>Baixar arquivos</button>
-        <button class="btn" id="png">Baixar este slide</button>
+        <a class="so-escrita btn primary" id="abrir-fora" href="#" target="_blank" rel="noopener" hidden>Abrir para fotos e postar ↗</a>
+        <button class="so-fotos btn ig" id="enviar-ig">Enviar ao Instagram</button>
+        <button class="so-fotos btn" id="finalizar">Salvar imagens</button>
+        <button class="so-fotos btn" id="zip" hidden>Baixar arquivos</button>
+        <button class="so-fotos btn" id="png">Baixar este slide</button>
       </div>
-      <p class="hint" id="enviar-hint">Copia a legenda e manda todos os slides de uma vez. No Instagram, escolha <strong>Feed</strong> e cole a legenda.</p>
-      <p class="hint" id="nofoto-hint" hidden>Os slides com ponto vermelho ainda estão sem foto.</p>
+      <p class="so-fotos hint" id="enviar-hint">Copia a legenda e manda todos os slides de uma vez. No Instagram, escolha <strong>Feed</strong> e cole a legenda.</p>
+      <p class="so-fotos hint" id="nofoto-hint" hidden>Os slides com ponto vermelho ainda estão sem foto.</p>
       <div class="frases" id="frases">
         <div class="row between">
           <p class="label">Posts de frase única</p>
@@ -241,9 +252,9 @@
         <p class="hint">Duas imagens soltas do mesmo tema: uma frase em que a pessoa se reconhece e manda para alguém. Use <code>**palavra**</code> para destacar.</p>
         <p class="status" id="fr-st"></p>
         <div class="fr-lista" id="fr-lista"></div>
-        <div class="row"><button class="btn primary" id="fr-baixar">Baixar as 2 imagens</button></div>
+        <div class="row so-fotos"><button class="btn primary" id="fr-baixar">Baixar as 2 imagens</button></div>
       </div>
-      <div class="fotos" id="fotos" hidden>
+      <div class="so-fotos fotos" id="fotos" hidden>
         <div class="row between">
           <p class="label">Fotos dos slides</p>
           <button class="btn primary" id="auto-fotos" type="button">✦ Fotos automáticas</button>
@@ -252,7 +263,7 @@
         <p class="status" id="sug-st"></p>
         <div class="fotos-lista" id="fotos-lista"></div>
       </div>
-      <div class="foto-bar" id="img-row">
+      <div class="so-fotos foto-bar" id="img-row">
         <div class="thumb" id="thumb" aria-hidden="true"></div>
         <button class="btn primary" id="search">Buscar foto</button>
         <button class="btn" id="attach">Da galeria</button>
@@ -261,8 +272,8 @@
         <button class="btn" id="panorama" hidden aria-pressed="false">↔ Foto continua no próximo slide</button>
         <input type="file" id="file" accept="image/*" hidden>
       </div>
-      <p class="suggest" id="suggest" hidden></p>
-      <div class="ajuste" id="tf" hidden>
+      <p class="so-fotos suggest" id="suggest" hidden></p>
+      <div class="so-fotos ajuste" id="tf" hidden>
         <p class="hint"><strong>Arraste a foto na prévia</strong> para mover. Use dois dedos (ou a roda do mouse) para o zoom.</p>
         <label class="slider"><span class="label">Zoom</span><input type="range" id="z" min="1" max="4" step="0.02" value="1"><span id="zv">1.00×</span></label>
         <input type="range" id="x" min="0" max="100" step="1" value="50" hidden>
@@ -277,7 +288,7 @@
     </section>
 
     <div class="stack">
-      <section class="card" id="tr-card">
+      <section class="so-escrita card" id="tr-card">
         <div class="row between">
           <p class="label">Transcrições do Instagram</p>
           <button class="btn ghost" id="tr-limpar" hidden>Limpar</button>
@@ -310,7 +321,7 @@
         </div>
       </section>
 
-      <section class="card" id="gen-card" hidden>
+      <section class="so-escrita card" id="gen-card" hidden>
         <p class="label">Gerar a partir de uma ideia</p>
         <textarea id="gen-input" rows="3" placeholder="Ex.: o rebranding da Jaguar em 2024 e a reação do público"></textarea>
         <div class="row">
@@ -328,7 +339,7 @@
         <p class="hint">Confira datas, nomes e números antes de postar. Fundamento que não aguenta uma busca não entra.</p>
       </section>
 
-      <section class="card">
+      <section class="card so-escrita">
         <p class="label">Colar JSON do chat</p>
         <textarea id="paste" class="mono" rows="3" placeholder="Cole aqui o bloco JSON que o Claude te mandou. Ele aplica sozinho."></textarea>
         <div class="row"><button class="btn primary" id="apply">Aplicar</button></div>
@@ -340,7 +351,7 @@
         </details>
       </section>
 
-      <section class="card" aria-label="Editar slide">
+      <section class="so-escrita card" aria-label="Editar slide">
         <div class="row between">
           <p class="label">Slide <span id="sn">1</span></p>
           <div class="row">
@@ -453,6 +464,11 @@
 <script id="avatar-data" type="text/plain">data:image/jpeg;base64,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</script>
 <script>
 (() => {
+  // Escrita (azul) dentro do Claude; Fotos e postagem (vermelho) fora. ?modo=escrita|fotos força um deles (teste).
+  const modoForcado = (/[?&]modo=(escrita|fotos)/.exec(location.search) || [])[1];
+  const modoFotos = modoForcado ? modoForcado === 'fotos' : !(window.claude && typeof window.claude.use === 'function');
+  document.documentElement.classList.add(modoFotos ? 'modo-fotos' : 'modo-escrita');
+  document.title = modoFotos ? 'Motor · Fotos e postagem' : 'Motor · Escrita';
   const W = 1080, H = 1350;
   const SERIF = "'Newsreader', Georgia, 'Times New Roman', serif";
   const SANS = "'Instrument Sans', 'Helvetica Neue', Arial, sans-serif";
@@ -746,7 +762,7 @@
     ctx.fillStyle = dark ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.38)';
     ctx.font = fontStr(SANS, 26, 500);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('foto: anexe no painel ao lado', x + w / 2, y + h / 2);
+    ctx.fillText(modoFotos ? 'foto: escolha na seção Fotos' : 'a foto entra no Motor vermelho', x + w / 2, y + h / 2);
     ctx.restore();
   }
   // ─── Sistema visual dos slides (v2: margens fixas, escala tipográfica, rodapé) ───
@@ -1856,7 +1872,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
         if (!arr.length) throw { code: 'formato' };
         addCarousels(arr);
         $('gen-input').value = '';
-        setTimeout(() => autoFotos(active()), 300);
+        if (modoFotos) setTimeout(() => autoFotos(active()), 300);
         st.textContent = 'Pronto. Confira os fatos e anexe as fotos.'; st.className = 'status ok';
       } catch (e) {
         const code = e && e.code;
@@ -2544,7 +2560,8 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       const ta = document.createElement('textarea'); ta.value = f.texto; ta.placeholder = k ? 'Frase 2: a virada (o que a pessoa precisa perceber)' : 'Frase 1: a situação em que a pessoa se reconhece';
       ta.setAttribute('aria-label', `Frase ${k + 1}`);
       ta.oninput = () => { f.texto = ta.value; persist(); clearTimeout(frT); frT = setTimeout(() => { im.src = fotoFrase(f, 'image/jpeg', 0.7); }, 350); };
-      const seg = document.createElement('div'); seg.className = 'seg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Design');
+      if (modoFotos) { ta.readOnly = true; ta.title = 'Para mudar o texto, use o Motor azul (Escrita).'; }
+      const seg = document.createElement('div'); seg.className = 'seg so-fotos'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Design');
       [['vidro', 'Vidro'], ['manchete', 'Manchete']].forEach(([v, rot]) => {
         const b = document.createElement('button'); b.type = 'button'; b.textContent = rot; b.setAttribute('aria-pressed', String(f.design === v));
         b.onclick = () => { f.design = v; persist(); seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); im.src = fotoFrase(f, 'image/jpeg', 0.7); };
@@ -2552,7 +2569,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       });
       fx.append(ta, seg);
       const acts = document.createElement('div'); acts.className = 'acts';
-      const bb = document.createElement('button'); bb.className = 'btn'; bb.textContent = 'Baixar'; bb.onclick = () => baixarFrases([k]);
+      const bb = document.createElement('button'); bb.className = 'btn so-fotos'; bb.textContent = 'Baixar'; bb.onclick = () => baixarFrases([k]);
       const bl = document.createElement('button'); bl.className = 'btn ghost'; bl.textContent = 'Copiar legenda';
       bl.hidden = !f.legenda; bl.onclick = async () => toast(await copyText(f.legenda) ? 'Legenda copiada.' : 'Não consegui copiar.');
       acts.append(bb, bl);

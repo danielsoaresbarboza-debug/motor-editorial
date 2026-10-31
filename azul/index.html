@@ -30,15 +30,16 @@
   // Atalho do Motor azul: no Android tenta abrir direto no app do Claude; senão, abre o link normal.
   var URL_AZUL = 'https://claude.ai/artifact/TdgW9c4yqisDShsuLXrXSA';
   var android = /Android/i.test(navigator.userAgent);
-  var destino = android
-    ? 'intent://claude.ai/artifact/TdgW9c4yqisDShsuLXrXSA#Intent;scheme=https;package=com.anthropic.claude;S.browser_fallback_url=' + encodeURIComponent(URL_AZUL) + ';end'
-    : URL_AZUL;
-  document.getElementById('abrir').href = destino;
-  // Só abre sozinho quando vem do ícone instalado (modo app). No navegador, fica parado para dar tempo de instalar.
+  var comVolta = 'intent://claude.ai/artifact/TdgW9c4yqisDShsuLXrXSA#Intent;scheme=https;package=com.anthropic.claude;S.browser_fallback_url=' + encodeURIComponent(URL_AZUL) + ';end';
+  var semVolta = 'intent://claude.ai/artifact/TdgW9c4yqisDShsuLXrXSA#Intent;scheme=https;package=com.anthropic.claude;end';
+  // O botão (toque) abre no app do Claude; se o app não estiver instalado, cai no navegador.
+  document.getElementById('abrir').href = android ? comVolta : URL_AZUL;
+  // Pelo ícone instalado, tenta abrir sozinho no app do Claude (sem cair no navegador se o Android bloquear).
   var instalado = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   if (instalado) {
-    document.getElementById('msg').textContent = 'Abrindo o Motor azul no app do Claude… Se não abrir, toque no botão.';
-    setTimeout(function () { location.href = destino; }, 300);
+    document.getElementById('msg').textContent = 'Toque no botão para abrir o Motor azul no app do Claude.';
+    if (android) setTimeout(function () { location.href = semVolta; }, 200);
+    else setTimeout(function () { location.href = URL_AZUL; }, 200);
   }
 </script>
 </body>

@@ -3061,7 +3061,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
   // ─── Ponte Claude → página de fora (GitHub Pages) ───
   // Dentro do Claude o Motor escreve; fora dele (onde a internet e o compartilhar funcionam) ele busca as fotos e posta.
   // O carrossel vai dentro do próprio link (#c=...), comprimido. Fotos não vão: a página de fora busca de novo.
-  const MOTOR_FORA = 'https://danielsoaresbarboza-debug.github.io/motor-editorial/';
+  const MOTOR_FORA = 'https://danielsoaresbarboza-debug.github.io/motor-editorial/index.html';
   const dentroDoClaude = !!(window.claude && typeof window.claude.use === 'function');
   const b64url = (bytes) => { let bin = ''; for (let k = 0; k < bytes.length; k++) bin += String.fromCharCode(bytes[k]); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
   const deB64url = (t) => { const bin = atob(t.replace(/-/g, '+').replace(/_/g, '/')); const u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k); return u; };

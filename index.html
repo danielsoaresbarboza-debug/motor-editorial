@@ -258,7 +258,7 @@
         <p class="hint">Duas imagens soltas do mesmo tema: uma frase em que a pessoa se reconhece e manda para alguém. Use <code>**palavra**</code> para destacar.</p>
         <p class="status" id="fr-st"></p>
         <div class="fr-lista" id="fr-lista"></div>
-        <div class="row so-fotos"><button class="btn primary" id="fr-baixar">Baixar as 2 imagens</button></div>
+        <div class="row"><button class="btn primary" id="fr-baixar">Baixar as 2 imagens</button></div>
       </div>
       <div class="so-fotos fotos" id="fotos" hidden>
         <div class="row between">
@@ -2567,7 +2567,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       ta.setAttribute('aria-label', `Frase ${k + 1}`);
       ta.oninput = () => { f.texto = ta.value; persist(); clearTimeout(frT); frT = setTimeout(() => { im.src = fotoFrase(f, 'image/jpeg', 0.7); }, 350); };
       if (modoFotos) { ta.readOnly = true; ta.title = 'Para mudar o texto, use o Motor azul (Escrita).'; }
-      const seg = document.createElement('div'); seg.className = 'seg so-fotos'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Design');
+      const seg = document.createElement('div'); seg.className = 'seg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Design');
       [['vidro', 'Vidro'], ['manchete', 'Manchete']].forEach(([v, rot]) => {
         const b = document.createElement('button'); b.type = 'button'; b.textContent = rot; b.setAttribute('aria-pressed', String(f.design === v));
         b.onclick = () => { f.design = v; persist(); seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); im.src = fotoFrase(f, 'image/jpeg', 0.7); };
@@ -2575,7 +2575,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       });
       fx.append(ta, seg);
       const acts = document.createElement('div'); acts.className = 'acts';
-      const bb = document.createElement('button'); bb.className = 'btn so-fotos'; bb.textContent = 'Baixar'; bb.onclick = () => baixarFrases([k]);
+      const bb = document.createElement('button'); bb.className = 'btn primary'; bb.textContent = 'Baixar imagem'; bb.onclick = () => baixarFrases([k]);
       const bl = document.createElement('button'); bl.className = 'btn ghost'; bl.textContent = 'Copiar legenda';
       bl.hidden = !f.legenda; bl.onclick = async () => toast(await copyText(f.legenda) ? 'Legenda copiada.' : 'Não consegui copiar.');
       acts.append(bb, bl);

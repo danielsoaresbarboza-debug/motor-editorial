@@ -239,7 +239,9 @@
         </div>
       </div>
       <div class="row">
-        <a class="so-escrita btn primary" id="abrir-fora" href="#" target="_blank" rel="noopener" hidden>Abrir para fotos e postar ↗</a>
+        <a class="so-escrita btn primary" id="abrir-fora" href="#" target="_blank" rel="noopener" hidden>Enviar para o Motor vermelho ↗</a>
+        <button class="btn so-escrita" id="copiar-fora" type="button" hidden>Copiar para o vermelho</button>
+        <button class="btn primary so-fotos" id="colar-azul" type="button">Colar do Motor azul</button>
         <button class="so-fotos btn ig" id="enviar-ig">Enviar ao Instagram</button>
         <button class="so-fotos btn" id="finalizar">Salvar imagens</button>
         <button class="so-fotos btn" id="zip" hidden>Baixar arquivos</button>
@@ -2937,16 +2939,52 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
     else txt = new TextDecoder().decode(bytes);
     return JSON.parse(txt);
   }
-  let foraT = null;
+  let foraT = null, linkFora = '';
+  const ehAndroid = /Android/i.test(navigator.userAgent || '');
   function agendarLinkFora() {
     if (!dentroDoClaude) return;
     clearTimeout(foraT);
-    foraT = setTimeout(async () => { try { $('abrir-fora').href = MOTOR_FORA + '#c=' + await empacotar(active()); } catch (e) {} }, 400);
+    foraT = setTimeout(async () => {
+      try {
+        const cod = await empacotar(active());
+        linkFora = MOTOR_FORA + '?c=' + cod;
+        // No Android, um link "intent" pede ao sistema para abrir no Chrome (e no ícone vermelho, se instalado),
+        // em vez do navegador interno do app do Claude.
+        $('abrir-fora').href = ehAndroid
+          ? 'intent://' + MOTOR_FORA.replace(/^https:\/\//, '') + '?c=' + cod + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(linkFora) + ';end'
+          : linkFora;
+      } catch (e) {}
+    }, 400);
   }
-  if (dentroDoClaude) $('abrir-fora').hidden = false;
+  if (dentroDoClaude) { $('abrir-fora').hidden = false; $('copiar-fora').hidden = false; }
+  // Reserva: copia o link; no Motor vermelho, "Colar do Motor azul" lê e importa.
+  $('copiar-fora').onclick = async () => {
+    if (!linkFora) { try { linkFora = MOTOR_FORA + '?c=' + await empacotar(active()); } catch (e) {} }
+    const ok = await copyText(linkFora);
+    toast(ok ? 'Copiado. Abra o Motor vermelho (ícone) e toque em "Colar do Motor azul".' : 'Não consegui copiar aqui.');
+  };
+  async function importarCodigo(cod) {
+    const c = normCarousel(await desempacotar(cod));
+    if (!c) throw new Error('vazio');
+    const i = state.list.findIndex(x => x.id === c.id);
+    if (i >= 0) {
+      const velho = state.list[i];
+      c.slides.forEach((sl, k) => { const v = velho.slides[k]; if (v && v.image && v.tipo === sl.tipo) { sl.image = v.image; sl.t = v.t; sl.credito = v.credito; sl.fotoUrl = v.fotoUrl; } });
+      c.postadoEm = velho.postadoEm; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed();
+    } else addCarousels([c]);
+    toast('Carrossel recebido. Buscando as fotos…');
+    autoFotos(active());
+  }
+  $('colar-azul').onclick = async () => {
+    let t = '';
+    try { t = await navigator.clipboard.readText(); } catch (e) {}
+    const m = /[?#&]c=([A-Za-z0-9_-]+)/.exec(t || '');
+    if (!m) { toast('Não achei um carrossel copiado. No Motor azul, toque em "Copiar para o vermelho".'); return; }
+    try { await importarCodigo(m[1]); } catch (e) { toast('Não consegui abrir esse carrossel.'); }
+  };
   // Chegando de fora com um carrossel no link: importa, limpa o link e já busca as fotos
   async function receberDoLink() {
-    const m = /#c=([A-Za-z0-9_-]+)/.exec(location.hash || ''); if (!m) return;
+    const m = /[?#&]c=([A-Za-z0-9_-]+)/.exec((location.search || '') + (location.hash || '')); if (!m) return;
     try {
       const c = normCarousel(await desempacotar(m[1]));
       if (!c) throw new Error('vazio');
@@ -2957,7 +2995,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
         c.slides.forEach((sl, k) => { const v = velho.slides[k]; if (v && v.image && v.tipo === sl.tipo) { sl.image = v.image; sl.t = v.t; sl.credito = v.credito; sl.fotoUrl = v.fotoUrl; } });
         c.postadoEm = velho.postadoEm; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed();
       } else addCarousels([c]);
-      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+      try { history.replaceState(null, '', location.pathname); } catch (e) {}
       toast('Carrossel recebido. Buscando as fotos…');
       autoFotos(active());
     } catch (e) { toast('Não consegui abrir o carrossel deste link.'); }

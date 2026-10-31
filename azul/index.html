@@ -23,9 +23,8 @@
 <main>
   <img src="icone-192.png" alt="">
   <h1>Motor · Escrita</h1>
-  <p id="msg">Abrindo o Motor azul no app do Claude…</p>
+  <p id="msg">Para ter este ícone na tela inicial: toque em <b>⋮</b> (canto de cima) → <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>. Depois abra pelo ícone.</p>
   <a class="btn" id="abrir" href="https://claude.ai/artifact/TdgW9c4yqisDShsuLXrXSA">Abrir o Motor azul</a>
-  <p>Se não abrir sozinho, toque no botão.</p>
 </main>
 <script>
   // Atalho do Motor azul: no Android tenta abrir direto no app do Claude; senão, abre o link normal.
@@ -35,7 +34,12 @@
     ? 'intent://claude.ai/artifact/TdgW9c4yqisDShsuLXrXSA#Intent;scheme=https;package=com.anthropic.claude;S.browser_fallback_url=' + encodeURIComponent(URL_AZUL) + ';end'
     : URL_AZUL;
   document.getElementById('abrir').href = destino;
-  setTimeout(function () { location.href = destino; }, 250);
+  // Só abre sozinho quando vem do ícone instalado (modo app). No navegador, fica parado para dar tempo de instalar.
+  var instalado = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  if (instalado) {
+    document.getElementById('msg').textContent = 'Abrindo o Motor azul no app do Claude… Se não abrir, toque no botão.';
+    setTimeout(function () { location.href = destino; }, 300);
+  }
 </script>
 </body>
 </html>

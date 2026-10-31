@@ -2976,16 +2976,44 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
     toast('Carrossel recebido. Buscando as fotos…');
     autoFotos(active());
   }
+  // Colar sozinho (Motor vermelho): ao abrir ou voltar para a tela, lê a área de transferência e, se houver
+  // um carrossel novo do azul, importa sem toque. Na 1ª vez o Chrome pede permissão (o toque em "Colar" concede).
+  const LS_ULTIMO = 'dan_editorial_ultimo_codigo_v1';
+  let lendoClip = false;
+  async function colarSozinho(doToque) {
+    if (!modoFotos || lendoClip || !navigator.clipboard || !navigator.clipboard.readText) return false;
+    if (!doToque) {
+      try { const st = await navigator.permissions.query({ name: 'clipboard-read' }); if (st.state !== 'granted') return false; } catch (e) { return false; }
+      if (!document.hasFocus()) return false;
+    }
+    lendoClip = true;
+    try {
+      const t = await navigator.clipboard.readText();
+      const m = /[?#&]c=([A-Za-z0-9_-]+)/.exec(t || '');
+      if (!m) return false;
+      if (!doToque && ls.get(LS_ULTIMO) === m[1]) return false; // já importado
+      ls.set(LS_ULTIMO, m[1]);
+      await importarCodigo(m[1]);
+      return true;
+    } catch (e) { return false; } finally { lendoClip = false; }
+  }
+  if (modoFotos) {
+    setTimeout(() => colarSozinho(false), 600);
+    window.addEventListener('focus', () => colarSozinho(false));
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => colarSozinho(false), 300); });
+  }
   $('colar-azul').onclick = async () => {
+    if (await colarSozinho(true)) return;
     let t = '';
     try { t = await navigator.clipboard.readText(); } catch (e) {}
     const m = /[?#&]c=([A-Za-z0-9_-]+)/.exec(t || '');
-    if (!m) { toast('Não achei um carrossel copiado. No Motor azul, toque em "Copiar para o vermelho".'); return; }
+    if (!m) { toast('Não achei um carrossel copiado. No Motor azul, toque em "Abrir no Motor vermelho".'); return; }
     try { await importarCodigo(m[1]); } catch (e) { toast('Não consegui abrir esse carrossel.'); }
   };
   // Chegando de fora com um carrossel no link: importa, limpa o link e já busca as fotos
   async function receberDoLink() {
     const m = /[?#&]c=([A-Za-z0-9_-]+)/.exec((location.search || '') + (location.hash || '')); if (!m) return;
+    ls.set(LS_ULTIMO, m[1]);
     try {
       const c = normCarousel(await desempacotar(m[1]));
       if (!c) throw new Error('vazio');

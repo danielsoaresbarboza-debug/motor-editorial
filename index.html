@@ -239,7 +239,7 @@
         </div>
       </div>
       <div class="row">
-        <button class="so-escrita btn primary" id="abrir-fora" type="button" hidden>Enviar para o Motor vermelho</button>
+        <a class="so-escrita btn primary" id="abrir-fora" href="https://danielsoaresbarboza-debug.github.io/motor-editorial/" target="_blank" rel="noopener" hidden>Abrir no Motor vermelho ↗</a>
         <button class="btn so-escrita" id="copiar-fora" type="button" hidden>Copiar para o vermelho</button>
         <button class="btn primary so-fotos" id="colar-azul" type="button">Colar do Motor azul</button>
         <button class="so-fotos btn ig" id="enviar-ig">Enviar ao Instagram</button>
@@ -247,7 +247,7 @@
         <button class="so-fotos btn" id="zip" hidden>Baixar arquivos</button>
         <button class="so-fotos btn" id="png">Baixar este slide</button>
       </div>
-      <p class="hint so-escrita" id="envio-dica" hidden><strong>Carrossel copiado.</strong> Saia do Claude, abra o <strong>Motor vermelho</strong> (ícone na tela inicial) e toque em <strong>Colar do Motor azul</strong>.</p>
+      <p class="hint so-escrita" id="envio-dica" hidden>Se o vermelho abriu sem o carrossel, toque em <strong>Colar do Motor azul</strong> lá. Se abriu dentro do Claude, use <strong>⋮ → Abrir no Chrome</strong>.</p>
       <p class="so-fotos hint" id="enviar-hint">Copia a legenda e manda todos os slides de uma vez. No Instagram, escolha <strong>Feed</strong> e cole a legenda.</p>
       <p class="so-fotos hint" id="nofoto-hint" hidden>Os slides com ponto vermelho ainda estão sem foto.</p>
       <div class="frases" id="frases">
@@ -2949,13 +2949,16 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
       try {
         const cod = await empacotar(active());
         linkFora = MOTOR_FORA + '?c=' + cod;
-        // O app do Claude bloqueia links que abrem outro app (testado por Daniel em 31/10): o envio é por cópia.
+        // Link https comum (o intent:// foi bloqueado no app do Claude). O mesmo toque também copia, como reserva.
+        $('abrir-fora').href = linkFora;
       } catch (e) {}
     }, 400);
   }
   if (dentroDoClaude) $('abrir-fora').hidden = false;
   // Reserva: copia o link; no Motor vermelho, "Colar do Motor azul" lê e importa.
-  $('abrir-fora').onclick = $('copiar-fora').onclick = async () => {
+  // Abrir: o link segue normalmente; no mesmo toque copia o carrossel (reserva caso abra fora do ícone).
+  $('abrir-fora').addEventListener('click', () => { if (linkFora) copyText(linkFora).then(ok => { if (ok) $('envio-dica').hidden = false; }); });
+  $('copiar-fora').onclick = async () => {
     if (!linkFora) { try { linkFora = MOTOR_FORA + '?c=' + await empacotar(active()); } catch (e) {} }
     const ok = await copyText(linkFora);
     if (ok) { $('envio-dica').hidden = false; toast('Copiado. Agora abra o Motor vermelho e toque em "Colar do Motor azul".'); }

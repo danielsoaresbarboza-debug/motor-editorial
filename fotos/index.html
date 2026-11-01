@@ -1845,6 +1845,13 @@ COPY QUE PRENDE (aplique em todo slide):
 - Proibido: "neste carrossel", "vamos falar sobre", "você sabia que", "descubra", "o segredo", "simples assim", "game changer", "confira".
 - Revisão final: releia como alguém com pressa no feed. Se um slide não ganha o próximo deslize, corte ou reescreva.
 
+FIO DO CASO (abrir e fechar o mesmo raciocínio):
+- Se a capa abre com uma pessoa, marca ou caso (ex.: Flávio Augusto, Absolut, Jaguar), esse caso é o fio do carrossel inteiro, não só a isca da capa.
+- O caso aparece pelo nome no slide 2, volta no miolo (o mecanismo e a prova explicam O QUE essa pessoa ou marca fez e POR QUE funcionou) e é retomado pelo nome no penúltimo slide ou no fecho, fechando o raciocínio: o que aconteceu com ela e o que você faz com isso.
+- A lista é a ponte: "O que dá para copiar do que [nome] fez". Cada item sai do caso, não de dica genérica.
+- Proibido usar nome famoso só para chamar atenção e trocar de assunto. Teste: se tirar o nome da capa e o resto do carrossel continuar igual, reescreva.
+- Só use fatos do caso que você tem certeza que são verdadeiros; se não souber o desfecho, feche com o que é verificável e com a opinião de Daniel sobre ele.
+
 SINCERIDADE (interação de verdade, sem isca):
 - O slide "lista" já leva o rótulo "TIRE PRINT DESTE SLIDE". Ele precisa merecer: útil sozinho, fora do post. Não peça para salvar em nenhum outro slide.
 - Uma linha honesta por carrossel, dentro de um slide do miolo: um limite ("Isso não resolve se o seu problema é...") ou uma prioridade ("Se você só tiver 10 minutos, faça só o item 2."). É o tipo de frase que quase ninguém diz e que gera confiança.
@@ -1866,8 +1873,8 @@ ESTRUTURA (5 a 10 slides, conforme TAMANHO VARIÁVEL):
 3. miolo: crença comum, contraste, mecanismo e prova. Texto corrido de revista, frases completas.
 4. UM fundamento (autor, estudo ou caso com nome e data). Se não tiver certeza absoluta de que existe, não use: prefira um princípio de design que Daniel conhece. Nunca invente número, data, citação ou estudo.
 5. slide "lista" (antes da opinião): a aplicação em 3 a 5 itens curtos e acionáveis, cada um começando com verbo (Troque, Corte, Teste, Olhe...). Título do slide diz o que a lista resolve ("Como achar o que já ficou feio no seu feed"). É o slide para salvar.
-6. penúltimo slide: a opinião de Daniel, em primeira pessoa.
-7. último slide: tipo fecho, uma pergunta única que abre debate e que dá para responder com a própria experiência.
+6. penúltimo slide: a opinião de Daniel, em primeira pessoa, retomando pelo nome o caso da capa (ver FIO DO CASO).
+7. último slide: tipo fecho, uma pergunta única que liga o caso da capa à experiência de quem lê e que dá para responder com o próprio caso.
 
 TIPOS DE SLIDE (campo "tipo"):
 - "capa": {"tipo":"capa","texto":"manchete com __destaque__","imgSuggestion":"o que aparece na foto, em até 15 palavras","imgBusca":"busca em inglês para o Pinterest, 3 a 6 palavras"}
@@ -1905,8 +1912,9 @@ REGRA DE OURO: use só fatos que estão na ENTRADA. Não invente nome, número, 
 ESTRUTURA (4 a 8 slides, todos do tipo "tweet"):
 1. Slide 1: gancho de CENA, nunca de conceito. Um momento concreto da entrada: quando, onde, o que aconteceu, com número ou nome se a entrada trouxer. Nada de "Você já parou pra pensar", "3 dicas", "A verdade sobre", "IA vai mudar tudo".
 2. Miolo: a história continua. O texto pode atravessar slides (uma frase começa num e termina no outro), o que faz deslizar. Frases curtas, muitas quebras de linha, diálogo entre aspas só se estiver na entrada, detalhes reais do dia.
-3. Penúltimo: a virada. A opinião de Daniel em primeira pessoa, honesta, às vezes desconfortável.
-4. Último: fecha a conversa. Se fizer sentido, um convite dentro da história ("Se quiser, me chama no direct que eu te conto como fiz."). Nunca banner, nunca palavra-chave para comentar, nunca pedir curtida, compartilhamento ou marcação.
+3. A cena do slide 1 não pode ficar solta: o que começou nela precisa ter desfecho antes do fim (o que aconteceu depois, o resultado, a lição).
+4. Penúltimo: a virada. A opinião de Daniel em primeira pessoa, honesta, às vezes desconfortável.
+5. Último: fecha a conversa. Se fizer sentido, um convite dentro da história ("Se quiser, me chama no direct que eu te conto como fiz."). Nunca banner, nunca palavra-chave para comentar, nunca pedir curtida, compartilhamento ou marcação.
 
 VOZ: português do Brasil falado. "Você", "a gente", "cara" com moderação, perguntas curtas ("Sabe?", "Né?"). Palavrão no máximo um, e só se a entrada tiver esse tom. Sem marketing (estratégia, framework, método, alavancar, transformador, revolucionário, jornada). Sem hype de IA. Números específicos.
 LIMITES: nunca política, nunca fé como gancho, nunca o Exército, nunca clientes políticos.
@@ -2454,6 +2462,16 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       if (!['texto', 'imagem'].includes(s2.tipo)) problemas.push('<b>Slide 2 sem manchete.</b> Muita gente entra pelo slide 2; use texto ou título + foto com uma headline forte.');
       else if (p2 > 18) problemas.push(`<b>Slide 2 com ${p2} palavras na abertura.</b> Ele é a segunda manchete: até 16 palavras.`);
       else if (/\?\s*$/.test(t2)) problemas.push('<b>Slide 2 abre com pergunta.</b> Como segunda manchete, afirmação segura melhor.');
+    }
+    // Fio do caso: o nome que abre a capa precisa voltar no fim
+    const STOP = /^(O|A|Os|As|E|É|Um|Uma|Se|Mas|Quem|Por|Para|Como|Quando|No|Na|Em|De|Do|Da|Seu|Sua|Você|Eu|Ninguém|Todo|Toda|Isso|Esse|Essa|Este|Esta)$/;
+    const nomes = palavras.map((p, k) => ({ p: p.replace(/[^\wÀ-ÿ'’-]/g, ''), k }))
+      .filter(x => x.p.length > 2 && /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(x.p) && !STOP.test(x.p) && (x.k > 0 || /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(palavras[1] || '')) && !/^\d/.test(x.p)).map(x => x.p);
+    if (nomes.length && c.slides.length >= 4) {
+      const textoDe = sl => JSON.stringify(Object.assign({}, sl, { image: null, t: null, imgSuggestion: null, imgBusca: null, fotoUrl: null })).toLowerCase();
+      const fim = c.slides.slice(-3).filter(sl => sl.tipo !== 'capa').map(textoDe).join(' ');
+      const achou = nomes.some(n => fim.includes(n.toLowerCase()));
+      if (!achou) problemas.push(`<b>O caso da capa some no fim.</b> "${nomes.join(' ')}" abre o carrossel mas não volta nos últimos slides. Retome o nome no penúltimo slide ou no fecho para fechar o raciocínio.`);
     }
     let seq = 0;
     for (let k = 0; k < c.slides.length; k++) {

@@ -311,6 +311,14 @@
         <div id="tr-cheio" class="stack" style="gap:10px" hidden>
           <p class="hint" id="tr-fonte"></p>
           <div class="tr-list" id="tr-list" role="group" aria-label="Temas"></div>
+          <div class="row">
+            <span class="label">Usar o vídeo como</span>
+            <div class="seg" id="tr-modo" role="group" aria-label="Como usar a transcrição">
+              <button type="button" data-m="tema">Só o tema</button>
+              <button type="button" data-m="manter">Manter o raciocínio</button>
+            </div>
+          </div>
+          <p class="hint" id="tr-modo-hint"></p>
           <div class="row" id="tr-acoes">
             <select id="tr-pilar" aria-label="Pilar">
               <option value="auto">Pilar: escolher sozinho</option>
@@ -2049,7 +2057,7 @@ Responda só com JSON válido, sem texto antes ou depois:
     const n = tem ? tr.sel.length : 0;
     $('tr-gerar').disabled = gerando || !n || !sampleRef;
     $('tr-gerar').textContent = n ? `Gerar 2 versões de ${n} tema${n > 1 ? 's' : ''}` : 'Marque os temas acima';
-    $('tr-pilar').disabled = gerando;
+    $('tr-pilar').disabled = gerando; document.querySelectorAll('#tr-modo button').forEach(b => b.disabled = gerando);
     renderTemas();
   }
 
@@ -2098,7 +2106,45 @@ Responda só com JSON válido, sem texto antes ou depois:
 
   const REGRAS = GEN_PROMPT.split('PILAR PEDIDO:')[0];
   const ASPAS = '"' + '"' + '"';
+  const LS_TRMODO = 'dan_editorial_tr_modo_v1';
+  let trModo = ls.get(LS_TRMODO) === 'manter' ? 'manter' : 'tema';
+  function pintarTrModo() {
+    document.querySelectorAll('#tr-modo button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === trModo)));
+    $('tr-modo-hint').textContent = trModo === 'manter'
+      ? 'O carrossel segue a ideia do vídeo do começo ao fim (tese, exemplos, ordem e conclusão), reescrito com as suas palavras e ajustado ao formato. O crédito ao criador vai na legenda.'
+      : 'O vídeo vira só ponto de partida: o carrossel traz outro raciocínio, pela sua lente.';
+  }
+  document.querySelectorAll('#tr-modo button').forEach(b => b.addEventListener('click', () => { trModo = b.dataset.m; ls.set(LS_TRMODO, trModo); pintarTrModo(); }));
+  pintarTrModo();
+  function entradaManter(letra) {
+    const perfil = (tr && tr.perfil) || 'perfil';
+    return `ENTRADA: transcrição de um vídeo de OUTRO criador do Instagram. MODO "MANTER O RACIOCÍNIO": Daniel quer aproveitar o raciocínio inteiro deste vídeo.
+- Mantenha a MESMA tese, a mesma sequência de argumentos, os mesmos exemplos e casos e a mesma conclusão do vídeo. O carrossel conta a ideia do vídeo do começo ao fim, sem trocar de assunto e sem acrescentar uma tese nova.
+- Faça PARÁFRASE: reescreva com as palavras e o ritmo de Daniel, sem copiar frases literais (no máximo uma expressão curta marcante, entre aspas, atribuída ao criador na legenda).
+- Adaptações leves só para caber no formato: capa curta com o elemento concreto do vídeo, slide 2 como segunda manchete, a parte prática do vídeo organizada no slide "lista", fecho com pergunta. Se o vídeo não tem passos, transforme a conclusão dele em 3 a 5 ações, sem inventar conteúdo novo.
+- Fatos, números, nomes e casos: só os que estão no vídeo. Não invente fundamento; se o vídeo cita um, use o dele. Só acrescente um fundamento se tiver certeza absoluta de que é real e se ele reforçar a mesma ideia.
+- História pessoal do criador nunca vira história de Daniel. Se for essencial, conte em terceira pessoa sem nome nos slides ("um criador contou que...").
+- A opinião de Daniel no penúltimo slide concorda, completa ou matiza a ideia do vídeo, sem contradizer o raciocínio.
+- CRÉDITO obrigatório na LEGENDA, numa linha antes das hashtags: "Ideia de um vídeo de @${perfil}." Nos slides, não mencione o criador.
+${letra === 'B' ? '- Versão B: o MESMO raciocínio, mas com outra capa, outro slide 2 e outra abertura de cada slide, para não parecer repetida.' : '- Versão A: siga a ordem do vídeo.'}`;
+  }
   function promptVersao(it, pilar, letra, a) {
+    if (trModo === 'manter') return REGRAS + `PILAR PEDIDO: ${pilar} (se "auto", escolha o pilar que melhor combina com o vídeo; nunca "bastidor", porque a entrada não é de Daniel)
+
+${entradaManter(letra)}${a ? `\nA versão A tem o título "${a.title}" e a capa "${a.capa}"; a B precisa de outra capa.` : ''}
+
+TÍTULO DO VÍDEO: ${it.titulo}
+TRANSCRIÇÃO:
+${ASPAS}
+${(it.transcricao || '(sem fala)').slice(0, 8000)}
+${ASPAS}
+DESCRIÇÃO DO POST:
+${ASPAS}
+${(it.descricao || '').slice(0, 1500)}
+${ASPAS}
+
+Responda só com JSON válido, sem texto antes ou depois, neste formato:
+{"formato":"editorial","pilar":"...","title":"título curto até 40 caracteres","capas":["outra capa 1","outra capa 2","outra capa 3"],"slides":[...],"legenda":"..."}`;
     const angulo = letra === 'A'
       ? 'ângulo do MECANISMO: explique por que isso acontece, com o fundamento no centro.'
       : 'ângulo do CASO: parta de uma marca, campanha, produto ou momento cultural real que mostra o tema na prática e chegue à aplicação.';

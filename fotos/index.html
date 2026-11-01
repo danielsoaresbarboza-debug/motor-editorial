@@ -765,6 +765,14 @@
     ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
     ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
   }
+  function coverEm(gg, im, x, y, w, h, t) {
+    const z = Math.max(1, Math.min(4, (t && t.z) || 1));
+    const px = t && typeof t.x === 'number' ? t.x : 0.5, py = t && typeof t.y === 'number' ? t.y : 0.5;
+    const ir = im.naturalWidth / im.naturalHeight, br = w / h; let sw, sh;
+    if (ir > br) { sh = im.naturalHeight; sw = sh * br; } else { sw = im.naturalWidth; sh = sw / br; }
+    sw /= z; sh /= z;
+    gg.drawImage(im, (im.naturalWidth - sw) * px, (im.naturalHeight - sh) * py, sw, sh, x, y, w, h);
+  }
   function cover(im, x, y, w, h, t, r) {
     const z = Math.max(1, Math.min(4, (t && t.z) || 1));
     const px = t && typeof t.x === 'number' ? t.x : 0.5, py = t && typeof t.y === 'number' ? t.y : 0.5;
@@ -1032,6 +1040,9 @@
   // ao deslizar, as duas metades se encaixam. O balão mostra a foto (ou a cor) do próximo slide.
   const LS_PISTA = 'dan_editorial_pista_v1';
   let pistaModo = ls.get(LS_PISTA) === 'nenhuma' ? 'nenhuma' : 'balao';
+  // Teste de 31/10 21h52: como a foto do vizinho entra na borda e como a seta continua na emenda
+  let faixaEstilo = ls.get('dan_editorial_faixa_v1') || 'desfoque'; // escolhido em 31/10: foto normal com a bordinha de dentro esfumaçada   // vidro | normal | desfoque
+  let alcaModo = ls.get('dan_editorial_alcamodo_v1') || 'longa'; // escolhido em 31/10: a seta se estende no próximo card    // alca | sem | dividida | longa
   function fundoDoSlide(c, k) {
     const sl = c.slides[k]; if (!sl) return { foto: null, cor: TINTA };
     if (['capa', 'foto', 'imagem'].includes(sl.tipo) && sl.image) return { foto: img(sl.image), t: sl.t, cor: TINTA };
@@ -1064,6 +1075,7 @@
   // Faixa da foto do vizinho na borda deste slide: o cartão de foto é um pouco maior que a moldura.
   function faixaFoto(ladoDireito, c, k) {
     const sl = c.slides[k]; const im = img(sl.image); if (!im) return;
+    if (faixaEstilo !== 'vidro') return faixaLimpa(ladoDireito, im, sl.t);
     const x0 = ladoDireito ? W - VZ : 0, r = 36, y0 = 0, h = H; // altura inteira: é o cartão vizinho, do mesmo tamanho
     const forma = () => { ctx.beginPath(); if (ladoDireito) rrPath(x0, y0, VZ + r, h, r); else rrPath(-r, y0, VZ + r, h, r); };
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 30; ctx.shadowOffsetX = ladoDireito ? -8 : 8;
@@ -1077,6 +1089,34 @@
     ctx.save(); ctx.lineWidth = 2; const e = ctx.createLinearGradient(0, y0, 0, y0 + h);
     e.addColorStop(0, 'rgba(255,255,255,0.75)'); e.addColorStop(0.5, 'rgba(255,255,255,0.18)'); e.addColorStop(1, 'rgba(255,255,255,0.4)');
     ctx.strokeStyle = e; forma(); ctx.stroke(); ctx.restore();
+  }
+  // Faixa sem vidro: a própria foto continuando ("normal") ou continuando e se desfazendo para dentro ("desfoque")
+  function faixaLimpa(ladoDireito, im, t) {
+    const FD = faixaEstilo === 'desfoque' ? 26 : 0, LW = VZ + FD;
+    const off = document.createElement('canvas'); off.width = LW; off.height = H; const g = off.getContext('2d');
+    // posição da foto no recorte: lado esquerdo = o que fica à direita do slide anterior; lado direito = à esquerda do próximo
+    const desenha2 = (gg, filtro) => { gg.save(); if (filtro && 'filter' in gg) gg.filter = filtro;
+      coverEm(gg, im, ladoDireito ? LW - VZ : -W - VZ, 0, W + VZ * 2, H, t); gg.restore(); };
+    desenha2(g);
+    if (faixaEstilo === 'desfoque') {
+      const b = document.createElement('canvas'); b.width = LW; b.height = H; const bg = b.getContext('2d');
+      desenha2(bg, 'blur(18px) saturate(1.1)');
+      const m = bg.createLinearGradient(ladoDireito ? LW : 0, 0, ladoDireito ? 0 : LW, 0);
+      m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop((VZ - 22) / LW, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)');
+      bg.globalCompositeOperation = 'destination-in'; bg.fillStyle = m; bg.fillRect(0, 0, LW, H);
+      g.drawImage(b, 0, 0);
+      // esfumaça: a borda de dentro some no fundo do slide
+      const a = g.createLinearGradient(ladoDireito ? LW : 0, 0, ladoDireito ? 0 : LW, 0);
+      a.addColorStop(0, 'rgba(0,0,0,1)'); a.addColorStop((VZ - 10) / LW, 'rgba(0,0,0,1)'); a.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalCompositeOperation = 'destination-in'; g.fillStyle = a; g.fillRect(0, 0, LW, H);
+    }
+    ctx.drawImage(off, ladoDireito ? W - LW : 0, 0);
+    if (faixaEstilo === 'normal') { // só um fio de sombra para separar do texto, sem brilho
+      const sx = ladoDireito ? W - VZ : VZ;
+      const sg = ctx.createLinearGradient(sx, 0, sx + (ladoDireito ? -14 : 14), 0);
+      sg.addColorStop(0, 'rgba(0,0,0,0.28)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = sg; ctx.fillRect(ladoDireito ? sx - 14 : sx, 0, 14, H);
+    }
   }
   function bolha(ladoDireito, c, k) {
     const sl = c.slides[k]; if (!sl) return;
@@ -1127,9 +1167,13 @@
     if (pistaModo === 'nenhuma') return;
     const prox = c.slides[i + 1], ant = c.slides[i - 1];
     // borda direita: se o próximo é foto, a foto dele vaza aqui; senão, a curvinha com a seta
-    if (prox) { if (temFoto(prox)) faixaFoto(true, c, i + 1); else alca(c, i + 1); }
+    const atual = c.slides[i];
+    if (prox) { if (temFoto(prox)) faixaFoto(true, c, i + 1); else if (!(alcaModo === 'sem' && temFoto(atual))) alca(c, i + 1); }
     // borda esquerda: só quando o anterior é foto (a foto dele vaza para cá); o resto do slide fica limpo
     if (ant && temFoto(ant)) faixaFoto(false, c, i - 1);
+    // continuação da seta: o slide anterior desenhou a alça; aqui ela termina
+    if (ant && !temFoto(atual) && alcaModo === 'dividida') alcaMetade(c, i);
+    if (ant && !temFoto(atual) && alcaModo === 'longa') setaLonga(c, i);
   }
   // Alça de vidro (v19): meia-cápsula pequena colada na borda direita, tingida com o tom do próximo slide.
   // Parece intencional parada e também cortada na emenda durante o arrasto.
@@ -1159,6 +1203,28 @@
     ctx.save(); ctx.strokeStyle = lum > 0.62 ? TINTA : '#FFFFFF'; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const cx = W - AW / 2 + 1;
     ctx.beginPath(); ctx.moveTo(cx - 3.5, BCY - 7); ctx.lineTo(cx + 3, BCY); ctx.lineTo(cx - 3.5, BCY + 7); ctx.stroke(); ctx.restore();
+  }
+  // Outra metade da alça, na borda esquerda do próximo slide (a cápsula se completa na emenda)
+  function alcaMetade(c, k) {
+    const [r, g, b] = tomVizinho(c, k);
+    const y0 = BCY - AH / 2, x0 = -AW;
+    const forma = () => { ctx.beginPath(); rrPath(x0, y0, AW * 2, AH, AW); };
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 16; ctx.shadowOffsetX = 3; forma(); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); ctx.restore();
+    ctx.save(); forma(); ctx.clip();
+    if ('filter' in ctx) { ctx.filter = 'blur(10px) saturate(1.4)'; ctx.drawImage(canvas, 0, y0 - 20, AW * 3, AH + 40, 0, y0 - 20, AW * 3, AH + 40); ctx.filter = 'none'; }
+    const t = ctx.createLinearGradient(0, 0, AW, 0); t.addColorStop(0, `rgba(${r},${g},${b},0.85)`); t.addColorStop(1, `rgba(${r},${g},${b},0.55)`);
+    ctx.fillStyle = t; ctx.fillRect(0, y0, AW, AH);
+    const v = ctx.createLinearGradient(0, y0, 0, y0 + AH); v.addColorStop(0, 'rgba(255,255,255,0.40)'); v.addColorStop(0.45, 'rgba(255,255,255,0.06)'); v.addColorStop(1, 'rgba(0,0,0,0.10)');
+    ctx.fillStyle = v; ctx.fillRect(0, y0, AW, AH); ctx.restore();
+    ctx.save(); ctx.lineWidth = 1.25; ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); rrPath(x0 + 0.6, y0 + 0.6, AW * 2 - 1.2, AH - 1.2, AW - 0.6); ctx.stroke(); ctx.restore();
+  }
+  // Seta longa: a seta da alça continua como um traço fino que atravessa a borda do próximo slide
+  function setaLonga(c, k) {
+    const claro = lerArea(0, BCY - 30, 120, 60).m > 0.6;
+    ctx.save(); ctx.strokeStyle = claro ? TINTA : '#FFFFFF'; ctx.globalAlpha = 0.85; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (!claro) { ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6; }
+    const x1 = 72;
+    ctx.beginPath(); ctx.moveTo(0, BCY); ctx.lineTo(x1, BCY); ctx.moveTo(x1 - 7, BCY - 7); ctx.lineTo(x1, BCY); ctx.lineTo(x1 - 7, BCY + 7); ctx.stroke(); ctx.restore();
   }
   function setaBolha(c, k) {
     const f = fundoDoSlide(c, k), claro = !f.foto && !isDarkHex(f.cor);

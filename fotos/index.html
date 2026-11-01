@@ -1041,7 +1041,7 @@
   const LS_PISTA = 'dan_editorial_pista_v1';
   let pistaModo = ls.get(LS_PISTA) === 'nenhuma' ? 'nenhuma' : 'balao';
   // Teste de 31/10 21h52: como a foto do vizinho entra na borda e como a seta continua na emenda
-  let faixaEstilo = ls.get('dan_editorial_faixa_v1') || 'desfoque'; // escolhido em 31/10: foto normal com a bordinha de dentro esfumaçada   // vidro | normal | desfoque
+  let faixaEstilo = ls.get('dan_editorial_faixa_v1') || 'vidro-desfoque'; // 31/10 22h06: desfoque só dentro da faixa, até a borda do vidro  // vidro | vidro-desfoque | normal | desfoque
   let alcaModo = ls.get('dan_editorial_alcamodo_v1') || 'dividida'; // escolhido em 31/10 22h04: a alça se completa no próximo card (não a seta branca)    // alca | sem | dividida | longa
   function fundoDoSlide(c, k) {
     const sl = c.slides[k]; if (!sl) return { foto: null, cor: TINTA };
@@ -1075,16 +1075,27 @@
   // Faixa da foto do vizinho na borda deste slide: o cartão de foto é um pouco maior que a moldura.
   function faixaFoto(ladoDireito, c, k) {
     const sl = c.slides[k]; const im = img(sl.image); if (!im) return;
-    if (faixaEstilo !== 'vidro') return faixaLimpa(ladoDireito, im, sl.t);
+    if (faixaEstilo === 'normal' || faixaEstilo === 'desfoque') return faixaLimpa(ladoDireito, im, sl.t);
     const x0 = ladoDireito ? W - VZ : 0, r = 36, y0 = 0, h = H; // altura inteira: é o cartão vizinho, do mesmo tamanho
     const forma = () => { ctx.beginPath(); if (ladoDireito) rrPath(x0, y0, VZ + r, h, r); else rrPath(-r, y0, VZ + r, h, r); };
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 30; ctx.shadowOffsetX = ladoDireito ? -8 : 8;
     forma(); ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
     ctx.save(); forma(); ctx.clip();
     cover(im, ladoDireito ? W - VZ : -W - VZ, 0, W + VZ * 2, H, sl.t);
-    const v = ctx.createLinearGradient(0, y0, 0, y0 + h);
-    v.addColorStop(0, 'rgba(255,255,255,0.18)'); v.addColorStop(0.3, 'rgba(255,255,255,0)'); v.addColorStop(1, 'rgba(0,0,0,0.15)');
-    ctx.fillStyle = v; ctx.fillRect(x0 - r, y0, VZ + r * 2, h);
+    if (faixaEstilo === 'vidro-desfoque') {
+      // 31/10 22h06: foto nítida na emenda, desfocando até a borda do vidro; sem brilho branco por cima
+      const b = document.createElement('canvas'); b.width = VZ; b.height = H; const bg = b.getContext('2d');
+      if ('filter' in bg) bg.filter = 'blur(16px) saturate(1.1)';
+      coverEm(bg, im, ladoDireito ? 0 : -W - VZ, 0, W + VZ * 2, H, sl.t); bg.filter = 'none';
+      const m = bg.createLinearGradient(ladoDireito ? VZ : 0, 0, ladoDireito ? 0 : VZ, 0);
+      m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(0.3, 'rgba(0,0,0,0.25)'); m.addColorStop(1, 'rgba(0,0,0,1)');
+      bg.globalCompositeOperation = 'destination-in'; bg.fillStyle = m; bg.fillRect(0, 0, VZ, H);
+      ctx.drawImage(b, x0, 0);
+    } else {
+      const v = ctx.createLinearGradient(0, y0, 0, y0 + h);
+      v.addColorStop(0, 'rgba(255,255,255,0.18)'); v.addColorStop(0.3, 'rgba(255,255,255,0)'); v.addColorStop(1, 'rgba(0,0,0,0.15)');
+      ctx.fillStyle = v; ctx.fillRect(x0 - r, y0, VZ + r * 2, h);
+    }
     ctx.restore();
     ctx.save(); ctx.lineWidth = 2; const e = ctx.createLinearGradient(0, y0, 0, y0 + h);
     e.addColorStop(0, 'rgba(255,255,255,0.75)'); e.addColorStop(0.5, 'rgba(255,255,255,0.18)'); e.addColorStop(1, 'rgba(255,255,255,0.4)');
@@ -1199,7 +1210,8 @@
     // fio de luz
     ctx.save(); ctx.lineWidth = 1.25; ctx.strokeStyle = aqui > 0.6 ? 'rgba(40,36,80,0.22)' : 'rgba(255,255,255,0.55)';
     ctx.beginPath(); rrPath(x0 + 0.6, y0 + 0.6, AW * 2 - 1.2, AH - 1.2, AW - 0.6); ctx.stroke(); ctx.restore();
-    // seta fina
+    // seta fina (no modo "dividida" ela fica só na ponta da cápsula, no próximo card)
+    if (alcaModo === 'dividida') return;
     ctx.save(); ctx.strokeStyle = lum > 0.62 ? TINTA : '#FFFFFF'; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const cx = W - AW / 2 + 1;
     ctx.beginPath(); ctx.moveTo(cx - 3.5, BCY - 7); ctx.lineTo(cx + 3, BCY); ctx.lineTo(cx - 3.5, BCY + 7); ctx.stroke(); ctx.restore();
@@ -1207,16 +1219,23 @@
   // Outra metade da alça, na borda esquerda do próximo slide (a cápsula se completa na emenda)
   function alcaMetade(c, k) {
     const [r, g, b] = tomVizinho(c, k);
+    const EXT = 30, LW2 = AW * 2 + EXT; // a cápsula continua um pouco além da metade: ela "se completa" neste slide
     const y0 = BCY - AH / 2, x0 = -AW;
-    const forma = () => { ctx.beginPath(); rrPath(x0, y0, AW * 2, AH, AW); };
+    const forma = () => { ctx.beginPath(); rrPath(x0, y0, LW2, AH, AW); };
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 16; ctx.shadowOffsetX = 3; forma(); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); ctx.restore();
     ctx.save(); forma(); ctx.clip();
-    if ('filter' in ctx) { ctx.filter = 'blur(10px) saturate(1.4)'; ctx.drawImage(canvas, 0, y0 - 20, AW * 3, AH + 40, 0, y0 - 20, AW * 3, AH + 40); ctx.filter = 'none'; }
-    const t = ctx.createLinearGradient(0, 0, AW, 0); t.addColorStop(0, `rgba(${r},${g},${b},0.85)`); t.addColorStop(1, `rgba(${r},${g},${b},0.55)`);
-    ctx.fillStyle = t; ctx.fillRect(0, y0, AW, AH);
+    const XW = x0 + LW2;
+    if ('filter' in ctx) { ctx.filter = 'blur(10px) saturate(1.4)'; ctx.drawImage(canvas, 0, y0 - 20, XW + 30, AH + 40, 0, y0 - 20, XW + 30, AH + 40); ctx.filter = 'none'; }
+    const t = ctx.createLinearGradient(0, 0, XW, 0); t.addColorStop(0, `rgba(${r},${g},${b},0.85)`); t.addColorStop(1, `rgba(${r},${g},${b},0.50)`);
+    ctx.fillStyle = t; ctx.fillRect(0, y0, XW, AH);
     const v = ctx.createLinearGradient(0, y0, 0, y0 + AH); v.addColorStop(0, 'rgba(255,255,255,0.40)'); v.addColorStop(0.45, 'rgba(255,255,255,0.06)'); v.addColorStop(1, 'rgba(0,0,0,0.10)');
-    ctx.fillStyle = v; ctx.fillRect(0, y0, AW, AH); ctx.restore();
-    ctx.save(); ctx.lineWidth = 1.25; ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); rrPath(x0 + 0.6, y0 + 0.6, AW * 2 - 1.2, AH - 1.2, AW - 0.6); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = v; ctx.fillRect(0, y0, XW, AH); ctx.restore();
+    ctx.save(); ctx.lineWidth = 1.25; ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); rrPath(x0 + 0.6, y0 + 0.6, LW2 - 1.2, AH - 1.2, AW - 0.6); ctx.stroke(); ctx.restore();
+    // a mesma seta fina da alça, agora na ponta da cápsula
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    ctx.save(); ctx.strokeStyle = lum > 0.62 ? TINTA : '#FFFFFF'; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const cx = XW - AW / 2 - 2;
+    ctx.beginPath(); ctx.moveTo(cx - 3.5, BCY - 7); ctx.lineTo(cx + 3, BCY); ctx.lineTo(cx - 3.5, BCY + 7); ctx.stroke(); ctx.restore();
   }
   // Seta longa: a seta da alça continua como um traço fino que atravessa a borda do próximo slide
   function setaLonga(c, k) {

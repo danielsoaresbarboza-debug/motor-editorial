@@ -945,22 +945,92 @@
   }
   // Painel de vidro: sombra macia, fundo desfocado, brilho no topo e contorno com reflexo.
   // Devolve a cor do texto que vai em cima.
+  // ─── Lente de vidro líquido (v47, 31/10 22h41) ───
+  // O que separa Liquid Glass de "desfoque com borda fina": a luz curva na borda (refração), as cores se separam
+  // na curva (dispersão) e o miolo fica quase nítido. Feito por pixel sobre o que já está desenhado atrás.
+  // Devolve a luminância (0–1) de quase todos os pixels do miolo, para o contraste do texto ser garantido.
+  const LENTE_PAD = 44;
+  let lenteCv = null, lenteCv2 = null;
+  function lente(x, y, w, h, r, dark) {
+    const P = LENTE_PAD, ox = Math.round(x), oy = Math.round(y), lw = Math.round(w), lh = Math.round(h);
+    const sw = lw + P * 2, sh = lh + P * 2;
+    lenteCv = lenteCv || document.createElement('canvas'); lenteCv2 = lenteCv2 || document.createElement('canvas');
+    lenteCv.width = sw; lenteCv.height = sh; lenteCv2.width = lw; lenteCv2.height = lh;
+    const g = lenteCv.getContext('2d', { willReadFrequently: true });
+    // fundo atrás do vidro (com margem: a borda puxa para dentro o que está fora dela), levemente desfocado
+    if ('filter' in g) g.filter = dark ? 'blur(9px) saturate(1.45)' : 'blur(13px) saturate(1.6)';
+    g.drawImage(canvas, ox - P, oy - P, sw, sh, 0, 0, sw, sh);
+    g.filter = 'none';
+    let src;
+    try { src = g.getImageData(0, 0, sw, sh).data; } catch (e) { return null; }
+    const g2 = lenteCv2.getContext('2d');
+    const out = g2.createImageData(lw, lh), o = out.data;
+    const B = Math.min(46, lh * 0.32, lw * 0.32), F = 30, rr2 = Math.min(r, lw / 2, lh / 2);
+    const amostra = (sx, sy, c) => {
+      sx = sx < 0 ? 0 : sx > sw - 1 ? sw - 1 : sx; sy = sy < 0 ? 0 : sy > sh - 1 ? sh - 1 : sy;
+      return src[((sy | 0) * sw + (sx | 0)) * 4 + c];
+    };
+    const lum = []; const passo = 3;
+    for (let py = 0; py < lh; py++) {
+      for (let px = 0; px < lw; px++) {
+        // distância até a borda do retângulo arredondado e a direção para fora
+        const qx = Math.max(rr2 - px, 0, px - (lw - 1 - rr2)), qy = Math.max(rr2 - py, 0, py - (lh - 1 - rr2));
+        let d, nx, ny;
+        if (qx > 0 && qy > 0) { const L = Math.hypot(qx, qy) || 1; d = rr2 - L; nx = (px < lw / 2 ? -qx : qx) / L; ny = (py < lh / 2 ? -qy : qy) / L; }
+        else {
+          const dl = px, dr = lw - 1 - px, dt = py, db = lh - 1 - py, m = Math.min(dl, dr, dt, db); d = m;
+          nx = m === dl ? -1 : m === dr ? 1 : 0; ny = nx ? 0 : (m === dt ? -1 : 1);
+        }
+        const i = (py * lw + px) * 4, cx = px + P, cy = py + P;
+        if (d < B) {
+          const t = 1 - Math.max(0, d) / B, k = t * t * F;              // curva forte só perto da borda
+          const ex = nx * k, ey = ny * k, disp = 0.16 * t;              // dispersão: vermelho e azul se afastam na curva
+          o[i] = amostra(cx + ex * (1 + disp), cy + ey * (1 + disp), 0);
+          o[i + 1] = amostra(cx + ex, cy + ey, 1);
+          o[i + 2] = amostra(cx + ex * (1 - disp), cy + ey * (1 - disp), 2);
+        } else {
+          const j = (cy * sw + cx) * 4; o[i] = src[j]; o[i + 1] = src[j + 1]; o[i + 2] = src[j + 2];
+          if (px % passo === 0 && py % passo === 0) lum.push((0.2126 * src[j] + 0.7152 * src[j + 1] + 0.0722 * src[j + 2]) / 255);
+        }
+        o[i + 3] = 255;
+      }
+    }
+    g2.putImageData(out, 0, 0);
+    if (!lum.length) return null;
+    lum.sort((a, b) => a - b);
+    return { ox, oy, alto: lum[Math.floor(lum.length * 0.94)], baixo: lum[Math.floor(lum.length * 0.06)], media: lum.reduce((a, b) => a + b, 0) / lum.length };
+  }
   function vidro(x, y, w, h, r, o) {
     o = o || {};
     const dark = o.dark !== false;
+    const lu = lente(x, y, w, h, r, dark); // lê o fundo antes da sombra escurecer a área
     ctx.save();
     ctx.shadowColor = dark ? 'rgba(0,0,0,0.32)' : 'rgba(30,30,50,0.14)'; ctx.shadowBlur = o.leve ? 24 : 70; ctx.shadowOffsetY = o.leve ? 8 : 26;
     rr(x, y, w, h, r); ctx.fillStyle = dark ? 'rgba(20,22,26,0.30)' : 'rgba(255,255,255,0.40)'; ctx.fill();
     ctx.restore();
     ctx.save();
     rr(x, y, w, h, r); ctx.clip();
-    if (o.photo && 'filter' in ctx) { ctx.filter = dark ? 'blur(34px) saturate(1.6) brightness(1.06)' : 'blur(30px) saturate(1.9) brightness(1.1)'; cover(o.photo, -VZ, 0, W + VZ * 2, H, o.t); ctx.filter = 'none'; }
-    // tinta do vidro: um pouco mais clara em cima, como luz entrando
-    const t = ctx.createLinearGradient(0, y, 0, y + h);
+    // v47: lente (refração + dispersão) sobre o que está atrás; se o navegador não deixar ler pixels, volta ao desfoque antigo
+    if (lu) ctx.drawImage(lenteCv2, lu.ox, lu.oy);
+    if (!lu && o.photo && 'filter' in ctx) { ctx.filter = dark ? 'blur(34px) saturate(1.6) brightness(1.06)' : 'blur(30px) saturate(1.9) brightness(1.1)'; cover(o.photo, -VZ, 0, W + VZ * 2, H, o.t); ctx.filter = 'none'; }
+    // tinta do vidro na medida certa para o texto: texto claro pede fundo com luminância ≤ 0,16 (contraste ≥ 4,5:1 com
+    // folga); texto escuro pede ≥ 0,45. A tinta cobre só o que falta, então foto calma fica transparente.
     const rf = o.reforco || 0;
-    if (dark) { t.addColorStop(0, `rgba(34,36,42,${0.30 + rf})`); t.addColorStop(1, `rgba(12,13,16,${0.46 + rf})`); }
-    // vidro claro (31/10): bem mais transparente, a cor da foto passa por trás
-    else { t.addColorStop(0, `rgba(255,255,255,${0.40 + rf * 0.6})`); t.addColorStop(1, `rgba(248,248,252,${0.24 + rf * 0.6})`); }
+    let a0, a1;
+    if (dark) {
+      const L = lu ? lu.alto : 0.5, alvo = 0.16;
+      const need = L > alvo ? (L - alvo) / (L - 0.006) : 0;
+      a0 = Math.min(0.9, Math.max(0.18, need * 0.92)); a1 = Math.min(0.92, Math.max(0.30, need));
+      if (!lu) { a0 = 0.30 + rf; a1 = 0.46 + rf; }
+    } else {
+      const L = lu ? lu.baixo : 0.5, alvo = 0.64; // texto escuro: fundo bem claro, a foto passa só como cor
+      const need = L < alvo ? (alvo - L) / (0.985 - L) : 0;
+      a0 = Math.min(0.9, Math.max(0.22, need)); a1 = Math.min(0.88, Math.max(0.14, need * 0.9));
+      if (!lu) { a0 = 0.40 + rf * 0.6; a1 = 0.24 + rf * 0.6; }
+    }
+    const t = ctx.createLinearGradient(0, y, 0, y + h);
+    if (dark) { t.addColorStop(0, `rgba(26,28,34,${a0})`); t.addColorStop(1, `rgba(10,11,14,${a1})`); }
+    else { t.addColorStop(0, `rgba(255,255,255,${a0})`); t.addColorStop(1, `rgba(248,248,252,${a1})`); }
     ctx.fillStyle = t; ctx.fillRect(x, y, w, h);
     // faixa de reflexo na diagonal
     const d = ctx.createLinearGradient(x, y, x + w * 0.9, y + h);
@@ -982,6 +1052,14 @@
       sb.addColorStop(0, 'rgba(60,60,90,0)'); sb.addColorStop(1, 'rgba(60,60,90,0.10)');
       ctx.fillStyle = sb; ctx.fillRect(x, y + h - 30, w, 30);
     }
+    ctx.restore();
+    // reflexo vivo na curva: brilho largo e macio no canto de cima à esquerda, outro mais fraco embaixo à direita
+    ctx.save(); rr(x, y, w, h, r); ctx.clip();
+    if ('filter' in ctx) ctx.filter = 'blur(5px)';
+    const rv = ctx.createLinearGradient(x, y, x + w, y + h);
+    rv.addColorStop(0, `rgba(255,255,255,${dark ? 0.55 : 0.85})`); rv.addColorStop(0.22, 'rgba(255,255,255,0)');
+    rv.addColorStop(0.8, 'rgba(255,255,255,0)'); rv.addColorStop(1, `rgba(255,255,255,${dark ? 0.32 : 0.5})`);
+    ctx.globalCompositeOperation = 'screen'; ctx.strokeStyle = rv; ctx.lineWidth = 10; rr(x + 4, y + 4, w - 8, h - 8, Math.max(4, r - 4)); ctx.stroke();
     ctx.restore();
     // contorno: forte no canto de cima à esquerda e embaixo à direita, quase some no meio
     ctx.save();

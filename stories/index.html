@@ -173,6 +173,7 @@ nav.abas button[aria-current="page"]{background:var(--fg);color:var(--bg)}
       </div>
       <div class="linha">
         <button class="pri" id="btGerar">Escrever sequência</button>
+        <button id="btPorMim">Escreve por mim</button>
         <button id="btPular" hidden>Escrever mesmo assim</button>
         <button class="fant" id="btParar" hidden>Parar</button>
       </div>
@@ -595,11 +596,12 @@ function renderHoje(){
   } else {
     const prox = seqs.filter(s => s.data > hoje() && s.status !== 'postado').sort((a,b) => a.data < b.data ? -1 : 1)[0];
     c.innerHTML = `<h2>Hoje ainda não tem story.</h2><p class="muted">Um story simples hoje vale mais que um perfeito amanhã.</p>
-      <div class="linha">${MODO==='escrita' ? '<button class="pri" data-q="dia">Contar o dia</button><button data-q="opiniao">Sugere você</button>' : ''}<button data-q="branco">Escrever eu mesmo</button>${prox ? '<button data-q="puxar">Usar a de '+DIAS[deIso(prox.data).getDay()]+'</button>' : ''}</div>`;
+      <div class="linha">${MODO==='escrita' ? '<button class="pri" data-q="porMim">Escreve por mim</button><button data-q="dia">Contar o dia</button>' : ''}<button data-q="branco">Escrever eu mesmo</button>${prox ? '<button data-q="puxar">Usar a de '+DIAS[deIso(prox.data).getDay()]+'</button>' : ''}</div>`;
     c.querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
       const q = b.dataset.q;
       if (q === 'branco') emBranco(hoje());
       else if (q === 'puxar'){ prox.data = hoje(); salvarSeqs(); abrirSeq(prox.id); }
+      else if (q === 'porMim'){ escolherEntrada('opiniao'); $('#entradaTxt').value = ''; $('#optData').value = hoje(); ir('criar'); gerar(true); }
       else { escolherEntrada(q); $('#optData').value = hoje(); ir('criar'); }
     });
   }
@@ -876,9 +878,9 @@ Nos dias sem fato dado pelo Daniel, os stories de conteúdo pessoal são "gravar
 let sampleFn = null, ctl = null, perguntasGate = [];
 (async () => {
   if (MODO !== 'escrita') return;
-  if (!window.claude){ $('#semSample').hidden = false; $('#btGerar').disabled = true; return; }
+  if (!window.claude){ $('#semSample').hidden = false; $('#btGerar').disabled = true; $('#btPorMim').disabled = true; return; }
   try { sampleFn = await window.claude.use('sample'); } catch(e){}
-  if (!sampleFn){ $('#semSample').hidden = false; $('#btGerar').disabled = true; }
+  if (!sampleFn){ $('#semSample').hidden = false; $('#btGerar').disabled = true; $('#btPorMim').disabled = true; }
 })();
 
 function montarPrompt(forcar){
@@ -899,9 +901,9 @@ function montarPrompt(forcar){
 function extrairJSON(t){ const a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a < 0 || b < a) throw new Error('sem json'); return JSON.parse(t.slice(a, b+1)); }
 async function gerar(forcar){
   if (!sampleFn) return;
-  if (entrada === 'dia' && !$('#entradaTxt').value.trim()){ toast('Conte o que aconteceu, nem que seja solto.'); $('#entradaTxt').focus(); return; }
+  if (!forcar && entrada === 'dia' && !$('#entradaTxt').value.trim()){ toast('Conte o que aconteceu, nem que seja solto.'); $('#entradaTxt').focus(); return; }
   const g = $('#gerando'); g.hidden = false; g.textContent = 'Pensando…';
-  $('#btGerar').disabled = true; $('#btPular').hidden = true; $('#btParar').hidden = false;
+  $('#btGerar').disabled = true; $('#btPorMim').disabled = true; $('#btPular').hidden = true; $('#btParar').hidden = false;
   ctl = new AbortController();
   try {
     const r = await sampleFn(montarPrompt(forcar || !$('#gate').hidden), { signal: ctl.signal, modelTier:'default', cache:false, onText: ({ text }) => { g.textContent = 'Escrevendo… ' + text.length + ' caracteres'; } });
@@ -921,9 +923,10 @@ async function gerar(forcar){
   } catch(e){
     g.hidden = false;
     g.textContent = e && e.code === 'not_granted' ? 'Sem permissão para usar o Claude nesta página.' : e && e.code === 'rate_limited' ? 'Muitos pedidos seguidos. Espere um minuto e tente de novo.' : e && e.name === 'AbortError' || (e && e.code === 'aborted') ? 'Parado.' : 'Não consegui montar a sequência desta vez. Tente de novo.';
-  } finally { $('#btGerar').disabled = false; $('#btParar').hidden = true; ctl = null; }
+  } finally { $('#btGerar').disabled = false; $('#btPorMim').disabled = false; $('#btParar').hidden = true; ctl = null; }
 }
 $('#btGerar').onclick = () => gerar(false);
+$('#btPorMim').onclick = () => { if (entrada !== 'semana') escolherEntrada('opiniao'); gerar(true); };
 $('#btPular').onclick = () => gerar(true);
 $('#btParar').onclick = () => { ctl && ctl.abort(); };
 

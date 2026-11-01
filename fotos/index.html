@@ -187,7 +187,54 @@
   .modo { display: inline-flex; align-items: center; gap: 6px; font: 600 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: 5px 10px; border-radius: 999px; vertical-align: middle; margin-left: 10px; }
   html.modo-fotos .btn.primary, html.modo-escrita .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
   html.modo-fotos .seg button[aria-pressed="true"], html.modo-escrita .seg button[aria-pressed="true"], html.modo-fotos .dot[aria-current="true"], html.modo-escrita .dot[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* ─── Navegação por abas (v45, 31/10/2026): uma tarefa por tela, barra de ícones embaixo, ação principal fixa ─── */
+  .painel { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+  .aba { display: none; flex-direction: column; gap: 14px; min-width: 0; animation: abaEntra .22s ease-out; }
+  .aba.on { display: flex; }
+  @keyframes abaEntra { from { opacity: 0; transform: translateY(6px); } }
+  .aba-titulo { font-family: var(--font-display); font-weight: 500; font-size: 24px; line-height: 1.15; margin: 2px 0 0; }
+  .aba-sub { margin: -8px 0 0; color: var(--muted); font-size: 13px; }
+  .palco { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .sub-seg { display: flex; gap: 4px; padding: 4px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+  .sub-seg button { flex: 1; appearance: none; border: 0; background: transparent; color: var(--muted); font: 600 13px var(--font-body); padding: 9px 8px; border-radius: 999px; cursor: pointer; min-height: 40px; }
+  .sub-seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .sub-seg button[hidden] { display: none; }
+  .criar-wrap > * { display: none !important; }
+  .criar-wrap[data-sub="videos"] > #tr-card, .criar-wrap[data-sub="ideia"] > #gen-card:not([hidden]), .criar-wrap[data-sub="json"] > .card-json { display: flex !important; }
+  details.card > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; color: var(--fg); font: 600 14px var(--font-body); min-height: 28px; }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary::after { content: ""; width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .2s; margin-right: 4px; }
+  details.card[open] > summary::after { transform: rotate(-135deg); }
+  .nav-abas { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); width: min(560px, calc(100vw - 20px)); height: 66px; display: flex; justify-content: space-around; align-items: center; padding: 0 6px; border-radius: 24px; z-index: 250;
+    background: color-mix(in srgb, var(--surface) 80%, transparent); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); border: 1px solid var(--line); box-shadow: 0 14px 34px rgba(0,0,0,.18); }
+  .nav-abas button { position: relative; flex: 1; appearance: none; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px; border-radius: 16px; color: var(--muted); font: 600 11px var(--font-body); cursor: pointer; min-height: 54px; }
+  .nav-abas button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .nav-abas button[aria-current="page"] { color: var(--ink); background: var(--ink-soft); }
+  .nav-abas button[aria-current="page"] svg { stroke-width: 2.2; }
+  .nav-abas button:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  .nav-abas .badge { position: absolute; top: 3px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--danger); color: #fff; font: 700 11px/18px var(--font-body); text-align: center; }
+  .nav-abas .badge[hidden] { display: none; }
+  .acao-fixa { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); width: min(560px, calc(100vw - 20px)); z-index: 240; display: flex; flex-direction: column; gap: 6px; }
+  .acao-fixa .row { flex-wrap: nowrap; }
+  .acao-fixa .btn { flex: 1; justify-content: center; min-height: 50px; font-size: 15px; border-radius: 16px; box-shadow: 0 10px 26px rgba(0,0,0,.20); }
+  .acao-fixa .btn[hidden] { display: none; }
+  .acao-fixa .hint { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; }
+  body:not(.com-acao) .acao-fixa { display: none; }
+  body { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+  body.com-acao { padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
+  .toast { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+  body.com-acao .toast { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+  .volta { bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  header.top p { display: none; }
+  @media (max-width: 899px) {
+    body:not([data-aba="slides"]):not([data-aba="fotos"]) .palco { display: none; }
+  }
+  @media (min-width: 900px) {
+    .palco { position: sticky; top: calc(12px + env(safe-area-inset-top, 0px)); align-self: start; }
+    header.top p { display: block; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
 <img id="avatar-img" alt="" hidden>
@@ -1647,7 +1694,7 @@
       const t = document.createElement('span'); t.className = 't'; t.textContent = c.title;
       const d = document.createElement('button'); d.className = 'btn ghost'; d.type = 'button'; d.textContent = 'Apagar'; d.setAttribute('aria-label', 'Apagar ' + c.title);
       d.onclick = (e) => { e.stopPropagation(); removeCarousel(c.id); };
-      const open = () => { state.activeId = c.id; state.cur = 0; changed(); };
+      const open = () => { state.activeId = c.id; state.cur = 0; changed(); document.dispatchEvent(new CustomEvent('motor:aba', { detail: 'slides' })); };
       row.onclick = open;
       row.onkeydown = (e) => { if (e.target === row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); } };
       const info = document.createElement('div'); info.className = 'info'; info.append(t, p);
@@ -1673,7 +1720,7 @@
     arr.forEach(c => { c.createdAt = Date.now(); c.isExample = false; state.list.push(c); });
     state.activeId = arr[0].id; state.cur = 0;
     changed();
-    document.querySelector('.stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.dispatchEvent(new CustomEvent('motor:aba', { detail: 'slides' }));
   }
 
   // Colar JSON
@@ -2158,7 +2205,7 @@ Responda só com JSON válido, sem texto antes ou depois:
         const t = document.createElement('span'); t.className = 't'; t.textContent = c.title;
         const acts = document.createElement('div'); acts.className = 'row'; acts.style.flexWrap = 'nowrap';
         const ab = document.createElement('button'); ab.className = 'btn'; ab.textContent = 'Abrir';
-        ab.onclick = () => { state.activeId = c.id; state.cur = 0; changed(); document.querySelector('.stage').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+        ab.onclick = () => { state.activeId = c.id; state.cur = 0; changed(); document.dispatchEvent(new CustomEvent('motor:aba', { detail: 'slides' })); };
         acts.appendChild(ab);
         if (!tema.escolhido && ver.length === 2) {
           const ok = document.createElement('button'); ok.className = 'btn primary'; ok.textContent = 'Postar esta';
@@ -3276,7 +3323,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
     if (i >= 0) {
       const velho = state.list[i];
       c.slides.forEach((sl, k) => { const v = velho.slides[k]; if (v && v.image && v.tipo === sl.tipo) { sl.image = v.image; sl.t = v.t; sl.credito = v.credito; sl.fotoUrl = v.fotoUrl; } });
-      c.postadoEm = velho.postadoEm; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed();
+      c.postadoEm = velho.postadoEm; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed(); document.dispatchEvent(new CustomEvent('motor:aba', { detail: 'slides' }));
     } else addCarousels([c]);
     toast('Carrossel recebido. Buscando as fotos…');
     autoFotos(active());
@@ -3327,7 +3374,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
         // mesmo carrossel: atualiza o texto e mantém as fotos que já estavam aqui
         const velho = state.list[i];
         c.slides.forEach((sl, k) => { const v = velho.slides[k]; if (v && v.image && v.tipo === sl.tipo) { sl.image = v.image; sl.t = v.t; sl.credito = v.credito; sl.fotoUrl = v.fotoUrl; } });
-        c.postadoEm = velho.postadoEm; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed();
+        c.postadoEm = velho.postadoEm; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed(); document.dispatchEvent(new CustomEvent('motor:aba', { detail: 'slides' }));
       } else addCarousels([c]);
       try { history.replaceState(null, '', location.pathname); } catch (e) {}
       toast('Carrossel recebido. Buscando as fotos…');
@@ -3349,6 +3396,136 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
   initSample();
   initDownloads();
   receberDoLink();
+})();
+</script>
+<script>
+/* Navegação por abas (v45). Só reorganiza a página: move os blocos que já existem para dentro de abas,
+   sem mudar nenhuma função. Cada modo tem as suas abas e uma ação principal fixa acima da barra. */
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fotos = document.documentElement.classList.contains('modo-fotos');
+  const LS_ABA = fotos ? 'dan_editorial_aba_fotos_v1' : 'dan_editorial_aba_escrita_v1';
+  const LS_SUB = 'dan_editorial_aba_criar_v1';
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const ic = {
+    criar: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    slides: '<rect x="3" y="5" width="13" height="15" rx="2.5"/><path d="M19.5 8v9"/><path d="M8 2.5h9.5A2.5 2.5 0 0 1 20 5"/>',
+    fotos: '<rect x="3" y="3" width="18" height="18" rx="3.5"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L6 21"/>',
+    frases: '<path d="M4 9c0-2.5 1.8-3.5 4-3.5v3c-1.2 0-2 .6-2 2h2v4H4Z"/><path d="M13 9c0-2.5 1.8-3.5 4-3.5v3c-1.2 0-2 .6-2 2h2v4h-4Z"/><path d="M4 19h16"/>',
+    legenda: '<path d="M4 6h16"/><path d="M4 11h16"/><path d="M4 16h10"/>',
+    postar: '<path d="M21.5 2.5 11 13"/><path d="M21.5 2.5 15 21.5l-4-8.5-8.5-4Z"/>',
+    salvos: '<path d="M18 21.5 12 17.5 6 21.5V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2Z"/>'
+  };
+  const ABAS = fotos
+    ? [['slides', 'Slides', 'Confira cada slide e ajuste a foto do slide aberto.'], ['fotos', 'Fotos', 'Uma foto por slide. As automáticas já vêm escolhidas.'], ['frases', 'Frases', 'Os 2 posts de imagem única do mesmo tema.'], ['postar', 'Postar', 'Legenda, imagens e envio.'], ['salvos', 'Salvos', 'Carrosséis guardados neste aparelho.']]
+    : [['criar', 'Criar', 'Comece por um vídeo, uma ideia ou um JSON do chat.'], ['slides', 'Slides', 'Confira e edite cada slide.'], ['frases', 'Frases', 'Os 2 posts de imagem única do mesmo tema.'], ['legenda', 'Legenda', 'Confira a legenda antes de mandar para o vermelho.'], ['salvos', 'Salvos', 'Carrosséis guardados neste aparelho.']];
+  const NOMES = { criar: 'Criar', slides: 'Slides', fotos: 'Fotos', frases: 'Frases', legenda: 'Legenda', postar: 'Postar', salvos: 'Salvos' };
+
+  const grid = document.querySelector('.grid'); const stage = document.querySelector('.stage');
+  const direita = grid.children[1];
+  const resto = document.createElement('div'); resto.hidden = true; resto.id = 'resto';
+  const palco = document.createElement('div'); palco.className = 'palco stage'; palco.id = 'palco';
+  const painel = document.createElement('div'); painel.className = 'painel';
+  const P = {};
+  ABAS.forEach(([k, nome, sub]) => {
+    const s = document.createElement('section'); s.className = 'aba'; s.id = 'aba-' + k; s.setAttribute('aria-label', nome);
+    const h = document.createElement('h2'); h.className = 'aba-titulo'; h.textContent = nome;
+    const p = document.createElement('p'); p.className = 'aba-sub'; p.textContent = sub;
+    s.append(h, p); P[k] = s; painel.append(s);
+  });
+  grid.append(palco, painel); // já no documento: getElementById continua achando os blocos depois de movidos
+  const mover = (dest, ...els) => els.forEach(el => { if (el) dest.append(el); });
+  const linhaAcoes = $('enviar-ig').parentElement; // a fileira antiga de botões, que vai ser repartida
+
+  // Palco: prévia, bolinhas dos slides, título e conferência da capa
+  mover(palco, document.querySelector('.canvas-wrap'), $('dots').closest('.row'), $('ctitle').parentElement);
+  const acao = document.createElement('div'); acao.className = 'acao-fixa'; acao.id = 'acao-fixa'; document.body.append(acao);
+  const acaoRow = document.createElement('div'); acaoRow.className = 'row';
+  acao.append(acaoRow);
+
+  if (!fotos) {
+    const seg = document.createElement('div'); seg.className = 'sub-seg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Como começar');
+    [['videos', 'Vídeos'], ['ideia', 'Uma ideia'], ['json', 'JSON do chat']].forEach(([k, t]) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.s = k; b.textContent = t; seg.append(b); });
+    const wrap = document.createElement('div'); wrap.className = 'criar-wrap stack';
+    const json = $('paste').closest('section'); json.classList.add('card-json');
+    mover(wrap, $('tr-card'), $('gen-card'), json);
+    mover(P.criar, seg, wrap);
+    const setSub = (k) => {
+      const ideiaOk = !$('gen-card').hidden;
+      seg.querySelector('[data-s="ideia"]').hidden = !ideiaOk;
+      if (k === 'ideia' && !ideiaOk) k = 'videos';
+      wrap.dataset.sub = k; lsSet(LS_SUB, k);
+      seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === k)));
+    };
+    seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setSub(b.dataset.s); });
+    let quer = lsGet(LS_SUB) || 'videos';
+    new MutationObserver(() => setSub(quer)).observe($('gen-card'), { attributes: true, attributeFilter: ['hidden'] });
+    seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) quer = b.dataset.s; });
+    setSub(quer);
+    mover(P.slides, document.querySelector('section[aria-label="Editar slide"]'));
+    mover(P.frases, $('frases'));
+    mover(P.legenda, $('legend').closest('section'));
+    mover(P.salvos, $('hist').closest('section'), $('avatar-btn').closest('section'));
+    mover(acaoRow, $('abrir-fora'), $('copiar-fora'));
+    mover(acao, $('envio-dica'));
+  } else {
+    const topo = document.createElement('div'); topo.className = 'row';
+    mover(topo, $('colar-azul'));
+    mover(P.slides, topo, $('img-row'), $('suggest'), $('tf'));
+    const vis = document.createElement('details'); vis.className = 'card'; vis.id = 'visual';
+    const sm = document.createElement('summary'); sm.textContent = 'Visual dos slides (acabamento, alça, tom do vidro)';
+    vis.append(sm);
+    mover(vis, $('acab').closest('.row'), $('pista').closest('.row'), $('tom-row'));
+    mover(P.slides, vis);
+    mover(P.fotos, $('fotos'));
+    mover(P.frases, $('frases'));
+    const pr = document.createElement('div'); pr.className = 'row';
+    mover(pr, $('finalizar'), $('zip'), $('png'));
+    mover(P.postar, $('nofoto-hint'), $('legend').closest('section'), pr, $('enviar-hint'));
+    mover(P.salvos, $('hist').closest('section'), $('avatar-btn').closest('section'));
+    mover(acaoRow, $('enviar-ig'));
+    if ($('enviar-ig').hidden) mover(acaoRow, $('finalizar')); // aparelho sem compartilhar: a ação principal vira salvar as imagens
+  }
+  // O que sobrou (blocos do outro modo) fica guardado e escondido: nenhuma função perde o seu elemento
+  [...stage.children, ...direita.children].forEach(el => resto.append(el));
+  resto.append(linhaAcoes);
+  stage.remove(); direita.remove();
+  document.body.append(resto, acao);
+
+  const nav = document.createElement('nav'); nav.className = 'nav-abas'; nav.setAttribute('aria-label', 'Seções do Motor');
+  ABAS.forEach(([k]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.aba = k;
+    b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ic[k]}</svg><span>${NOMES[k]}</span>`;
+    nav.append(b);
+  });
+  document.body.append(nav);
+  const COM_ACAO = fotos ? ['slides', 'fotos', 'postar'] : ['slides', 'frases', 'legenda'];
+  let atual = null;
+  const acaoVisivel = () => document.body.classList.toggle('com-acao', COM_ACAO.includes(atual) && [...acaoRow.children].some(el => !el.hidden));
+  function setAba(k, empurrar) {
+    if (!P[k]) k = ABAS[0][0];
+    if (k === atual) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    atual = k; lsSet(LS_ABA, k);
+    document.body.dataset.aba = k;
+    Object.entries(P).forEach(([n, el]) => el.classList.toggle('on', n === k));
+    nav.querySelectorAll('button').forEach(b => { if (b.dataset.aba === k) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    acaoVisivel();
+    if (empurrar) { try { history.pushState({ aba: k }, ''); } catch (e) {} }
+    window.scrollTo(0, 0);
+  }
+  nav.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setAba(b.dataset.aba, true); });
+  window.addEventListener('popstate', (e) => { const k = e.state && e.state.aba; if (k) setAba(k, false); });
+  document.addEventListener('motor:aba', (e) => setAba(e.detail, true));
+  new MutationObserver(acaoVisivel).observe(acaoRow, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+  if (fotos) {
+    const bf = nav.querySelector('[data-aba="fotos"]'); const badge = document.createElement('span'); badge.className = 'badge'; badge.hidden = true; bf.append(badge);
+    const conta = () => { const n = document.querySelectorAll('#dots .dot.nofoto').length; badge.hidden = !n; badge.textContent = n; bf.setAttribute('aria-label', n ? `Fotos, ${n} sem foto` : 'Fotos'); };
+    new MutationObserver(conta).observe($('dots'), { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); conta();
+  }
+  const inicial = P[lsGet(LS_ABA)] ? lsGet(LS_ABA) : ABAS[0][0];
+  try { history.replaceState({ aba: inicial }, ''); } catch (e) {}
+  setAba(inicial, false);
 })();
 </script>
 

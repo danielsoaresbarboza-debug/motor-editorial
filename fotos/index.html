@@ -321,6 +321,7 @@
         <button class="btn primary" id="search">Buscar foto</button>
         <button class="btn" id="attach">Da galeria</button>
         <button class="btn" id="ajustar" hidden>Ajustar foto</button>
+        <button class="btn" id="marcar" hidden type="button">Posicionar marcas</button>
         <button class="btn ghost" id="rm-img" hidden>Remover</button>
         <button class="btn" id="panorama" hidden aria-pressed="false">↔ Foto continua no próximo slide</button>
         <input type="file" id="file" accept="image/*" hidden>
@@ -444,6 +445,10 @@
             <option value="comparar">Antes e depois</option>
             <option value="fecho">Fecho (pergunta)</option>
             <option value="tweet">Conversa (tweet)</option>
+            <option value="destaque">Frase gigante</option>
+            <option value="pergunta">Pergunta (resposta no próximo)</option>
+            <option value="revela">Resposta da pergunta</option>
+            <option value="print">Print anotado</option>
           </select>
           <div class="seg" id="fundo" role="group" aria-label="Fundo">
             <button type="button" data-f="escuro">Escuro</button>
@@ -551,7 +556,7 @@
   const LS_KEY = 'dan_editorial_v1';
   const LS_AVATAR = 'dan_editorial_avatar_v1';
   const LS_COR = 'dan_editorial_cor_v1';
-  const TIPOS = ['capa', 'texto', 'imagem', 'foto', 'lista', 'numero', 'comparar', 'fecho', 'tweet'];
+  const TIPOS = ['capa', 'texto', 'imagem', 'foto', 'lista', 'numero', 'comparar', 'fecho', 'tweet', 'destaque', 'pergunta', 'revela', 'print'];
   const PILARES = {
     'marca-decodificada': 'Marca Decodificada', 'olho-do-designer': 'Olho de quem cria',
     'ia-na-criacao': 'IA na Criação', 'bastidor': 'Bastidor dos 58M', 'repertorio': 'Repertório'
@@ -598,10 +603,14 @@
     else if (tipo === 'numero') paras = [String(s.numero || '')].concat(asParas(s.texto));
     else if (tipo === 'comparar') paras = [String(s.titulo || ''), String(s.antes || ''), String(s.depois || '')];
     else if (tipo === 'foto') paras = asParas(s.blocos || s.texto);
+    else if (tipo === 'destaque') paras = asParas(s.texto || s.frase);
+    else if (tipo === 'pergunta') paras = asParas(s.pergunta || s.texto).slice(0, 1).concat(asParas(s.opcoes));
+    else if (tipo === 'revela') paras = asParas(s.resposta).slice(0, 1).concat(asParas(s.texto));
+    else if (tipo === 'print') paras = [String(s.titulo || '')].concat(asParas(s.notas || s.texto));
     else if (tipo === 'capa' || tipo === 'fecho') paras = asParas(s.texto || s.manchete || s.pergunta).slice(0, 1).concat(asParas(s.texto || '').slice(1));
     else paras = asParas(s.texto || s.text);
     if (Array.isArray(s.paras)) paras = s.paras.map(String);
-    const fundo = ['escuro', 'claro', 'cor'].includes(s.fundo) ? s.fundo : (tipo === 'imagem' || tipo === 'tweet' ? 'claro' : 'escuro');
+    const fundo = ['escuro', 'claro', 'cor'].includes(s.fundo) ? s.fundo : (tipo === 'imagem' || tipo === 'tweet' || tipo === 'revela' ? 'claro' : 'escuro');
     const out = { tipo, fundo, paras };
     if (s.imgSuggestion) out.imgSuggestion = String(s.imgSuggestion);
     if (s.imgBusca) out.imgBusca = String(s.imgBusca);
@@ -610,6 +619,9 @@
     if (s.fotoUrl) out.fotoUrl = String(s.fotoUrl);
     if (s.panorama) out.panorama = true;
     if (s.t) out.t = s.t;
+    if (s.passo && /^\s*\d+\s*\/\s*\d+\s*$/.test(String(s.passo))) out.passo = String(s.passo).replace(/\s/g, '');
+    if (s.marca) out.marca = true;
+    if (Array.isArray(s.marcas)) out.marcas = s.marcas.filter(m => m && isFinite(m.x) && isFinite(m.y)).slice(0, 3).map(m => ({ x: +m.x, y: +m.y }));
     return out;
   }
   function normCarousel(o) {
@@ -842,6 +854,9 @@
     lastCover = { x, y, w, h, sw, sh, nw: im.naturalWidth, nh: im.naturalHeight };
   }
   let lastCover = null;
+  // marca-texto atrás das palavras em **negrito**: lilás translúcido no escuro (texto branco continua legível), amarelo no claro
+  const marcaCor = (dark) => dark ? 'rgba(124,118,255,0.45)' : 'rgba(255,214,64,0.62)';
+  let printFrame = null, marcando = false, proxMarca = 0;
   function placeholder(x, y, w, h, r, dark) {
     ctx.save();
     if (r) { rr(x, y, w, h, r); ctx.clip(); }
@@ -1095,17 +1110,28 @@
       ctx.fillStyle = corB; rr(M, 50, Math.max(12, Math.round(CW * prog)), 5, 2.5); ctx.fill();
     }
     ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = alpha(col, 0.78);
-    ctx.font = fontStr(SANS, 23, 500); spaced(0.2); ctx.textAlign = 'left';
+    ctx.fillStyle = alpha(col, 0.9);
+    ctx.font = fontStr(SANS, 27, 500); spaced(0.2); ctx.textAlign = 'left';
     ctx.fillText(HANDLE, M, TOP);
+    // contador de passos (v48): "PASSO 2 DE 4" quando o slide 2 promete uma sequência
+    const ps = c.slides[i] && c.slides[i].passo;
+    if (ps) {
+      const [a, b] = ps.split('/');
+      const corP = onPhoto || !isDarkHex(ink) ? '#C9C2FF' : '#D9452B';
+      ctx.font = fontStr(SANS, 24, 700); spaced(2.5); ctx.textAlign = 'right';
+      const txt = `PASSO ${a} DE ${b}`, tw = ctx.measureText(txt).width;
+      ctx.save(); rr(W - M - tw - 30, TOP - 34, tw + 30, 46, 23); ctx.fillStyle = alpha(corP, onPhoto ? 0.92 : 0.18); ctx.fill(); ctx.restore();
+      ctx.fillStyle = onPhoto ? '#141414' : corP; ctx.fillText(txt, W - M - 15, TOP - 2);
+      ctx.fillStyle = alpha(col, 0.9); spaced(0.2); ctx.textAlign = 'left';
+    }
     // rodapé
     ctx.fillStyle = alpha(col, onPhoto ? 0.35 : 0.2);
     ctx.fillRect(M, FOOT, CW, 1.5);
-    ctx.fillStyle = alpha(col, 0.78);
-    ctx.font = fontStr(SANS, 18, 600); spaced(3); ctx.textAlign = 'left';
-    ctx.fillText(RUBRIC, M, FOOT + 50);
-    ctx.font = fontStr(SANS, 20, 500); spaced(1); ctx.textAlign = 'right';
-    ctx.fillText(`${String(i + 1).padStart(2, '0')} / ${String(n).padStart(2, '0')}`, W - M, FOOT + 50);
+    ctx.fillStyle = alpha(col, 0.86);
+    ctx.font = fontStr(SANS, 22, 600); spaced(2.4); ctx.textAlign = 'left';
+    ctx.fillText(RUBRIC, M, FOOT + 54);
+    ctx.font = fontStr(SANS, 24, 500); spaced(1); ctx.textAlign = 'right';
+    ctx.fillText(`${String(i + 1).padStart(2, '0')} / ${String(n).padStart(2, '0')}`, W - M, FOOT + 54);
     spaced(0);
     ctx.restore();
   }
@@ -1457,7 +1483,7 @@
       luz(dark, false);
       const TL = fit(s.paras.slice(0, 1), { fam: SERIF, w: 400, wb: 600, lh: 1.1, maxW: CW, max: i === 1 ? 66 : 52, min: 36 }, i === 1 ? 260 : 200);
       const bodyParas = s.paras.slice(1);
-      const BL = bodyParas.length ? fit(bodyParas, { fam: SANS, w: 400, wb: 600, lh: 1.5, maxW: CW, max: 30, min: 24, gap: 0.6 }, 230) : null;
+      const BL = bodyParas.length ? fit(bodyParas, { fam: SANS, w: 400, wb: 600, lh: 1.45, maxW: CW, max: 40, min: 32, gap: 0.6 }, 260) : null;
       const gap = 40;
       let imgH = BODY_B - BODY_T - TL.h - gap - (BL ? BL.h + gap : 0);
       imgH = Math.max(320, Math.min(760, imgH));
@@ -1498,7 +1524,7 @@
       }
       const acento = dark ? '#C9C2FF' : '#D9452B';
       // cartão de perfil
-      const bx = M - 20, bw = CW + 40, bh = 176, by = FOOT - 48 - bh;
+      const bx = M - 20, bw = CW + 40, bh = 196, by = FOOT - 48 - bh;
       let tintaC = ink;
       let cartaoEscuro = dark;
       if (fundoFoto && acabamento === 'vidro') { const tm = tomPara(bx, by, bw, bh); cartaoEscuro = tm.dark; tintaC = vidro(bx, by, bw, bh, 40, { photo: fundoFoto, t: capaS.t, dark: tm.dark, reforco: tm.reforco }); }
@@ -1513,26 +1539,26 @@
       avatarCircle(ax, ay, ar, cartaoEscuro ? 'rgba(255,255,255,0.35)' : null);
       const tx = ax + ar + 26;
       ctx.save(); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = tintaC; ctx.font = fontStr(SANS, 28, 600); ctx.fillText(NAME, tx, by + 64);
-      ctx.fillStyle = alpha(tintaC, 0.6); ctx.font = fontStr(SANS, 20, 500); ctx.fillText(HANDLE, tx, by + 94);
-      ctx.fillStyle = alpha(tintaC, 0.85); ctx.font = fontStr(SERIF, 23, 400, true); ctx.fillText('Quem é lembrado é chamado.', tx, by + 136);
+      ctx.fillStyle = tintaC; ctx.font = fontStr(SANS, 32, 600); ctx.fillText(NAME, tx, by + 68);
+      ctx.fillStyle = alpha(tintaC, 0.82); ctx.font = fontStr(SANS, 25, 500); ctx.fillText(HANDLE, tx, by + 104);
+      ctx.fillStyle = alpha(tintaC, 0.92); ctx.font = fontStr(SERIF, 28, 400, true); ctx.fillText('Quem é lembrado é chamado.', tx, by + 150);
       // botão "Seguir"
-      const pw = 150, ph = 58, px = bx + bw - 34 - pw, py = ay - ph / 2;
+      const pw = 168, ph = 64, px = bx + bw - 34 - pw, py = ay - ph / 2;
       rr(px, py, pw, ph, ph / 2); ctx.fillStyle = cartaoEscuro ? acento : TINTA; ctx.fill();
-      ctx.fillStyle = cartaoEscuro ? TINTA : PAPEL; ctx.font = fontStr(SANS, 22, 600); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = cartaoEscuro ? TINTA : PAPEL; ctx.font = fontStr(SANS, 26, 600); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('Seguir', px + pw / 2, py + ph / 2 + 1);
       ctx.restore();
       // salvar: ícone de marcador + texto, logo acima do cartão
-      ctx.save(); ctx.fillStyle = alpha(ink, 0.7); ctx.font = fontStr(SANS, 17, 600); spaced(3); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-      const sv = 'SALVE PARA REVER DEPOIS', svw = ctx.measureText(sv).width, ix = W / 2 - (svw + 30) / 2, iy = by - 46;
-      ctx.beginPath(); ctx.moveTo(ix, iy - 16); ctx.lineTo(ix + 16, iy - 16); ctx.lineTo(ix + 16, iy + 4); ctx.lineTo(ix + 8, iy - 2); ctx.lineTo(ix, iy + 4); ctx.closePath(); ctx.fill();
-      ctx.fillText(sv, ix + 30, iy); spaced(0); ctx.restore();
+      ctx.save(); ctx.fillStyle = alpha(ink, 0.9); ctx.font = fontStr(SANS, 25, 600); spaced(2.5); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+      const sv = 'SALVE PARA REVER DEPOIS', svw = ctx.measureText(sv).width, ix = W / 2 - (svw + 38) / 2, iy = by - 46;
+      ctx.beginPath(); ctx.moveTo(ix, iy - 22); ctx.lineTo(ix + 20, iy - 22); ctx.lineTo(ix + 20, iy + 4); ctx.lineTo(ix + 10, iy - 4); ctx.lineTo(ix, iy + 4); ctx.closePath(); ctx.fill();
+      ctx.fillText(sv, ix + 38, iy); spaced(0); ctx.restore();
       // pergunta
       const rest = s.paras.slice(1);
       const topoQ = 230, baseQ = by - 110;
-      const F = fit2(s.paras.slice(0, 1), rest, baseQ - topoQ - 90, { a: 76, b: 28, lhA: 1.1, maxW: CW - 20, gap: 36 });
+      const F = fit2(s.paras.slice(0, 1), rest, baseQ - topoQ - 90, { a: 76, b: 36, lhA: 1.1, maxW: CW - 20, gap: 36 });
       let y = topoQ + 90 + Math.max(0, (baseQ - topoQ - 90 - F.h) / 2);
-      ctx.save(); ctx.fillStyle = acento; ctx.font = fontStr(SANS, 18, 600); spaced(3); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.save(); ctx.fillStyle = acento; ctx.font = fontStr(SANS, 26, 600); spaced(2.5); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
       ctx.fillText('PRA PENSAR', W / 2, y - 60); spaced(0);
       ctx.fillRect(W / 2 - 28, y - 44, 56, 3); ctx.restore();
       drawLayout(F.A, { fam: SERIF, w: 500, wb: 600, color: ink, accent: acento }, W / 2, y, 'center');
@@ -1569,13 +1595,13 @@
       const numW = 74, pad = vid ? 30 : 22, gapI = vid ? 16 : 0;
       const topo = BODY_T + 46;
       const disp = BODY_B - (topo + TL.h + 44);
-      let Ls = [], size = 34;
-      for (; size >= 22; size -= 2) {
+      let Ls = [], size = 40;
+      for (; size >= 28; size -= 2) {
         Ls = itens.map(t => layout([t], { fam: SANS, w: 400, wb: 600, lh: 1.42, maxW: CW - numW - (vid ? pad * 2 : 0), size }));
         const tot = Ls.reduce((a, L) => a + L.h + pad * 2, 0) + gapI * Math.max(0, Ls.length - 1);
         if (tot <= disp) break;
       }
-      ctx.save(); ctx.fillStyle = acento; ctx.font = fontStr(SANS, 18, 600); spaced(3); ctx.textBaseline = 'alphabetic';
+      ctx.save(); ctx.fillStyle = acento; ctx.font = fontStr(SANS, 26, 600); spaced(2.5); ctx.textBaseline = 'alphabetic';
       ctx.fillText('TIRE PRINT DESTE SLIDE', M, topo - 12); spaced(0); ctx.restore();
       drawLayout(TL, { fam: SERIF, w: 500, wb: 600, color: ink }, M, topo + 8, 'left');
       let y = topo + 8 + TL.h + 44;
@@ -1631,8 +1657,8 @@
       // painéis do tamanho do texto; encolhe a letra até caber
       let k2 = 1, LA, LB, hA, hB;
       for (let step = 0; step < 12; step++, k2 -= 0.06) {
-        LA = fit([s.paras[1] || ''], { fam: SANS, w: 400, wb: 600, lh: 1.38, maxW: innerW, max: Math.round(40 * k2), min: 22 }, 9999);
-        LB = fit([s.paras[2] || ''], { fam: SERIF, w: 500, wb: 600, lh: 1.14, maxW: innerW, max: Math.round(56 * k2), min: 26 }, 9999);
+        LA = fit([s.paras[1] || ''], { fam: SANS, w: 400, wb: 600, lh: 1.38, maxW: innerW, max: Math.round(42 * k2), min: 30 }, 9999);
+        LB = fit([s.paras[2] || ''], { fam: SERIF, w: 500, wb: 600, lh: 1.14, maxW: innerW, max: Math.round(56 * k2), min: 32 }, 9999);
         hA = LA.h + pad * 2 + cab; hB = LB.h + pad * 2 + cab;
         if (TL.h + 48 + hA + gap + hB <= BODY_B - BODY_T) break;
       }
@@ -1652,9 +1678,106 @@
         if (bom) { ctx.moveTo(cx - 8, cy); ctx.lineTo(cx - 2, cy + 6); ctx.lineTo(cx + 8, cy - 6); }
         else { ctx.moveTo(cx - 6, cy - 6); ctx.lineTo(cx + 6, cy + 6); ctx.moveTo(cx + 6, cy - 6); ctx.lineTo(cx - 6, cy + 6); }
         ctx.stroke();
-        ctx.fillStyle = bom ? acento : alpha(ink, 0.5); ctx.font = fontStr(SANS, 18, 600); spaced(3); ctx.textBaseline = 'middle';
+        ctx.fillStyle = bom ? acento : alpha(ink, 0.82); ctx.font = fontStr(SANS, 24, 600); spaced(2.5); ctx.textBaseline = 'middle';
         ctx.fillText(rot, cx + 32, cy + 1); spaced(0); ctx.restore();
         drawLayout(L, { fam: bom ? SERIF : SANS, w: bom ? 500 : 400, wb: 600, color: bom ? ink : alpha(ink, 0.62) }, M - 20 + pad, py + pad + cab, 'left');
+      });
+      chrome(c, i, n, ink, false);
+    } else if (s.tipo === 'destaque') {
+      // Frase gigante (v48): uma frase só, enorme. Quebra o ritmo e é o slide que mais se printa.
+      const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
+      ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
+      luz(dark, false);
+      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const F = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.04, maxW: CW, max: 132, min: 72 }, BODY_B - BODY_T - 120);
+      const y = BODY_T + Math.max(40, (BODY_B - BODY_T - F.h) * 0.5);
+      ctx.fillStyle = acento; ctx.fillRect(M, y - 54, 72, 5);
+      drawLayout(F, { fam: SERIF, w: 500, wb: 600, color: ink, marca: marcaCor(dark) }, M, y, 'left');
+      const rest = s.paras.slice(1).filter(t => t.trim());
+      if (rest.length) { const B = fit(rest, { fam: SANS, w: 400, wb: 600, lh: 1.45, maxW: CW, max: 40, min: 32 }, 200); drawLayout(B, { fam: SANS, w: 400, wb: 600, color: alpha(ink, 0.88) }, M, Math.min(BODY_B - B.h, y + F.h + 48), 'left'); }
+      chrome(c, i, n, ink, false);
+    } else if (s.tipo === 'pergunta') {
+      // Pergunta (v48): a pessoa responde de cabeça; a resposta vem no slide seguinte ("revela").
+      const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
+      ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
+      luz(dark, false);
+      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const ops = s.paras.slice(1).filter(t => t.trim()).slice(0, 3);
+      const Q = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.08, maxW: CW, max: 76, min: 46 }, 340);
+      const pad = 34, letra = 64, inner = CW + 40 - pad * 2 - letra - 18;
+      const Ls = ops.map(t => fit([t], { fam: SANS, w: 500, wb: 600, lh: 1.32, maxW: inner, max: 40, min: 32 }, 220));
+      const hs = Ls.map(L => Math.max(letra, L.h) + pad * 2);
+      const tot = 50 + Q.h + 56 + hs.reduce((a, b) => a + b, 0) + 20 * Math.max(0, hs.length - 1) + 70;
+      let y = BODY_T + Math.max(0, (BODY_B - BODY_T - tot) * 0.45);
+      ctx.save(); ctx.fillStyle = acento; ctx.font = fontStr(SANS, 26, 600); spaced(2.5); ctx.textBaseline = 'alphabetic';
+      ctx.fillText('RESPONDA ANTES DE DESLIZAR', M, y + 26); spaced(0); ctx.restore();
+      y += 50; drawLayout(Q, { fam: SERIF, w: 500, wb: 600, color: ink }, M, y, 'left'); y += Q.h + 56;
+      Ls.forEach((L, k) => {
+        const h = hs[k];
+        ctx.save(); rr(M - 20, y, CW + 40, h, 30); ctx.fillStyle = alpha(ink, dark ? 0.08 : 0.05); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = alpha(ink, dark ? 0.22 : 0.16); ctx.stroke(); ctx.restore();
+        const cx = M - 20 + pad + letra / 2, cy = y + h / 2;
+        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, letra / 2, 0, Math.PI * 2); ctx.fillStyle = acento; ctx.fill();
+        ctx.fillStyle = dark ? '#15131F' : '#FFFFFF'; ctx.font = fontStr(SANS, 32, 600); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('ABC'[k], cx, cy + 1); ctx.restore();
+        drawLayout(L, { fam: SANS, w: 500, wb: 600, color: ink }, M - 20 + pad + letra + 18, y + (h - L.h) / 2, 'left');
+        y += h + 20;
+      });
+      ctx.save(); ctx.fillStyle = alpha(ink, 0.88); ctx.font = fontStr(SANS, 28, 500); ctx.textBaseline = 'alphabetic';
+      ctx.fillText('A resposta está no próximo slide →', M, Math.min(BODY_B, y + 40)); ctx.restore();
+      chrome(c, i, n, ink, false);
+    } else if (s.tipo === 'revela') {
+      // Revelação (v48): fecha a pergunta do slide anterior
+      const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
+      ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
+      luz(dark, false);
+      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const R = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.04, maxW: CW, max: 104, min: 58 }, 360);
+      const rest = s.paras.slice(1).filter(t => t.trim());
+      const B = rest.length ? fit(rest, { fam: SANS, w: 400, wb: 600, lh: 1.45, maxW: CW, max: 40, min: 32, gap: 0.6 }, 460) : null;
+      const tot = 50 + R.h + (B ? 50 + B.h : 0);
+      let y = BODY_T + Math.max(30, (BODY_B - BODY_T - tot) * 0.45);
+      ctx.save(); ctx.fillStyle = acento; ctx.font = fontStr(SANS, 26, 600); spaced(2.5); ctx.textBaseline = 'alphabetic';
+      ctx.fillText('A RESPOSTA', M, y + 26); spaced(0); ctx.restore();
+      y += 50; drawLayout(R, { fam: SERIF, w: 500, wb: 600, color: acento }, M, y, 'left');
+      if (B) drawLayout(B, { fam: SANS, w: 400, wb: 600, color: alpha(ink, 0.9), marca: s.marca ? marcaCor(dark) : null }, M, y + R.h + 50, 'left');
+      chrome(c, i, n, ink, false);
+    } else if (s.tipo === 'print') {
+      // Print anotado (v48): uma imagem real (post, tela, logo, embalagem) com círculos de marca-texto e notas numeradas.
+      const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
+      ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
+      luz(dark, false);
+      const notas = s.paras.slice(1).filter(t => t.trim()).slice(0, 3);
+      const T = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.08, maxW: CW, max: 56, min: 40 }, 170);
+      const Ns = notas.map(t => fit([t], { fam: SANS, w: 400, wb: 600, lh: 1.32, maxW: CW - 70, max: 36, min: 30 }, 130));
+      const notasH = Ns.reduce((a, L) => a + Math.max(48, L.h) + 18, 0);
+      const fy = BODY_T + T.h + 36, fh = Math.max(380, BODY_B - fy - notasH - 30), fx = M - 20, fw = CW + 40;
+      drawLayout(T, { fam: SERIF, w: 500, wb: 600, color: ink }, M, BODY_T, 'left');
+      const im = img(s.image);
+      ctx.save(); ctx.shadowColor = dark ? 'rgba(0,0,0,0.5)' : 'rgba(30,30,50,0.18)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 18;
+      rr(fx, fy, fw, fh, 26); ctx.fillStyle = dark ? '#1C1C1F' : '#FFFFFF'; ctx.fill(); ctx.restore();
+      if (im) cover(im, fx, fy, fw, fh, s.t, 26); else placeholder(fx, fy, fw, fh, 26, dark);
+      ctx.save(); ctx.lineWidth = 2; ctx.strokeStyle = alpha(ink, 0.14); rr(fx, fy, fw, fh, 26); ctx.stroke(); ctx.restore();
+      printFrame = { x: fx, y: fy, w: fw, h: fh };
+      const AM = '#FFD43B', pos = s.marcas || [];
+      const PADRAO = [[0.3, 0.3], [0.68, 0.52], [0.36, 0.76]];
+      notas.forEach((_, k) => {
+        const p = pos[k] || { x: PADRAO[k][0], y: PADRAO[k][1] };
+        const cx = fx + fw * p.x, cy = fy + fh * p.y, rx = Math.min(120, fw * 0.14), ry = rx * 0.66;
+        ctx.save(); ctx.strokeStyle = AM; ctx.lineCap = 'round'; ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 8;
+        // traço de caneta: duas voltas levemente desencontradas
+        ctx.lineWidth = 7; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, -0.12, 0.2, Math.PI * 2 + 0.05); ctx.stroke();
+        ctx.lineWidth = 4; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.ellipse(cx + 4, cy - 3, rx * 1.04, ry * 0.95, -0.08, 0.9, Math.PI * 1.9); ctx.stroke();
+        ctx.globalAlpha = 1; ctx.shadowBlur = 6;
+        const bx = cx + rx * 0.78, by = cy - ry * 0.95;
+        ctx.beginPath(); ctx.arc(bx, by, 26, 0, Math.PI * 2); ctx.fillStyle = AM; ctx.fill();
+        ctx.shadowColor = 'transparent'; ctx.fillStyle = '#141414'; ctx.font = fontStr(SANS, 28, 700); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(k + 1), bx, by + 1);
+        ctx.restore();
+      });
+      let ny = fy + fh + 30;
+      Ns.forEach((L, k) => {
+        ctx.save(); ctx.beginPath(); ctx.arc(M + 24, ny + 24, 24, 0, Math.PI * 2); ctx.fillStyle = AM; ctx.fill();
+        ctx.fillStyle = '#141414'; ctx.font = fontStr(SANS, 26, 700); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(k + 1), M + 24, ny + 25); ctx.restore();
+        drawLayout(L, { fam: SANS, w: 400, wb: 600, color: alpha(ink, 0.92) }, M + 70, ny + Math.max(0, (48 - L.size * 1.32) / 2), 'left');
+        ny += Math.max(48, L.h) + 18;
       });
       chrome(c, i, n, ink, false);
     } else {
@@ -1662,11 +1785,12 @@
       ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
       luz(dark, false);
       const hero = i === 1; // slide 2 = segunda porta de entrada (o Instagram reapresenta o carrossel a partir dele)
-      const F = fit2(s.paras.slice(0, 1), s.paras.slice(1), BODY_B - BODY_T - 80, { a: hero ? 82 : 58, b: hero ? 32 : 34, lhA: hero ? 1.06 : 1.2, maxW: CW, gap: hero ? 52 : 44 });
+      const F = fit2(s.paras.slice(0, 1), s.paras.slice(1), BODY_B - BODY_T - 80, { a: hero ? 82 : 60, b: 40, lhA: hero ? 1.06 : 1.18, maxW: CW, gap: hero ? 48 : 40 });
       let y = BODY_T + 60 + Math.max(0, (BODY_B - BODY_T - 80 - F.h) * 0.46);
       ctx.fillStyle = ink; ctx.fillRect(M, y - 60, 56, 3);
-      drawLayout(F.A, { fam: SERIF, w: 400, wb: 600, color: ink }, M, y, 'left');
-      if (F.B) drawLayout(F.B, { fam: SANS, w: 400, wb: 600, color: alpha(ink, 0.72) }, M, y + F.A.h + 44, 'left');
+      const mk = s.marca ? marcaCor(dark) : null;
+      drawLayout(F.A, { fam: SERIF, w: 400, wb: 600, color: ink, marca: mk }, M, y, 'left');
+      if (F.B) drawLayout(F.B, { fam: SANS, w: 400, wb: 600, color: alpha(ink, 0.88), marca: mk }, M, y + F.A.h + 44, 'left');
       chrome(c, i, n, ink, false);
     }
     ctx.restore();
@@ -1701,7 +1825,14 @@
     imagem: 'Primeiro bloco é o título em cima da foto. Depois de uma linha em branco, o texto embaixo.',
     foto: 'Cada bloco vira uma caixa branca sobre a foto. Separe as caixas com uma linha em branco.',
     fecho: 'A pergunta final. Um segundo bloco opcional aparece menor, embaixo.',
-    tweet: 'Texto da conversa, como um tweet. Um parágrafo por bloco; frases curtas. Fundo Claro ou Escuro muda o tema.'
+    tweet: 'Texto da conversa, como um tweet. Um parágrafo por bloco; frases curtas. Fundo Claro ou Escuro muda o tema.',
+    destaque: 'Uma frase só, de 6 a 10 palavras. Use **palavra** para o marca-texto.',
+    pergunta: 'Primeiro bloco: a pergunta. Depois, uma opção por bloco (A, B e C).',
+    revela: 'Primeiro bloco: a resposta curta (aparece grande). Depois, a explicação.',
+    print: 'Primeiro bloco: o título. Depois, até 3 notas (uma por bloco). No Motor vermelho, toque em "Posicionar marcas" e toque na imagem.',
+    lista: 'Primeiro bloco: o título da lista. Depois, um item por bloco.',
+    numero: 'Primeiro bloco: o número. Depois, o que ele quer dizer.',
+    comparar: 'Três blocos: o título, o jeito comum (antes) e o jeito que funciona (depois).'
   };
   function updateUI() {
     const c = active();
@@ -1718,7 +1849,7 @@
     c.slides.forEach((sl, k) => {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'dot'; b.textContent = String(k + 1);
-      const needs = (sl.tipo === 'capa' || sl.tipo === 'foto' || sl.tipo === 'imagem') && !sl.image;
+      const needs = (sl.tipo === 'capa' || sl.tipo === 'foto' || sl.tipo === 'imagem' || sl.tipo === 'print') && !sl.image;
       if (needs) { b.classList.add('nofoto'); missing = true; }
       b.setAttribute('aria-current', k === state.cur ? 'true' : 'false');
       b.setAttribute('aria-label', `Slide ${k + 1}${needs ? ', sem foto' : ''}`);
@@ -1732,7 +1863,8 @@
     $('fundo').hidden = (s.tipo === 'capa' || s.tipo === 'foto');
     $('editor').value = s.paras.join('\n\n');
     $('editor-hint').textContent = EDITOR_HINTS[s.tipo];
-    const usesImg = s.tipo === 'capa' || s.tipo === 'foto' || s.tipo === 'imagem';
+    const usesImg = s.tipo === 'capa' || s.tipo === 'foto' || s.tipo === 'imagem' || s.tipo === 'print';
+    $('marcar').hidden = !(s.tipo === 'print' && s.image); if ($('marcar').hidden) marcando = false; $('marcar').classList.toggle('on', marcando);
     $('img-row').hidden = !usesImg;
     $('thumb').style.backgroundImage = s.image ? `url("${s.image}")` : '';
     $('attach').textContent = 'Da galeria';
@@ -2068,6 +2200,19 @@ RETENÇÃO (cada slide precisa ganhar o próximo deslize):
 - Alterne fundos escuro e claro. Dois slides seguidos da mesma cor ganham um fundo contínuo automaticamente; use isso de propósito 1 ou 2 vezes em sequências que formam uma ideia só.
 - Slides "foto" vazam uma borda da foto para os vizinhos automaticamente, o que puxa o deslize. Em carrosséis de 7 ou mais, inclua 1 slide "foto" no miolo. Não use "panorama".
 
+ELEMENTOS QUE PRENDEM (v48 — você decide quais entram; o objetivo é reter atenção até o fim):
+- "destaque" (frase gigante, 6 a 10 palavras, 1 palavra em **negrito** vira marca-texto): o slide mais printável. Use no meio, depois de uma explicação, para cravar a ideia.
+- "pergunta" + "revela" (sempre juntos, em sequência): a pessoa responde de cabeça e desliza para ver a resposta. Só com resposta verdadeira e não óbvia, tirada da entrada ou de fato verificável.
+- "print" (imagem real com até 3 notas numeradas): quando existe algo concreto para MOSTRAR (o post, o logo antes/depois, a embalagem, a tela, o anúncio). imgBusca descreve exatamente essa imagem. Nunca para ilustração genérica.
+- "passo": quando o slide 2 promete uma sequência numerada ("os 4 componentes"), cada slide dessa sequência leva "passo":"1/4", "2/4"… Quem começa quer terminar.
+- "marca": true em 1 a 3 slides de texto, com 1 a 3 palavras-chave em **negrito** por slide: quem só passa o olho pega a ideia.
+PRIORIDADE POR TAMANHO (quanto menor o carrossel, mais forte e escasso o elemento):
+- 5 a 6 slides: 2 elementos no máximo. Primeiro "destaque"; depois "passo" (se houver sequência) OU "marca". Nada de pergunta/revela (gasta 2 slides).
+- 7 a 8 slides: 3 elementos: "destaque" + ("pergunta"+"revela" OU "print") + ("passo" ou "marca").
+- 9 a 10 slides: até 5: "destaque", "pergunta"+"revela", "print" (se houver o que mostrar), "passo", "marca".
+VARIEDADE: nunca dois slides seguidos com o mesmo formato visual (mesmo tipo e mesmo fundo). O olho cansa da repetição.
+TEXTO POR SLIDE: no máximo 35 palavras nos slides de texto (a letra é grande para ler no celular). A segunda manchete (slide 2) tem no máximo 16 palavras no 1º parágrafo.
+
 TAMANHO VARIÁVEL (as técnicas escalam; o que muda é quantas quebras cabem):
 - 5 a 6 slides: capa, slide 2 (segunda manchete), 1 ou 2 de miolo (um deles pode ser "numero" ou "comparar"), "lista", fecho. A opinião de Daniel entra no miolo, não ganha slide próprio.
 - 7 a 8 slides: estrutura completa, com 1 quebra de ritmo ("numero" ou "comparar").
@@ -2125,6 +2270,11 @@ TIPOS DE SLIDE (campo "tipo"):
 - "comparar": {"tipo":"comparar","fundo":"claro" ou "escuro","titulo":"o que está sendo comparado","antes":"o jeito comum, que não funciona","depois":"o jeito que funciona, concreto"}.
 - "lista": {"tipo":"lista","fundo":"claro" ou "escuro","titulo":"o que a lista resolve","itens":["Verbo + ação concreta, até 18 palavras","..."]} — 3 a 5 itens.
 - "fecho": {"tipo":"fecho","fundo":"escuro","texto":"pergunta?"}
+- "destaque": {"tipo":"destaque","fundo":"escuro" ou "claro","texto":"frase de 6 a 10 palavras com **uma** palavra marcada"}
+- "pergunta": {"tipo":"pergunta","fundo":"escuro","pergunta":"pergunta curta","opcoes":["opção A","opção B"]} — 2 ou 3 opções curtas. O slide seguinte é SEMPRE "revela".
+- "revela": {"tipo":"revela","fundo":"claro","resposta":"a resposta em até 8 palavras","texto":"por quê, em até 30 palavras"}
+- "print": {"tipo":"print","fundo":"claro","titulo":"o que a imagem prova","notas":["nota 1 curta","nota 2","nota 3"],"imgSuggestion":"a imagem real exata","imgBusca":"busca em inglês"}
+- Campos extras em qualquer slide: "passo":"2/4" (contador da sequência) e "marca":true (marca-texto nas palavras em **negrito**).
 Alterne fundos escuro e claro. Use **negrito** só em nomes, números e datas, com moderação.
 
 VOZ: português do Brasil, direto, sem clichê de marketing (exclusivo, imperdível, transformador, revolucionário, jornada, crucial), sem pergunta retórica genérica na abertura, sem listar tipos de pessoas, sem metáfora enfeitada, sem "não é X, é Y" mais de uma vez. Nunca fé como gancho. Nunca política brasileira. Nunca o Exército Brasileiro como tema.
@@ -2499,7 +2649,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
   }
   function colocarFoto(uri, credito) {
     const s = slide();
-    if (!(s.tipo === 'capa' || s.tipo === 'foto' || s.tipo === 'imagem')) { s.tipo = 'imagem'; }
+    if (!(s.tipo === 'capa' || s.tipo === 'foto' || s.tipo === 'imagem' || s.tipo === 'print')) { s.tipo = 'imagem'; }
     s.image = uri; s.t = { z: 1, x: 0.5, y: 0.5 };
     if (credito) s.credito = credito; else delete s.credito;
     changed();
@@ -2513,6 +2663,19 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
   $('aj-centro').onclick = () => { const t = tf(); t.x = 0.5; t.y = 0.5; render(); persist(); };
   $('aj-topo').onclick = () => { const t = tf(); t.y = 0.15; render(); persist(); };
 
+  // Print anotado: com "Posicionar marcas" ligado, cada toque na imagem leva a próxima marca (1, 2, 3) para lá
+  $('marcar').onclick = () => { marcando = !marcando; proxMarca = 0; if (marcando) setAjuste(false); $('marcar').classList.toggle('on', marcando); toast(marcando ? 'Toque na imagem onde vai a marca 1, depois a 2…' : 'Marcas salvas.'); };
+  canvas.addEventListener('click', (e) => {
+    if (!marcando || !printFrame) return;
+    const s = slide(); if (s.tipo !== 'print') return;
+    const r = canvas.getBoundingClientRect(), k = W / r.width;
+    const x = ((e.clientX - r.left) * k - printFrame.x) / printFrame.w, y = ((e.clientY - r.top) * k - printFrame.y) / printFrame.h;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+    const nNotas = Math.max(1, s.paras.slice(1).filter(t => t.trim()).length);
+    s.marcas = s.marcas || []; s.marcas[proxMarca % nNotas] = { x, y }; proxMarca++;
+    changed();
+    if (proxMarca >= nNotas) { marcando = false; $('marcar').classList.remove('on'); toast('Pronto: as ' + nNotas + ' marcas estão no lugar.'); }
+  });
   const ptrs = new Map();
   let gesto = null;
   function escala() { const r = canvas.getBoundingClientRect(); return W / r.width; }
@@ -2759,6 +2922,12 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       const achou = nomes.some(n => fim.includes(n.toLowerCase()));
       if (!achou) problemas.push(`<b>O caso da capa some no fim.</b> "${nomes.join(' ')}" abre o carrossel mas não volta nos últimos slides. Retome o nome no penúltimo slide ou no fecho para fechar o raciocínio.`);
     }
+    // Variedade (v48): dois slides seguidos com a mesma cara cansam o olho
+    for (let k = 1; k < c.slides.length; k++) {
+      const a1 = c.slides[k - 1], a2 = c.slides[k];
+      if (a1.tipo === a2.tipo && a1.fundo === a2.fundo && !['tweet', 'foto', 'capa'].includes(a2.tipo)) { problemas.push(`<b>Slides ${k} e ${k + 1} têm a mesma cara.</b> Troque o fundo de um deles ou o formato (frase gigante, número, antes e depois).`); break; }
+    }
+    c.slides.forEach((sl, k) => { if (sl.tipo === 'pergunta' && (!c.slides[k + 1] || c.slides[k + 1].tipo !== 'revela')) problemas.push(`<b>A pergunta do slide ${k + 1} não tem resposta.</b> O slide seguinte precisa ser do tipo "Resposta da pergunta".`); });
     let seq = 0;
     for (let k = 0; k < c.slides.length; k++) {
       seq = c.slides[k].tipo === 'texto' ? seq + 1 : 0;
@@ -3103,8 +3272,8 @@ Responda só com JSON válido, sem texto antes ou depois:
   };
 
   // ─── Fotos dos slides: uma linha por slide, com sugestão, Pinterest, colar e galeria ───
-  const IMG_TIPOS = ['capa', 'imagem', 'foto'];
-  const ROTULO = { capa: 'Capa', imagem: 'Título + foto', foto: 'Foto com legendas' };
+  const IMG_TIPOS = ['capa', 'imagem', 'foto', 'print'];
+  const ROTULO = { capa: 'Capa', imagem: 'Título + foto', foto: 'Foto com legendas', print: 'Print anotado (imagem real)' };
   const pinUrl = (q) => 'https://br.pinterest.com/search/pins/?q=' + encodeURIComponent(q);
   let pendente = null, sugerindo = false;
   function renderFotos() {

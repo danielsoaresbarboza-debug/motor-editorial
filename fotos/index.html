@@ -395,6 +395,7 @@
         <div class="seg" id="gen-formato" role="group" aria-label="Formato">
           <button type="button" data-g="editorial" aria-pressed="true">Editorial</button>
           <button type="button" data-g="twitter" aria-pressed="false">Conversa (Twitter)</button>
+          <button type="button" data-g="curto" aria-pressed="false">Curto (2 slides)</button>
         </div>
         <textarea id="gen-input" rows="3" placeholder="Ex.: o rebranding da Jaguar em 2024 e a reação do público"></textarea>
         <div class="row">
@@ -458,6 +459,16 @@
         </div>
         <textarea id="editor" rows="6" aria-label="Texto do slide"></textarea>
         <p class="hint" id="editor-hint"></p>
+        <div class="row" id="cta-row">
+          <select id="cta-tipo" aria-label="Tipo de CTA">
+            <option value="">Sem CTA neste slide</option>
+            <option value="agora">CTA: Faça agora</option>
+            <option value="salvar">CTA: Salve para</option>
+            <option value="seguir">CTA: No próximo post</option>
+            <option value="direct">CTA: Quer ajuda? (direct)</option>
+          </select>
+          <input type="text" id="cta-texto" placeholder="Texto da CTA (ação concreta, sem pergunta aberta)" aria-label="Texto da CTA">
+        </div>
         <div class="row"><button class="btn primary" id="save-text">Salvar texto</button><button class="btn" id="add-slide">+ Novo slide depois deste</button></div>
 
       </section>
@@ -610,6 +621,7 @@
     else if (tipo === 'capa' || tipo === 'fecho') paras = asParas(s.texto || s.manchete || s.pergunta).slice(0, 1).concat(asParas(s.texto || '').slice(1));
     else paras = asParas(s.texto || s.text);
     if (Array.isArray(s.paras)) paras = s.paras.map(String);
+    if (tipo === 'fecho' && !paras.length && s.cta && s.cta.texto) paras = [String(s.cta.texto)];
     const fundo = ['escuro', 'claro', 'cor'].includes(s.fundo) ? s.fundo : (tipo === 'imagem' || tipo === 'tweet' || tipo === 'revela' ? 'claro' : 'escuro');
     const out = { tipo, fundo, paras };
     if (s.imgSuggestion) out.imgSuggestion = String(s.imgSuggestion);
@@ -621,6 +633,7 @@
     if (s.t) out.t = s.t;
     if (s.passo && /^\s*\d+\s*\/\s*\d+\s*$/.test(String(s.passo))) out.passo = String(s.passo).replace(/\s/g, '');
     if (s.marca) out.marca = true;
+    if (s.cta) { const ct = typeof s.cta === 'string' ? { tipo: 'agora', texto: s.cta } : s.cta; if (ct && ct.texto) out.cta = { tipo: ['agora', 'salvar', 'seguir', 'direct'].includes(ct.tipo) ? ct.tipo : 'agora', texto: String(ct.texto) }; }
     if (Array.isArray(s.marcas)) out.marcas = s.marcas.filter(m => m && isFinite(m.x) && isFinite(m.y)).slice(0, 3).map(m => ({ x: +m.x, y: +m.y }));
     return out;
   }
@@ -639,7 +652,7 @@
       grupo: o.grupo || '', versao: o.versao || '', fonte: o.fonte || '',
       reservaPara: o.reservaPara || 0, agora: !!o.agora, postadoEm: o.postadoEm || 0,
       capas: Array.isArray(o.capas) ? o.capas.map(String).filter(x => x.trim()).slice(0, 4) : [],
-      formato: o.formato === 'twitter' || (Array.isArray(o.slides) && o.slides.length && o.slides.every(x => x && x.tipo === 'tweet')) ? 'twitter' : 'editorial',
+      formato: o.formato === 'curto' || (Array.isArray(o.slides) && o.slides.length === 2 && o.slides[1] && o.slides[1].cta) ? 'curto' : o.formato === 'twitter' || (Array.isArray(o.slides) && o.slides.length && o.slides.every(x => x && x.tipo === 'tweet')) ? 'twitter' : 'editorial',
       frases: Array.isArray(o.frases) ? o.frases.slice(0, 2).map((f, k) => ({
         texto: String((f && (f.texto || f.frase)) || (typeof f === 'string' ? f : '')),
         legenda: String((f && f.legenda) || ''),
@@ -857,6 +870,30 @@
   // marca-texto amarelo da marca atrás das palavras em **negrito**; o texto sobre ele é sempre preto (drawLayout)
   const marcaCor = (dark) => 'rgba(255,212,0,0.96)';
   let printFrame = null, marcando = false, proxMarca = 0;
+  // ─── CTA direcionada (v50): faixa no pé do slide, com rótulo e ícone por tipo ───
+  const CTA_ROT = { agora: 'FAÇA AGORA', salvar: 'SALVE PARA', seguir: 'NO PRÓXIMO POST', direct: 'QUER AJUDA?' };
+  const CTA_H = 132;
+  function ctaBarra(cta, dark) {
+    if (!cta || !cta.texto) return;
+    const x = M - 20, w = CW + 40, h = CTA_H, y = FOOT - 34 - h;
+    const fundo = dark ? '#FFD400' : '#111111', tinta = dark ? '#111111' : '#FFFFFF';
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.28)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+    rr(x, y, w, h, 30); ctx.fillStyle = fundo; ctx.fill(); ctx.restore();
+    // ícone
+    const ix = x + 38, iy = y + h / 2;
+    ctx.save(); ctx.strokeStyle = tinta; ctx.fillStyle = tinta; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (cta.tipo === 'salvar') { ctx.beginPath(); ctx.moveTo(ix - 12, iy - 18); ctx.lineTo(ix + 12, iy - 18); ctx.lineTo(ix + 12, iy + 18); ctx.lineTo(ix, iy + 8); ctx.lineTo(ix - 12, iy + 18); ctx.closePath(); ctx.stroke(); }
+    else if (cta.tipo === 'direct') { ctx.beginPath(); ctx.moveTo(ix - 18, iy - 2); ctx.lineTo(ix + 18, iy - 16); ctx.lineTo(ix + 6, iy + 18); ctx.lineTo(ix, iy + 4); ctx.closePath(); ctx.stroke(); }
+    else if (cta.tipo === 'seguir') { ctx.beginPath(); ctx.moveTo(ix - 16, iy); ctx.lineTo(ix + 14, iy); ctx.moveTo(ix + 4, iy - 11); ctx.lineTo(ix + 15, iy); ctx.lineTo(ix + 4, iy + 11); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(ix, iy, 17, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ix - 7, iy); ctx.lineTo(ix - 1, iy + 6); ctx.lineTo(ix + 8, iy - 6); ctx.stroke(); }
+    ctx.restore();
+    const tx = x + 80, maxW = w - 80 - 30;
+    ctx.save(); ctx.fillStyle = alpha(tinta, 0.8); ctx.font = fontStr(SANS, 21, 700); spaced(2.2); ctx.textBaseline = 'alphabetic';
+    ctx.fillText(CTA_ROT[cta.tipo] || 'FAÇA AGORA', tx, y + 42); spaced(0); ctx.restore();
+    const L = fit([cta.texto], { fam: SANS, w: 600, wb: 700, lh: 1.2, maxW, max: 32, min: 24 }, h - 62);
+    drawLayout(L, { fam: SANS, w: 600, wb: 700, color: tinta }, tx, y + 52, 'left');
+  }
   function placeholder(x, y, w, h, r, dark) {
     ctx.save();
     if (r) { rr(x, y, w, h, r); ctx.clip(); }
@@ -874,7 +911,7 @@
   // ─── Sistema visual dos slides (v2: margens fixas, escala tipográfica, rodapé) ───
   // Grade de 1080 × 1350: margem de 96 px, cabeçalho em y=104, rodapé com fio em y=1222.
   let M = 96, CW = W - M * 2; // M muda só enquanto um slide com sobra de foto vizinha é desenhado (ver drawSlide)
-  const TOP = 104, FOOT = 1222, BODY_T = 210, BODY_B = 1150;
+  const TOP = 104, FOOT = 1222, BODY_T = 210; let BODY_B = 1150; // BODY_B encolhe quando o slide tem faixa de CTA
   const PAPEL = '#F5F3EE', TINTA = '#0F0F10';
   // v2: "Vidro" (vidro líquido, estilo iPhone) entrou em 31/10/2026 e vira o padrão uma vez.
   const LS_ACAB = 'dan_editorial_acabamento_v2';
@@ -1550,7 +1587,7 @@
       ctx.restore();
       // salvar: ícone de marcador + texto, logo acima do cartão
       ctx.save(); ctx.fillStyle = alpha(ink, 0.9); ctx.font = fontStr(SANS, 25, 600); spaced(2.5); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-      const sv = 'SALVE PARA REVER DEPOIS', svw = ctx.measureText(sv).width, ix = W / 2 - (svw + 38) / 2, iy = by - 46;
+      const sv = s.cta && s.cta.tipo === 'salvar' ? '' : 'SALVE PARA REVER DEPOIS', svw = ctx.measureText(sv).width, ix = W / 2 - (svw + 38) / 2, iy = by - 46;
       ctx.beginPath(); ctx.moveTo(ix, iy - 22); ctx.lineTo(ix + 20, iy - 22); ctx.lineTo(ix + 20, iy + 4); ctx.lineTo(ix + 10, iy - 4); ctx.lineTo(ix, iy + 4); ctx.closePath(); ctx.fill();
       ctx.fillText(sv, ix + 38, iy); spaced(0); ctx.restore();
       // pergunta
@@ -1559,7 +1596,7 @@
       const F = fit2(s.paras.slice(0, 1), rest, baseQ - topoQ - 90, { a: 76, b: 36, lhA: 1.1, maxW: CW - 20, gap: 36 });
       let y = topoQ + 90 + Math.max(0, (baseQ - topoQ - 90 - F.h) / 2);
       ctx.save(); ctx.fillStyle = acento; ctx.font = fontStr(SANS, 26, 600); spaced(2.5); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-      ctx.fillText('PRA PENSAR', W / 2, y - 60); spaced(0);
+      ctx.fillText(s.cta ? (CTA_ROT[s.cta.tipo] || 'FAÇA AGORA') : 'PRA PENSAR', W / 2, y - 60); spaced(0);
       ctx.fillRect(W / 2 - 28, y - 44, 56, 3); ctx.restore();
       drawLayout(F.A, { fam: SERIF, w: 500, wb: 600, color: ink, accent: acento }, W / 2, y, 'center');
       if (F.B) drawLayout(F.B, { fam: SANS, w: 400, wb: 600, color: alpha(ink, 0.72) }, W / 2, y + F.A.h + 36, 'center');
@@ -1689,12 +1726,15 @@
       ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
       luz(dark, false);
       const acento = dark ? '#FFD400' : '#111111';
-      const F = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.04, maxW: CW, max: 132, min: 72 }, BODY_B - BODY_T - 120);
-      const y = BODY_T + Math.max(40, (BODY_B - BODY_T - F.h) * 0.5);
+      const rest = s.paras.slice(1).filter(t => t.trim());
+      const B = rest.length ? fit(rest, { fam: SANS, w: 400, wb: 600, lh: 1.45, maxW: CW, max: 40, min: 32 }, 200) : null;
+      const gapB = 52, espaco = BODY_B - BODY_T - 100 - (B ? B.h + gapB : 0);
+      const F = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.04, maxW: CW, max: 132, min: 64 }, espaco);
+      const tot = F.h + (B ? gapB + B.h : 0);
+      const y = BODY_T + 60 + Math.max(0, (BODY_B - BODY_T - 60 - tot) * 0.5);
       ctx.fillStyle = acento; ctx.fillRect(M, y - 54, 72, 5);
       drawLayout(F, { fam: SERIF, w: 500, wb: 600, color: ink, marca: marcaCor(dark) }, M, y, 'left');
-      const rest = s.paras.slice(1).filter(t => t.trim());
-      if (rest.length) { const B = fit(rest, { fam: SANS, w: 400, wb: 600, lh: 1.45, maxW: CW, max: 40, min: 32 }, 200); drawLayout(B, { fam: SANS, w: 400, wb: 600, color: alpha(ink, 0.88) }, M, Math.min(BODY_B - B.h, y + F.h + 48), 'left'); }
+      if (B) drawLayout(B, { fam: SANS, w: 400, wb: 600, color: alpha(ink, 0.88) }, M, y + F.h + gapB, 'left');
       chrome(c, i, n, ink, false);
     } else if (s.tipo === 'pergunta') {
       // Pergunta (v48): a pessoa responde de cabeça; a resposta vem no slide seguinte ("revela").
@@ -1796,7 +1836,7 @@
     ctx.restore();
   }
   const _drawSlide = drawSlide;
-  drawSlide = function (c, i) { slideAtual = { c, i }; const sobra = pistaModo !== 'nenhuma' && (temFoto(c.slides[i - 1]) || temFoto(c.slides[i + 1])); if (sobra) { M = VZ + 56; CW = W - M * 2; } try { _drawSlide(c, i); } finally { M = 96; CW = W - M * 2; } slideAtual = null; const lc = lastCover; ctx.save(); pistaEmenda(c, i, c.slides.length); ctx.restore(); lastCover = lc; };
+  drawSlide = function (c, i) { slideAtual = { c, i }; const sCta = c.slides[i] && c.slides[i].tipo !== 'fecho' && c.slides[i].cta; if (sCta) BODY_B = FOOT - 34 - CTA_H - 40; const sobra = pistaModo !== 'nenhuma' && (temFoto(c.slides[i - 1]) || temFoto(c.slides[i + 1])); if (sobra) { M = VZ + 56; CW = W - M * 2; } try { _drawSlide(c, i); if (sCta) { const sl = c.slides[i]; ctaBarra(sl.cta, ['capa', 'foto'].includes(sl.tipo) ? true : isDarkHex(bgColor(sl.fundo))); } } finally { M = 96; CW = W - M * 2; BODY_B = 1150; } slideAtual = null; const lc = lastCover; ctx.save(); pistaEmenda(c, i, c.slides.length); ctx.restore(); lastCover = lc; };
   function render() {
     const c = active();
     if (typeof agendarLinkFora === 'function') agendarLinkFora();
@@ -1863,6 +1903,8 @@
     $('fundo').hidden = (s.tipo === 'capa' || s.tipo === 'foto');
     $('editor').value = s.paras.join('\n\n');
     $('editor-hint').textContent = EDITOR_HINTS[s.tipo];
+    $('cta-tipo').value = s.cta ? s.cta.tipo : ''; $('cta-texto').value = s.cta ? s.cta.texto : '';
+    $('cta-texto').hidden = !s.cta;
     const usesImg = s.tipo === 'capa' || s.tipo === 'foto' || s.tipo === 'imagem' || s.tipo === 'print';
     $('marcar').hidden = !(s.tipo === 'print' && s.image); if ($('marcar').hidden) marcando = false; $('marcar').classList.toggle('on', marcando);
     $('img-row').hidden = !usesImg;
@@ -1976,6 +2018,12 @@
   $('paste').addEventListener('paste', () => setTimeout(() => { if (parseInput($('paste').value).length) applyPaste(); }, 0));
 
   // Edição de slide
+  const salvarCta = () => {
+    const s = slide(), tipo = $('cta-tipo').value, texto = $('cta-texto').value.trim();
+    if (!tipo) delete s.cta; else s.cta = { tipo, texto: texto || (s.cta && s.cta.texto) || (s.tipo === 'fecho' ? (s.paras[0] || '') : '') };
+  };
+  $('cta-tipo').onchange = () => { salvarCta(); $('cta-texto').hidden = !$('cta-tipo').value; changed(); if ($('cta-tipo').value && !$('cta-texto').value) $('cta-texto').focus(); };
+  $('cta-texto').onchange = () => { salvarCta(); changed(); };
   $('save-text').onclick = () => {
     const s = slide();
     s.paras = $('editor').value.split(/\n\s*\n/).map(x => x.replace(/\s+$/, '')).filter(x => x.trim());
@@ -2197,8 +2245,8 @@ RETENÇÃO (cada slide precisa ganhar o próximo deslize):
 - Do slide 2 ao penúltimo, a última frase de cada slide abre uma porta que o próximo fecha ("Só que tem um detalhe que ninguém mede."). Nada de suspense vazio: o slide seguinte entrega de verdade.
 - Nunca 3 slides do tipo "texto" seguidos. No meio do carrossel, use 1 slide "numero" (quando houver um número real) ou 1 "comparar" para quebrar o ritmo.
 - No máximo 50 palavras por slide de texto. Frases curtas.
-- Alterne fundos escuro e claro. Dois slides seguidos da mesma cor ganham um fundo contínuo automaticamente; use isso de propósito 1 ou 2 vezes em sequências que formam uma ideia só.
-- Slides "foto" vazam uma borda da foto para os vizinhos automaticamente, o que puxa o deslize. Em carrosséis de 7 ou mais, inclua 1 slide "foto" no miolo. Não use "panorama".
+- FUNDOS EM BLOCOS, não alternados slide a slide: 2 ou 3 slides seguidos que formam uma ideia ficam no MESMO fundo (o Motor emenda o fundo, fica panorâmico), e o fundo troca quando muda a ideia. Alternar claro/escuro a cada slide cansa. Dentro de um bloco, varie o tipo (texto → destaque → número).
+- FOTO NO MIOLO (obrigatório): todo carrossel de 5 ou mais slides tem pelo menos 1 slide "foto" (foto inteira com 1 ou 2 frases curtas) no meio; de 8 ou mais, 2 (um "foto" e um "imagem" ou "print"). A foto vaza uma borda para os slides vizinhos e cria a emenda panorâmica que puxa o deslize. Não use "panorama".
 
 ELEMENTOS QUE PRENDEM (v48 — você decide quais entram; o objetivo é reter atenção até o fim):
 - "destaque" (frase gigante, 6 a 10 palavras, 1 palavra em **negrito** vira marca-texto): o slide mais printável. Use no meio, depois de uma explicação, para cravar a ideia.
@@ -2241,7 +2289,7 @@ SINCERIDADE (interação de verdade, sem isca):
 - Uma linha honesta por carrossel, dentro de um slide do miolo: um limite ("Isso não resolve se o seu problema é...") ou uma prioridade ("Se você só tiver 10 minutos, faça só o item 2."). É o tipo de frase que quase ninguém diz e que gera confiança.
 - Erro ou história pessoal de Daniel só se estiver na ENTRADA. Nunca invente.
 - Diga para quem é, sem mandar compartilhar: "Isso é para quem posta toda semana e sente que ninguém lembra." A identificação faz a pessoa enviar por conta própria.
-- Fecho: pergunta que a pessoa responde com o próprio caso. Pode convidar para o direct ("Me conta o seu caso no direct."), nunca para palavra-chave.
+- Fecho: CTA direcionada (ver item 7 da estrutura), nunca pergunta aberta. Direct só com oferta concreta, nunca palavra-chave.
 - Proibido pedir curtida, compartilhamento, marcação de amigo, "comenta EU QUERO" ou votação com emoji: o Instagram reduz o alcance desses posts.
 
 FOTO QUE PARA O DEDO (imgSuggestion + imgBusca):
@@ -2258,7 +2306,12 @@ ESTRUTURA (5 a 10 slides, conforme TAMANHO VARIÁVEL):
 4. UM fundamento (autor, estudo ou caso com nome e data). Se não tiver certeza absoluta de que existe, não use: prefira um princípio de design que Daniel conhece. Nunca invente número, data, citação ou estudo.
 5. slide "lista" (antes da opinião): a aplicação em 3 a 5 itens curtos e acionáveis, cada um começando com verbo (Troque, Corte, Teste, Olhe...). Título do slide diz o que a lista resolve ("Como achar o que já ficou feio no seu feed"). É o slide para salvar.
 6. penúltimo slide: a opinião de Daniel, em primeira pessoa, retomando pelo nome o caso da capa (ver FIO DO CASO).
-7. último slide: tipo fecho, uma pergunta única que liga o caso da capa à experiência de quem lê e que dá para responder com o próprio caso.
+7. último slide: tipo fecho com CTA DIRECIONADA no campo "cta" e o mesmo texto em "texto". Nada de pergunta aberta ("conte sua história", "qual é o seu caso?"): quase ninguém responde. Escolha um tipo:
+   - "agora": uma ação de 1 minuto ligada ao caso ("Abra seu último post e corte a primeira frase.");
+   - "salvar": salvar com o momento exato de uso ("Salve para usar na próxima revisão do feed.");
+   - "seguir": o que vem no próximo post ("No próximo: como fazer isso com IA em 10 minutos.");
+   - "direct": oferta concreta ("Me manda seu perfil no direct que eu aponto o primeiro ajuste."), sem palavra-chave.
+   Formato: {"tipo":"fecho","fundo":"escuro","texto":"a CTA","cta":{"tipo":"agora","texto":"a CTA"}}
 
 TIPOS DE SLIDE (campo "tipo"):
 - "capa": {"tipo":"capa","texto":"manchete com __destaque__","imgSuggestion":"o que aparece na foto, em até 15 palavras","imgBusca":"busca em inglês para o Pinterest, 3 a 6 palavras"}
@@ -2279,7 +2332,7 @@ Alterne fundos escuro e claro. Use **negrito** só em nomes, números e datas, c
 
 VOZ: português do Brasil, direto, sem clichê de marketing (exclusivo, imperdível, transformador, revolucionário, jornada, crucial), sem pergunta retórica genérica na abertura, sem listar tipos de pessoas, sem metáfora enfeitada, sem "não é X, é Y" mais de uma vez. Nunca fé como gancho. Nunca política brasileira. Nunca o Exército Brasileiro como tema.
 
-LEGENDA: tese (1 a 2 linhas) / fundamento / conexão com o feed ou o mercado de hoje / aplicação concreta para quem posta pelo próprio negócio / uma frase que se printa / um motivo concreto para salvar ("Salva para usar na próxima vez que for revisar o feed.") / pergunta de fecho. Sem engagement bait: nunca "comenta X", "marca um amigo", "compartilha", "manda pra alguém" ou "curte se concorda"; o Instagram reduz o alcance de pedidos assim. O compartilhamento vem da frase certeira e da utilidade, não do pedido / 3 a 5 hashtags. Entre blocos, uma linha contendo só o caractere ⠀ (U+2800). Máximo 2200 caracteres.
+LEGENDA: tese (1 a 2 linhas) / fundamento / conexão com o feed ou o mercado de hoje / aplicação concreta para quem posta pelo próprio negócio / uma frase que se printa / a mesma CTA direcionada do último slide, em outras palavras (sem pergunta aberta). Sem engagement bait: nunca "comenta X", "marca um amigo", "compartilha", "manda pra alguém" ou "curte se concorda"; o Instagram reduz o alcance de pedidos assim. O compartilhamento vem da frase certeira e da utilidade, não do pedido / 3 a 5 hashtags. Entre blocos, uma linha contendo só o caractere ⠀ (U+2800). Máximo 2200 caracteres.
 
 PILAR PEDIDO: [PILAR]
 ENTRADA DE DANIEL:
@@ -2318,15 +2371,48 @@ ENTRADA DE DANIEL (o que aconteceu, contado por ele):
 
 Responda só com JSON válido, sem texto antes ou depois:
 {"formato":"twitter","title":"título curto até 40 caracteres","slides":[{"tipo":"tweet","fundo":"claro","texto":["parágrafo","parágrafo"]}],"legenda":"...","frases":[{"texto":"...","para":"Para quem ...","legenda":"..."},{"texto":"...","para":"Para quem ...","legenda":"..."}]}`;
+  // ─── Formato Curto (v50, 01/11): 2 páginas, valor direto, CTA na página 2 ───
+  const CURTO_PROMPT = `Você escreve 3 carrosséis CURTOS (exatamente 2 slides cada) para @danielbarboza.pro. São posts rápidos com valor que a pessoa usa hoje: não são análises de pessoas nem de marcas.
+
+POSICIONAMENTO v4: ajudar quem vive do próprio trabalho a ser lembrado (conteúdo, marca, atenção e IA). Nunca chame Daniel de designer. Sem política, sem fé como gancho, sem Exército. Nunca invente número, estudo ou citação.
+
+O QUE CADA CARROSSEL ENTREGA (escolha um por carrossel, os 3 diferentes): uma regra prática, um checklist de 3 itens, um erro + a correção, uma fórmula de texto pronta para copiar, um antes e depois, um critério para decidir, um atalho com IA (prompt curto pronto).
+
+SLIDE 1 (capa): afirmação de 5 a 9 palavras que promete o ganho concreto, com UMA palavra em __sublinhado__. Nunca pergunta, nunca "você sabia". imgSuggestion + imgBusca (inglês, 2 a 5 palavras simples, um assunto com contraste forte).
+SLIDE 2 (a entrega): você decide o formato que entrega melhor:
+- "destaque": a regra numa frase de até 12 palavras (1 palavra em **negrito**), com 1 linha de explicação;
+- "lista": título + 3 itens que começam com verbo;
+- "comparar": título + antes (o jeito comum) + depois (o jeito que funciona);
+- "numero": só com número real e verificável;
+- "texto": uma fórmula pronta para copiar (entre aspas) e como usar.
+O slide 2 cabe numa tela: no máximo 40 palavras.
+CTA NO PRÓPRIO SLIDE 2 (campo "cta"): direcionada, concreta e fácil, que a pessoa faz sem pensar. Tipos:
+- "agora": uma ação de 1 minuto ("Abra seu último post e troque só a primeira linha.");
+- "salvar": salvar com o momento exato de uso ("Salve para usar quando for escrever a próxima legenda.");
+- "seguir": o que vem no próximo post da série ("No próximo: a fórmula da segunda linha.");
+- "direct": oferta concreta e honesta ("Me manda seu perfil no direct que eu aponto a primeira coisa a mudar."), sem palavra-chave.
+Proibido: pergunta aberta ("conte sua história", "qual é o seu caso?"), pedir curtida, comentário, marcação ou compartilhamento.
+Varie os tipos de CTA entre os 3 carrosséis.
+
+LEGENDA: 2 a 4 linhas que reforçam a entrega + a mesma CTA em outras palavras + 3 hashtags. Sem pergunta aberta.
+
+TEMA OU IDEIA DE DANIEL:
+"""
+[STORY]
+"""
+
+Responda só com JSON válido:
+{"carrosseis":[{"formato":"curto","title":"até 40 caracteres","slides":[{"tipo":"capa","texto":"... __palavra__ ...","imgSuggestion":"...","imgBusca":"..."},{"tipo":"lista","fundo":"escuro","titulo":"...","itens":["...","...","..."],"cta":{"tipo":"agora","texto":"..."}}],"legenda":"..."}, {…}, {…}]}`;
   let genFormato = 'editorial';
   document.querySelectorAll('#gen-formato button').forEach(b => b.addEventListener('click', () => {
     genFormato = b.dataset.g;
     document.querySelectorAll('#gen-formato button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-    $('gen-pilar').hidden = genFormato === 'twitter';
+    $('gen-pilar').hidden = genFormato !== 'editorial';
     $('gen-input').placeholder = genFormato === 'twitter'
       ? 'Conte o que aconteceu, com detalhes reais: quando, onde, quem, números. Ex.: ontem às 23h fiquei 2 horas refazendo uma capa…'
+      : genFormato === 'curto' ? 'Um tema útil. Ex.: primeira linha da legenda; capa que para o dedo; prompt para ideias de post'
       : 'Ex.: o rebranding da Jaguar em 2024 e a reação do público';
-    $('gen-btn').textContent = genFormato === 'twitter' ? 'Gerar conversa' : 'Gerar carrossel';
+    $('gen-btn').textContent = genFormato === 'twitter' ? 'Gerar conversa' : genFormato === 'curto' ? 'Gerar 3 curtos' : 'Gerar carrossel';
   }));
 
   async function initSample() {
@@ -2343,8 +2429,9 @@ Responda só com JSON válido, sem texto antes ou depois:
       $('gen-btn').disabled = true;
       st.textContent = 'Escrevendo o carrossel. Leva de 30 segundos a 1 minuto.'; st.className = 'status';
       try {
-        const v = await sample.json(genFormato === 'twitter' ? TWITTER_PROMPT.replace('[STORY]', story) : GEN_PROMPT.replace('[PILAR]', $('gen-pilar').value).replace('[STORY]', story), { modelTier: 'default' });
-        const arr = (Array.isArray(v) ? v : [v]).map(normCarousel).filter(Boolean);
+        const v = await sample.json(genFormato === 'twitter' ? TWITTER_PROMPT.replace('[STORY]', story) : genFormato === 'curto' ? CURTO_PROMPT.replace('[STORY]', story) : GEN_PROMPT.replace('[PILAR]', $('gen-pilar').value).replace('[STORY]', story), { modelTier: 'default' });
+        const bruto = v && Array.isArray(v.carrosseis) ? v.carrosseis : (Array.isArray(v) ? v : [v]);
+        const arr = bruto.map(x => genFormato === 'curto' ? Object.assign({ formato: 'curto' }, x, { slides: (x && x.slides || []).slice(0, 2) }) : x).map(normCarousel).filter(Boolean);
         if (!arr.length) throw { code: 'formato' };
         addCarousels(arr);
         $('gen-input').value = '';
@@ -2900,13 +2987,13 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
     else if (palavras.length && palavras.length < 6) problemas.push(`<b>${palavras.length} palavras.</b> Curta demais para dar contexto; o ideal é de 6 a 10.`);
     if (/\?\s*$/.test(txt)) problemas.push('<b>É pergunta.</b> Afirmação forte dá a resposta e cria tensão ao mesmo tempo.');
     const concreto = /\d/.test(txt) || palavras.slice(1).some(p => /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\wÀ-ÿ'’.-]*/.test(p) && !/^(O|A|Os|As|E|É|Um|Uma|Se|Mas)$/.test(p));
-    if (txt && !concreto) problemas.push('<b>Sem elemento concreto.</b> Não achei nome, marca, número ou data.');
+    if (txt && !concreto && c.formato !== 'curto') problemas.push('<b>Sem elemento concreto.</b> Não achei nome, marca, número ou data.');
     if (capa.image) {
       const ct = contrasteFoto(capa.image, capa.t);
       if (ct && ct.fraca) problemas.push(`<b>Foto ${ct.escura ? 'escura e ' : ''}sem ponto de contraste.</b> Em miniatura ela vira mancha; procure um sujeito claro sobre fundo escuro ou uma cor forte isolada.`);
     }
     const s2 = c.slides[1];
-    if (s2 && s2.tipo !== 'lista' && s2.tipo !== 'fecho') {
+    if (c.formato !== 'curto' && s2 && s2.tipo !== 'lista' && s2.tipo !== 'fecho') {
       const t2 = (s2.paras[0] || '').replace(/\*\*|__/g, '').trim(); const p2 = t2.split(/\s+/).filter(Boolean).length;
       if (!['texto', 'imagem'].includes(s2.tipo)) problemas.push('<b>Slide 2 sem manchete.</b> Muita gente entra pelo slide 2; use texto ou título + foto com uma headline forte.');
       else if (p2 > 18) problemas.push(`<b>Slide 2 com ${p2} palavras na abertura.</b> Ele é a segunda manchete: até 16 palavras.`);
@@ -2938,7 +3025,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       const np = sl.paras.join(' ').replace(/\*\*|__/g, '').split(/\s+/).filter(Boolean).length;
       if (np > 55) problemas.push(`<b>Slide ${k + 1} com ${np} palavras.</b> Acima de 50 o olho desiste; corte ou divida.`);
     });
-    if (!c.slides.some(s => s.tipo === 'lista')) problemas.push('<b>Sem slide para salvar.</b> Inclua um slide "Lista para salvar" com 3 a 5 passos práticos; é o que gera print e salvamento.');
+    if (c.formato !== 'curto' && c.formato !== 'twitter' && !c.slides.some(s => s.tipo === 'lista')) problemas.push('<b>Sem slide para salvar.</b> Inclua um slide "Lista para salvar" com 3 a 5 passos práticos; é o que gera print e salvamento.');
     box.hidden = false;
     box.classList.toggle('alerta', problemas.length > 0);
     box.innerHTML = problemas.length

@@ -35,7 +35,7 @@
   // O botão (toque) abre no app do Claude; se o app não estiver instalado, cai no navegador.
   document.getElementById('abrir').href = android ? comVolta : URL_AZUL;
   // Pelo ícone instalado, tenta abrir sozinho no app do Claude (sem cair no navegador se o Android bloquear).
-  var instalado = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var instalado = /[?&]atalho/.test(location.search) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   if (instalado) {
     document.getElementById('msg').textContent = 'Toque no botão para abrir o Motor azul no app do Claude.';
     if (android) setTimeout(function () { location.href = semVolta; }, 200);

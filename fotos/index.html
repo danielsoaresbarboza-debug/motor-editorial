@@ -1042,7 +1042,7 @@
   let pistaModo = ls.get(LS_PISTA) === 'nenhuma' ? 'nenhuma' : 'balao';
   // Teste de 31/10 21h52: como a foto do vizinho entra na borda e como a seta continua na emenda
   let faixaEstilo = ls.get('dan_editorial_faixa_v1') || 'desfoque'; // escolhido em 31/10: foto normal com a bordinha de dentro esfumaçada   // vidro | normal | desfoque
-  let alcaModo = ls.get('dan_editorial_alcamodo_v1') || 'longa'; // escolhido em 31/10: a seta se estende no próximo card    // alca | sem | dividida | longa
+  let alcaModo = ls.get('dan_editorial_alcamodo_v1') || 'dividida'; // escolhido em 31/10 22h04: a alça se completa no próximo card (não a seta branca)    // alca | sem | dividida | longa
   function fundoDoSlide(c, k) {
     const sl = c.slides[k]; if (!sl) return { foto: null, cor: TINTA };
     if (['capa', 'foto', 'imagem'].includes(sl.tipo) && sl.image) return { foto: img(sl.image), t: sl.t, cor: TINTA };

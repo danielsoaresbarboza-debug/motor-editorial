@@ -366,6 +366,13 @@
             </div>
           </div>
           <p class="hint" id="tr-modo-hint"></p>
+          <div class="row">
+            <span class="label">Crédito ao criador</span>
+            <div class="seg" id="tr-credito" role="group" aria-label="Crédito ao criador na legenda">
+              <button type="button" data-c="nao">Sem crédito</button>
+              <button type="button" data-c="sim">Na legenda</button>
+            </div>
+          </div>
           <div class="row" id="tr-acoes">
             <select id="tr-pilar" aria-label="Pilar">
               <option value="auto">Pilar: escolher sozinho</option>
@@ -1132,12 +1139,14 @@
     if (faixaEstilo === 'vidro-desfoque') {
       // 31/10 22h06: foto nítida na emenda, desfocando até a borda do vidro; sem brilho branco por cima
       const b = document.createElement('canvas'); b.width = VZ; b.height = H; const bg = b.getContext('2d');
-      if ('filter' in bg) bg.filter = 'blur(16px) saturate(1.1)';
+      if ('filter' in bg) bg.filter = 'blur(12px)';
       coverEm(bg, im, ladoDireito ? 0 : -W - VZ, 0, W + VZ * 2, H, sl.t); bg.filter = 'none';
+      // 22h33: sem degrau na emenda — o desfoque nasce em zero e cresce devagar até a borda do vidro
       const m = bg.createLinearGradient(ladoDireito ? VZ : 0, 0, ladoDireito ? 0 : VZ, 0);
-      m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(0.3, 'rgba(0,0,0,0.25)'); m.addColorStop(1, 'rgba(0,0,0,1)');
+      m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(0.2, 'rgba(0,0,0,0.04)'); m.addColorStop(0.55, 'rgba(0,0,0,0.4)'); m.addColorStop(1, 'rgba(0,0,0,0.85)');
       bg.globalCompositeOperation = 'destination-in'; bg.fillStyle = m; bg.fillRect(0, 0, VZ, H);
       ctx.drawImage(b, x0, 0);
+      tomDaFoto(ladoDireito ? W : -W); // mesma vinheta e sombras de topo/rodapé do slide de origem: a foto continua sem linha
     } else {
       const v = ctx.createLinearGradient(0, y0, 0, y0 + h);
       v.addColorStop(0, 'rgba(255,255,255,0.18)'); v.addColorStop(0.3, 'rgba(255,255,255,0)'); v.addColorStop(1, 'rgba(0,0,0,0.15)');
@@ -1147,6 +1156,23 @@
     ctx.save(); ctx.lineWidth = 2; const e = ctx.createLinearGradient(0, y0, 0, y0 + h);
     e.addColorStop(0, 'rgba(255,255,255,0.75)'); e.addColorStop(0.5, 'rgba(255,255,255,0.18)'); e.addColorStop(1, 'rgba(255,255,255,0.4)');
     ctx.strokeStyle = e; forma(); ctx.stroke(); ctx.restore();
+  }
+  // As camadas que o slide de foto põe por cima da foto (vinheta + sombras do topo e do rodapé), desenhadas
+  // no sistema de coordenadas dele (dx = onde fica a origem dele aqui), para a faixa ter exatamente o mesmo tom.
+  function tomDaFoto(dx) {
+    ctx.save(); ctx.translate(dx, 0);
+    if (acabamento === 'vidro' || acabamento === 'luz') {
+      const v = acabamento === 'vidro'
+        ? ctx.createRadialGradient(W / 2, H * 0.46, H * 0.36, W / 2, H * 0.5, H * 0.85)
+        : ctx.createRadialGradient(W / 2, H * 0.46, H * 0.32, W / 2, H * 0.5, H * 0.82);
+      v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, acabamento === 'vidro' ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.42)');
+      ctx.fillStyle = v; ctx.fillRect(-VZ * 2, 0, W + VZ * 4, H);
+    }
+    const t = ctx.createLinearGradient(0, 0, 0, 240); t.addColorStop(0, 'rgba(0,0,0,0.45)'); t.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = t; ctx.fillRect(-VZ * 2, 0, W + VZ * 4, 240);
+    const b = ctx.createLinearGradient(0, H - 220, 0, H); b.addColorStop(0, 'rgba(0,0,0,0)'); b.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = b; ctx.fillRect(-VZ * 2, H - 220, W + VZ * 4, 220);
+    ctx.restore();
   }
   // Faixa sem vidro: a própria foto continuando ("normal") ou continuando e se desfazendo para dentro ("desfoque")
   function faixaLimpa(ladoDireito, im, t) {
@@ -1266,7 +1292,7 @@
   // Outra metade da alça, na borda esquerda do próximo slide (a cápsula se completa na emenda)
   function alcaMetade(c, k) {
     const [r, g, b] = tomVizinho(c, k);
-    const EXT = 30, LW2 = AW * 2 + EXT; // a cápsula continua um pouco além da metade: ela "se completa" neste slide
+    const EXT = 0, LW2 = AW * 2 + EXT; // 22h33: só em volta da seta (antes 30 px a mais) // a cápsula continua um pouco além da metade: ela "se completa" neste slide
     const y0 = BCY - AH / 2, x0 = -AW;
     const forma = () => { ctx.beginPath(); rrPath(x0, y0, LW2, AH, AW); };
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 16; ctx.shadowOffsetX = 3; forma(); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); ctx.restore();
@@ -2184,7 +2210,7 @@ Responda só com JSON válido, sem texto antes ou depois:
     const n = tem ? tr.sel.length : 0;
     $('tr-gerar').disabled = gerando || !n || !sampleRef;
     $('tr-gerar').textContent = n ? `Gerar 2 versões de ${n} tema${n > 1 ? 's' : ''}` : 'Marque os temas acima';
-    $('tr-pilar').disabled = gerando; document.querySelectorAll('#tr-modo button').forEach(b => b.disabled = gerando);
+    $('tr-pilar').disabled = gerando; document.querySelectorAll('#tr-modo button, #tr-credito button').forEach(b => b.disabled = gerando);
     renderTemas();
   }
 
@@ -2238,10 +2264,19 @@ Responda só com JSON válido, sem texto antes ou depois:
   function pintarTrModo() {
     document.querySelectorAll('#tr-modo button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === trModo)));
     $('tr-modo-hint').textContent = trModo === 'manter'
-      ? 'O carrossel segue a ideia do vídeo do começo ao fim (tese, exemplos, ordem e conclusão), reescrito com as suas palavras e ajustado ao formato. O crédito ao criador vai na legenda.'
+      ? 'O carrossel segue a ideia do vídeo do começo ao fim (tese, exemplos, ordem e conclusão), reescrito com as suas palavras e ajustado ao formato.'
       : 'O vídeo vira só ponto de partida: o carrossel traz outro raciocínio, pela sua lente.';
   }
   document.querySelectorAll('#tr-modo button').forEach(b => b.addEventListener('click', () => { trModo = b.dataset.m; ls.set(LS_TRMODO, trModo); pintarTrModo(); }));
+  // Crédito ao criador: escolha do Daniel (31/10 22h33: não quer sempre). Padrão: sem crédito.
+  const LS_TRCRED = 'dan_editorial_tr_credito_v1';
+  let trCredito = ls.get(LS_TRCRED) === 'sim';
+  const pintarCredito = () => document.querySelectorAll('#tr-credito button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.c === 'sim') === trCredito)));
+  document.querySelectorAll('#tr-credito button').forEach(b => b.addEventListener('click', () => { trCredito = b.dataset.c === 'sim'; ls.set(LS_TRCRED, trCredito ? 'sim' : 'nao'); pintarCredito(); }));
+  pintarCredito();
+  const linhaCredito = (frase) => trCredito
+    ? `- CRÉDITO na LEGENDA, numa linha antes das hashtags: "${frase}" Nos slides, não mencione o criador.`
+    : '- NÃO mencione o criador nem o vídeo de origem, nem nos slides nem na legenda (sem linha de crédito, sem "vi num vídeo").';
   pintarTrModo();
   function entradaManter(letra) {
     const perfil = (tr && tr.perfil) || 'perfil';
@@ -2252,7 +2287,7 @@ Responda só com JSON válido, sem texto antes ou depois:
 - Fatos, números, nomes e casos: só os que estão no vídeo. Não invente fundamento; se o vídeo cita um, use o dele. Só acrescente um fundamento se tiver certeza absoluta de que é real e se ele reforçar a mesma ideia.
 - História pessoal do criador nunca vira história de Daniel. Se for essencial, conte em terceira pessoa sem nome nos slides ("um criador contou que...").
 - A opinião de Daniel no penúltimo slide concorda, completa ou matiza a ideia do vídeo, sem contradizer o raciocínio.
-- CRÉDITO obrigatório na LEGENDA, numa linha antes das hashtags: "Ideia de um vídeo de @${perfil}." Nos slides, não mencione o criador.
+${linhaCredito('Ideia de um vídeo de @' + perfil + '.')}
 ${letra === 'B' ? '- Versão B: o MESMO raciocínio, mas com outra capa, outro slide 2 e outra abertura de cada slide, para não parecer repetida.' : '- Versão A: siga a ordem do vídeo.'}`;
   }
   function promptVersao(it, pilar, letra, a) {
@@ -2280,7 +2315,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
 
 ENTRADA: transcrição de um vídeo de OUTRO criador do Instagram. Use apenas como ponto de partida de TEMA.
 - Não copie frases, exemplos, histórias pessoais nem a estrutura do vídeo. Nada de paráfrase.
-- Se a ideia central for do criador, dê o crédito na LEGENDA, numa linha antes das hashtags: "Tema que vi num vídeo de @${(tr && tr.perfil) || 'perfil'}." Nos slides, não mencione o criador.
+${linhaCredito('Tema que vi num vídeo de @' + ((tr && tr.perfil) || 'perfil') + '.')}
 - Reescreva o tema pela lente de Daniel: por que isso é lembrado, e o que quem vive do próprio trabalho faz com isso?
 - O fundamento é escolhido por você e segue as regras acima (real, com nome e data, ou um princípio de design).
 - Entregue MAIS valor que o vídeo original: se ele só opina, você traz o método; se ele dá dicas soltas, você organiza em passos com critério. O slide "lista" precisa ser algo que o vídeo não deu.

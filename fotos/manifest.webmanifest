@@ -1,8 +1,9 @@
 {
+  "id": "./motor-fotos",
   "name": "Motor · Fotos e postagem",
   "short_name": "Motor Fotos",
-  "start_url": "./index.html",
-  "scope": "./index.html",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#400C09",
   "theme_color": "#C2362B",

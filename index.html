@@ -2825,7 +2825,8 @@ Responda só com JSON válido, sem texto antes ou depois:
       if (s.imgBusca) { const fq = document.createElement('p'); fq.className = 'fq'; fq.textContent = 'Busca: ' + s.imgBusca; fx.append(fq); }
       const acts = document.createElement('div'); acts.className = 'acts';
       const us = document.createElement('a'); us.className = 'btn' + (buscaBloqueada ? ' primary' : ''); us.textContent = 'Unsplash';
-      us.href = 'https://unsplash.com/s/photos/' + encodeURIComponent(String(s.imgBusca || q).trim().replace(/\s+/g, '-'));
+      const qUs = s.imgBusca || String(s.imgSuggestion || c.title).split(/[,.;]/)[0].split(/\s+/).slice(0, 5).join(' ');
+      us.href = 'https://unsplash.com/s/photos/' + encodeURIComponent(qUs.trim().replace(/\s+/g, '-'));
       us.target = '_blank'; us.rel = 'noopener noreferrer'; us.onclick = () => { pendente = k; esconderVolta(); };
       const a = document.createElement('a'); a.className = 'btn pin'; a.textContent = 'Pinterest';
       a.href = pinUrl(q); a.target = '_blank'; a.rel = 'noopener noreferrer';
@@ -2871,7 +2872,25 @@ Responda só com JSON válido, sem texto antes ou depois:
   }
   function esconderVolta() { $('volta').hidden = true; }
   $('volta-x').onclick = () => { pendente = null; esconderVolta(); };
-  const aoVoltar = () => { if (document.visibilityState === 'visible' && pendente !== null) setTimeout(() => { if (pendente !== null) mostrarVolta(pendente); }, 250); };
+  // Ao voltar do Unsplash/Pinterest: se já houver permissão de ler a área de transferência e uma foto copiada,
+  // coloca sozinha no slide certo (zero toques). Senão, mostra a barra com Colar / Galeria.
+  async function fotoSozinha(k) {
+    try {
+      const st = await navigator.permissions.query({ name: 'clipboard-read' });
+      if (st.state !== 'granted' || !navigator.clipboard || !navigator.clipboard.read) return false;
+      const itens = await navigator.clipboard.read();
+      for (const it of itens) {
+        const tipo = it.types.find(t => t.startsWith('image/'));
+        if (tipo) { const blob = await it.getType(tipo); const uri = await readFile(blob, 1600, 0.88); pendente = null; esconderVolta(); go(k); colocarFoto(uri, ''); return true; }
+      }
+    } catch (e) {}
+    return false;
+  }
+  const aoVoltar = () => {
+    if (document.visibilityState !== 'visible' || pendente === null) return;
+    const k = pendente;
+    setTimeout(async () => { if (pendente === null) return; if (!(await fotoSozinha(k)) && pendente !== null) mostrarVolta(pendente); }, 350);
+  };
   document.addEventListener('visibilitychange', aoVoltar);
   window.addEventListener('focus', aoVoltar);
 

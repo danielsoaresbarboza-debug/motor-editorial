@@ -497,7 +497,7 @@
         </div>
         <p class="hint" id="pasta-nao">Aqui no app do Claude, cada imagem é salva como um arquivo separado, na pasta de downloads do aparelho. Escolher uma pasta própria, com uma subpasta por carrossel, só funciona com o Motor aberto fora do Claude, no Chrome ou no Edge do computador.</p>
         <label class="hint" for="cor-input">Cor do fundo "Cor"</label>
-        <div class="row"><input type="color" id="cor-input" value="#E8E1D3" aria-label="Cor do fundo Cor"></div>
+        <div class="row"><input type="color" id="cor-input" value="#FFD400" aria-label="Cor do fundo Cor"></div>
       </section>
     </div>
   </div>
@@ -718,7 +718,7 @@
     avatarEl.onload = () => { render(); try { frChave = ''; renderFrases(); } catch (e) {} };
   }
   const avatarReady = () => avatarEl.complete && avatarEl.naturalWidth > 0;
-  let corFundo = ls.get(LS_COR) || '#E8E1D3';
+  let corFundo = ls.get(LS_COR) || '#FFD400'; // paleta da marca (31/10 23h09): amarelo, preto e branco
 
   // ─── Texto com **negrito** e __sublinhado__ ───
   function parseInline(str) {
@@ -806,7 +806,7 @@
           } else if (t.b && o.marca && /^\s+$/.test(t.text) && line.tokens[ti - 1] && line.tokens[ti - 1].b && line.tokens[ti + 1] && line.tokens[ti + 1].b) {
             ctx.fillStyle = o.marca; ctx.fillRect(cx, base - Math.round(L.size * 0.78), t.w, Math.round(L.size * 1.0));
           }
-          ctx.fillStyle = t.b && o.accent ? o.accent : o.color;
+          ctx.fillStyle = t.b && o.marca ? '#111111' : (t.b && o.accent ? o.accent : o.color);
           ctx.fillText(t.text, cx, base);
           const next = line.tokens[ti + 1];
           if (t.u && ulStart === null) ulStart = cx;
@@ -854,8 +854,8 @@
     lastCover = { x, y, w, h, sw, sh, nw: im.naturalWidth, nh: im.naturalHeight };
   }
   let lastCover = null;
-  // marca-texto atrás das palavras em **negrito**: lilás translúcido no escuro (texto branco continua legível), amarelo no claro
-  const marcaCor = (dark) => dark ? 'rgba(124,118,255,0.45)' : 'rgba(255,214,64,0.62)';
+  // marca-texto amarelo da marca atrás das palavras em **negrito**; o texto sobre ele é sempre preto (drawLayout)
+  const marcaCor = (dark) => 'rgba(255,212,0,0.96)';
   let printFrame = null, marcando = false, proxMarca = 0;
   function placeholder(x, y, w, h, r, dark) {
     ctx.save();
@@ -931,7 +931,7 @@
       // dois slides seguidos da mesma cor: uma luz centrada na emenda deixa o fundo contínuo (panorâmico, sem foto)
       const { c, i } = slideAtual, aqui = c.slides[i];
       const mesma = (k) => { const o = c.slides[k]; return fundoLiso(aqui) && fundoLiso(o) && bgColor(o.fundo) === bgColor(aqui.fundo); };
-      const cor = dark ? 'rgba(120,110,255,0.30)' : 'rgba(170,176,255,0.55)';
+      const cor = dark ? 'rgba(255,212,0,0.10)' : 'rgba(255,212,0,0.18)';
       [[i + 1, W], [i - 1, 0]].forEach(([k, x]) => {
         if (k < 0 || k >= c.slides.length || !mesma(k)) return;
         const g = ctx.createRadialGradient(x, H * 0.56, 0, x, H * 0.56, 640);
@@ -942,8 +942,8 @@
     if (!onPhoto) {
       // aurora: três luzes macias, como um papel de parede do iOS
       const luzes = dark
-        ? [[0.92, 0.10, 820, 'rgba(92,104,255,0.34)'], [0.02, 0.48, 760, 'rgba(168,92,255,0.20)'], [0.80, 0.98, 700, 'rgba(255,150,110,0.14)']]
-        : [[0.95, 0.06, 760, 'rgba(176,186,255,0.55)'], [0.0, 0.55, 700, 'rgba(255,214,196,0.50)'], [0.85, 1.0, 640, 'rgba(206,190,255,0.40)']];
+        ? [[0.92, 0.10, 820, 'rgba(255,212,0,0.12)'], [0.02, 0.48, 760, 'rgba(255,255,255,0.05)'], [0.80, 0.98, 700, 'rgba(255,200,0,0.07)']]
+        : [[0.95, 0.06, 760, 'rgba(255,224,90,0.30)'], [0.0, 0.55, 700, 'rgba(255,240,190,0.30)'], [0.85, 1.0, 640, 'rgba(255,230,140,0.22)']];
       for (const [fx, fy, r, cor] of luzes) {
         const g = ctx.createRadialGradient(W * fx, H * fy, 0, W * fx, H * fy, r);
         g.addColorStop(0, cor); g.addColorStop(1, cor.replace(/[\d.]+\)$/, '0)'));
@@ -1105,7 +1105,7 @@
     // Pesquisas com questionários online mostram menos abandono com barras "rápido → devagar".
     if (n > 1) {
       const prog = i === n - 1 ? 1 : Math.pow((i + 1) / n, 0.55);
-      const corB = onPhoto || !isDarkHex(ink) ? '#C9C2FF' : '#D9452B';
+      const corB = onPhoto || !isDarkHex(ink) ? '#FFD400' : '#111111';
       ctx.fillStyle = alpha(col, onPhoto ? 0.22 : 0.12); rr(M, 50, CW, 5, 2.5); ctx.fill();
       ctx.fillStyle = corB; rr(M, 50, Math.max(12, Math.round(CW * prog)), 5, 2.5); ctx.fill();
     }
@@ -1117,7 +1117,7 @@
     const ps = c.slides[i] && c.slides[i].passo;
     if (ps) {
       const [a, b] = ps.split('/');
-      const corP = onPhoto || !isDarkHex(ink) ? '#C9C2FF' : '#D9452B';
+      const corP = onPhoto || !isDarkHex(ink) ? '#FFD400' : '#111111';
       ctx.font = fontStr(SANS, 24, 700); spaced(2.5); ctx.textAlign = 'right';
       const txt = `PASSO ${a} DE ${b}`, tw = ctx.measureText(txt).width;
       ctx.save(); rr(W - M - tw - 30, TOP - 34, tw + 30, 46, 23); ctx.fillStyle = alpha(corP, onPhoto ? 0.92 : 0.18); ctx.fill(); ctx.restore();
@@ -1222,8 +1222,8 @@
     const f = fundoDoSlide(c, k);
     if (f.foto) { const m = corMedia(f.foto); if (m) return f.escurecer ? m.map(v => Math.round(v * (1 - f.escurecer))) : m; }
     const sl = c.slides[k]; const cor = rgbDe(f.cor);
-    if (isDarkHex(f.cor)) { const lil = [201, 194, 255]; return cor.map((v, j) => Math.round(v * 0.72 + lil[j] * 0.28)); }
-    const lil2 = [176, 168, 240]; return cor.map((v, j) => Math.round(v * 0.62 + lil2[j] * 0.38));
+    if (isDarkHex(f.cor)) { const lil = [255, 212, 0]; return cor.map((v, j) => Math.round(v * 0.72 + lil[j] * 0.28)); }
+    const lil2 = [255, 212, 0]; return cor.map((v, j) => Math.round(v * 0.62 + lil2[j] * 0.38));
   }
   // Pista de deslize: o slide vizinho é "maior" que a moldura e invade a borda deste como uma bolha de vidro
   // (gorda no meio, fina nas pontas), mostrando o conteúdo DELE. Nada é desenhado por cima do próprio slide.
@@ -1326,7 +1326,7 @@
       ctx.fillStyle = f.cor; ctx.fillRect(cx - BRX, BCY - BRY, BRX * 2, BRY * 2);
       if (acabamento === 'vidro') { // o fundo liso do vizinho também tem a aurora: um brilho lilás leve
         const g0 = ctx.createRadialGradient(cx, BCY - BRY * 0.4, 0, cx, BCY - BRY * 0.4, BRY);
-        g0.addColorStop(0, isDarkHex(f.cor) ? 'rgba(124,130,255,0.30)' : 'rgba(176,186,255,0.45)'); g0.addColorStop(1, 'rgba(124,130,255,0)');
+        g0.addColorStop(0, isDarkHex(f.cor) ? 'rgba(255,212,0,0.14)' : 'rgba(255,212,0,0.20)'); g0.addColorStop(1, 'rgba(255,212,0,0)');
         ctx.fillStyle = g0; ctx.fillRect(cx - BRX, BCY - BRY, BRX * 2, BRY * 2);
       }
     }
@@ -1522,7 +1522,7 @@
         ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
         luz(dark, false);
       }
-      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const acento = dark ? '#FFD400' : '#111111';
       // cartão de perfil
       const bx = M - 20, bw = CW + 40, bh = 196, by = FOOT - 48 - bh;
       let tintaC = ink;
@@ -1589,7 +1589,7 @@
       ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
       luz(dark, false);
       const vid = false; // vidro só sobre foto (diretriz da Apple: nada de vidro na camada de conteúdo)
-      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const acento = dark ? '#FFD400' : '#111111';
       const itens = s.paras.slice(1).filter(t => t.trim());
       const TL = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.1, maxW: CW, max: 56, min: 38 }, 200);
       const numW = 74, pad = vid ? 30 : 22, gapI = vid ? 16 : 0;
@@ -1632,7 +1632,7 @@
       const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
       ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
       luz(dark, false);
-      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const acento = dark ? '#FFD400' : '#111111';
       const num = (s.paras[0] || '').replace(/\*\*|__/g, '').trim() || '00';
       let fs = 340; ctx.font = fontStr(SERIF, fs, 500); spaced(-fs * 0.03);
       while (ctx.measureText(num).width > CW && fs > 110) { fs -= 8; ctx.font = fontStr(SERIF, fs, 500); spaced(-fs * 0.03); }
@@ -1651,7 +1651,7 @@
       const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
       ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
       luz(dark, false);
-      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const acento = dark ? '#FFD400' : '#111111';
       const TL = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.1, maxW: CW, max: 56, min: 36 }, 170);
       const gap = 22, pad = 42, cab = 58, innerW = CW + 40 - pad * 2;
       // painéis do tamanho do texto; encolhe a letra até caber
@@ -1688,7 +1688,7 @@
       const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
       ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
       luz(dark, false);
-      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const acento = dark ? '#FFD400' : '#111111';
       const F = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.04, maxW: CW, max: 132, min: 72 }, BODY_B - BODY_T - 120);
       const y = BODY_T + Math.max(40, (BODY_B - BODY_T - F.h) * 0.5);
       ctx.fillStyle = acento; ctx.fillRect(M, y - 54, 72, 5);
@@ -1701,7 +1701,7 @@
       const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
       ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
       luz(dark, false);
-      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const acento = dark ? '#FFD400' : '#111111';
       const ops = s.paras.slice(1).filter(t => t.trim()).slice(0, 3);
       const Q = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.08, maxW: CW, max: 76, min: 46 }, 340);
       const pad = 34, letra = 64, inner = CW + 40 - pad * 2 - letra - 18;
@@ -1729,7 +1729,7 @@
       const ink = inkFor(s.fundo), dark = isDarkHex(bgColor(s.fundo));
       ctx.fillStyle = bgColor(s.fundo); ctx.fillRect(0, 0, W, H);
       luz(dark, false);
-      const acento = dark ? '#C9C2FF' : '#D9452B';
+      const acento = dark ? '#FFD400' : '#111111';
       const R = fit(s.paras.slice(0, 1), { fam: SERIF, w: 500, wb: 600, lh: 1.04, maxW: CW, max: 104, min: 58 }, 360);
       const rest = s.paras.slice(1).filter(t => t.trim());
       const B = rest.length ? fit(rest, { fam: SANS, w: 400, wb: 600, lh: 1.45, maxW: CW, max: 40, min: 32, gap: 0.6 }, 460) : null;
@@ -1757,7 +1757,7 @@
       if (im) cover(im, fx, fy, fw, fh, s.t, 26); else placeholder(fx, fy, fw, fh, 26, dark);
       ctx.save(); ctx.lineWidth = 2; ctx.strokeStyle = alpha(ink, 0.14); rr(fx, fy, fw, fh, 26); ctx.stroke(); ctx.restore();
       printFrame = { x: fx, y: fy, w: fw, h: fh };
-      const AM = '#FFD43B', pos = s.marcas || [];
+      const AM = '#FFD400', pos = s.marcas || [];
       const PADRAO = [[0.3, 0.3], [0.68, 0.52], [0.36, 0.76]];
       notas.forEach((_, k) => {
         const p = pos[k] || { x: PADRAO[k][0], y: PADRAO[k][1] };
@@ -3059,7 +3059,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
 
 
   // ─── Posts de frase única: 2 imagens do mesmo tema, feitas para serem enviadas a alguém ───
-  const FR_ACENTO = { vidro: '#C9C2FF', manchete: '#D9452B' };
+  const FR_ACENTO = { vidro: '#FFD400', manchete: '#111111' };
   function frasesDe(c) {
     if (!Array.isArray(c.frases)) c.frases = [];
     while (c.frases.length < 2) c.frases.push({ texto: '', legenda: '', para: '', design: c.frases.length ? 'manchete' : 'vidro' });

@@ -56,7 +56,7 @@
   .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; }
   .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
-  .btn.primary:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.primary:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--on-ink, #fff); }
   .btn.ghost { border-color: transparent; background: transparent; }
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
   .seg button { appearance: none; border: 0; background: transparent; color: var(--muted); font: 500 13px var(--font-body); padding: 7px 12px; border-radius: 999px; cursor: pointer; }
@@ -123,7 +123,7 @@
   .tr-item { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--bg); cursor: pointer; }
   .tr-item[aria-checked="true"] { border-color: var(--ink); background: var(--ink-soft); }
   .tr-item .ck { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--muted); display: grid; place-items: center; font: 700 13px var(--font-body); color: transparent; margin-top: 1px; }
-  .tr-item[aria-checked="true"] .ck { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .tr-item[aria-checked="true"] .ck { background: var(--ink); border-color: var(--ink); color: var(--on-ink, #fff); }
   .tr-item b { display: block; font-size: 14px; line-height: 1.35; font-weight: 600; }
   .tr-item small { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 12.5px; line-height: 1.45; margin-top: 3px; }
   .tr-item .tr-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); margin-top: 5px; letter-spacing: 0.03em; }
@@ -160,7 +160,7 @@
   .canvas-wrap.ajustando { outline: 3px solid var(--ink); outline-offset: 2px; cursor: grab; }
   .canvas-wrap.ajustando canvas#slide { touch-action: none; }
   .foto-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .foto-bar .btn.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .foto-bar .btn.on { background: var(--ink); border-color: var(--ink); color: var(--on-ink, #fff); }
   .ajuste { display: flex; flex-direction: column; gap: 10px; background: var(--surface); border: 1px solid var(--ink); border-radius: 12px; padding: 12px; }
   .ajuste .hint strong { color: var(--fg); }
   .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 380; }
@@ -180,13 +180,16 @@
   html.modo-escrita { --bg: #EDF1FF; --surface: #F9FAFF; --fg: #10142A; --muted: #5B6488; --line: #D3DBF6; --ink: #2F55E8; --ink-soft: rgba(47, 85, 232, 0.10); }
   html.modo-fotos { --bg: #FFF0EE; --surface: #FFFAF9; --fg: #2A1210; --muted: #8A5F5A; --line: #F1D2CD; --ink: #C2362B; --ink-soft: rgba(194, 54, 43, 0.10); }
   @media (prefers-color-scheme: dark) {
-    html.modo-escrita:not([data-theme="light"]) { --bg: #0A0F24; --surface: #121A36; --fg: #E8ECFF; --muted: #98A3CC; --line: #26325E; --ink: #7C93FF; --ink-soft: rgba(124, 147, 255, 0.16); }
-    html.modo-fotos:not([data-theme="light"]) { --bg: #1E0C0A; --surface: #2B1411; --fg: #FFE9E6; --muted: #C99C96; --line: #4B2621; --ink: #FF7A6E; --ink-soft: rgba(255, 122, 110, 0.16); }
+    html.modo-escrita:not([data-theme="light"]) { --bg: #0A0F24; --surface: #121A36; --fg: #E8ECFF; --muted: #98A3CC; --line: #26325E; --ink: #7C93FF; --ink-soft: rgba(124, 147, 255, 0.16); --on-ink: #0A0F24; }
+    html.modo-fotos:not([data-theme="light"]) { --bg: #1E0C0A; --surface: #2B1411; --fg: #FFE9E6; --muted: #C99C96; --line: #4B2621; --ink: #FF7A6E; --ink-soft: rgba(255, 122, 110, 0.16); --on-ink: #1E0C0A; }
   }
+  /* v51: texto escuro sobre a cor de destaque no modo escuro (branco sobre salmão/lilás ficava fraco) */
+  html.modo-fotos[data-theme="dark"] { --bg: #1E0C0A; --surface: #2B1411; --fg: #FFE9E6; --muted: #C99C96; --line: #4B2621; --ink: #FF7A6E; --ink-soft: rgba(255, 122, 110, 0.16); --on-ink: #1E0C0A; }
+  html.modo-escrita[data-theme="dark"] { --bg: #0A0F24; --surface: #121A36; --fg: #E8ECFF; --muted: #98A3CC; --line: #26325E; --ink: #7C93FF; --ink-soft: rgba(124, 147, 255, 0.16); --on-ink: #0A0F24; }
   html.modo-fotos body, html.modo-escrita body { border-top: 5px solid var(--ink); }
-  .modo { display: inline-flex; align-items: center; gap: 6px; font: 600 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: 5px 10px; border-radius: 999px; vertical-align: middle; margin-left: 10px; }
-  html.modo-fotos .btn.primary, html.modo-escrita .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
-  html.modo-fotos .seg button[aria-pressed="true"], html.modo-escrita .seg button[aria-pressed="true"], html.modo-fotos .dot[aria-current="true"], html.modo-escrita .dot[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .modo { display: inline-flex; align-items: center; gap: 6px; font: 600 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--on-ink, #fff); background: var(--ink); padding: 5px 10px; border-radius: 999px; vertical-align: middle; margin-left: 10px; }
+  html.modo-fotos .btn.primary, html.modo-escrita .btn.primary { background: var(--ink); border-color: var(--ink); color: var(--on-ink, #fff); }
+  html.modo-fotos .seg button[aria-pressed="true"], html.modo-escrita .seg button[aria-pressed="true"], html.modo-fotos .dot[aria-current="true"], html.modo-escrita .dot[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: var(--on-ink, #fff); }
 
   /* ─── Navegação por abas (v45, 31/10/2026): uma tarefa por tela, barra de ícones embaixo, ação principal fixa ─── */
   .painel { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
@@ -198,7 +201,7 @@
   .palco { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   .sub-seg { display: flex; gap: 4px; padding: 4px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
   .sub-seg button { flex: 1; appearance: none; border: 0; background: transparent; color: var(--muted); font: 600 13px var(--font-body); padding: 9px 8px; border-radius: 999px; cursor: pointer; min-height: 40px; }
-  .sub-seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .sub-seg button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink, #fff); }
   .sub-seg button[hidden] { display: none; }
   .criar-wrap > * { display: none !important; }
   .criar-wrap[data-sub="videos"] > #tr-card, .criar-wrap[data-sub="ideia"] > #gen-card:not([hidden]), .criar-wrap[data-sub="json"] > .card-json { display: flex !important; }
@@ -359,6 +362,13 @@
         <div id="tr-cheio" class="stack" style="gap:10px" hidden>
           <p class="hint" id="tr-fonte"></p>
           <div class="tr-list" id="tr-list" role="group" aria-label="Temas"></div>
+          <div class="row">
+            <span class="label">Formato</span>
+            <div class="seg" id="tr-formato" role="group" aria-label="Formato do que vai ser gerado">
+              <button type="button" data-f="editorial">Editorial</button>
+              <button type="button" data-f="curto">Curto (2 slides)</button>
+            </div>
+          </div>
           <div class="row">
             <span class="label">Usar o vídeo como</span>
             <div class="seg" id="tr-modo" role="group" aria-label="Como usar a transcrição">
@@ -652,7 +662,7 @@
       grupo: o.grupo || '', versao: o.versao || '', fonte: o.fonte || '',
       reservaPara: o.reservaPara || 0, agora: !!o.agora, postadoEm: o.postadoEm || 0,
       capas: Array.isArray(o.capas) ? o.capas.map(String).filter(x => x.trim()).slice(0, 4) : [],
-      formato: o.formato === 'curto' || (Array.isArray(o.slides) && o.slides.length === 2 && o.slides[1] && o.slides[1].cta) ? 'curto' : o.formato === 'twitter' || (Array.isArray(o.slides) && o.slides.length && o.slides.every(x => x && x.tipo === 'tweet')) ? 'twitter' : 'editorial',
+      formato: o.formato === 'curto' || (o.formato !== 'twitter' && o.formato !== 'editorial' && Array.isArray(o.slides) && o.slides.length === 2 && o.slides[1] && o.slides[1].cta) ? 'curto' : o.formato === 'twitter' || (Array.isArray(o.slides) && o.slides.length && o.slides.every(x => x && x.tipo === 'tweet')) ? 'twitter' : 'editorial',
       frases: Array.isArray(o.frases) ? o.frases.slice(0, 2).map((f, k) => ({
         texto: String((f && (f.texto || f.frase)) || (typeof f === 'string' ? f : '')),
         legenda: String((f && f.legenda) || ''),
@@ -1608,9 +1618,12 @@
       const ink = escuro ? '#E7E9EA' : (cor && isDarkHex(corFundo) ? '#F2F0EB' : '#0F1419');
       const cinza = escuro ? '#71767B' : (cor && isDarkHex(corFundo) ? 'rgba(242,240,235,0.65)' : '#536471');
       ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-      const B = fit(s.paras.length ? s.paras : [' '], { fam: SANS, w: 400, wb: 600, lh: 1.38, maxW: CW, max: 58, min: 32, gap: 0.62 }, 860);
-      const cab = 112, gap = 46, total = cab + gap + B.h;
-      const y0 = Math.max(110, Math.round((H - total) / 2) - 20);
+      // v51: com CTA no slide (faixa no pé), o texto sobe e encolhe para não encostar na faixa
+      const limiteT = s.cta && s.cta.texto ? FOOT - 34 - CTA_H - 40 : H - 110;
+      const cab = 112, gap = 46;
+      const B = fit(s.paras.length ? s.paras : [' '], { fam: SANS, w: 400, wb: 600, lh: 1.38, maxW: CW, max: 58, min: 32, gap: 0.62 }, Math.min(860, limiteT - 110 - cab - gap));
+      const total = cab + gap + B.h;
+      const y0 = Math.max(110, Math.min(Math.round((H - total) / 2) - 20, limiteT - total));
       const r = 50;
       avatarCircle(M + r, y0 + r, r, null);
       ctx.save(); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
@@ -1897,6 +1910,8 @@
       dots.appendChild(b);
     });
     $('nofoto-hint').hidden = !missing;
+    const prSem = c.slides.map((sl, k) => sl.tipo === 'print' && !sl.image ? k + 1 : 0).filter(Boolean);
+    $('nofoto-hint').textContent = 'Os slides com ponto vermelho ainda estão sem foto.' + (prSem.length ? ` O ${prSem.join(' e ')} é print anotado: precisa do print real (Fotos → Galeria ou Colar).` : '');
     $('sn').textContent = String(state.cur + 1);
     $('tipo').value = s.tipo;
     document.querySelectorAll('#fundo button').forEach(b => b.setAttribute('aria-pressed', b.dataset.f === s.fundo ? 'true' : 'false'));
@@ -2356,13 +2371,18 @@ ESTRUTURA (4 a 8 slides, todos do tipo "tweet"):
 2. Miolo: a história continua. O texto pode atravessar slides (uma frase começa num e termina no outro), o que faz deslizar. Frases curtas, muitas quebras de linha, diálogo entre aspas só se estiver na entrada, detalhes reais do dia.
 3. A cena do slide 1 não pode ficar solta: o que começou nela precisa ter desfecho antes do fim (o que aconteceu depois, o resultado, a lição).
 4. Penúltimo: a virada. A opinião de Daniel em primeira pessoa, honesta, às vezes desconfortável.
-5. Último: fecha a conversa. Se fizer sentido, um convite dentro da história ("Se quiser, me chama no direct que eu te conto como fiz."). Nunca banner, nunca palavra-chave para comentar, nunca pedir curtida, compartilhamento ou marcação.
+5. Último: fecha a conversa e termina com uma CTA DIRECIONADA no campo "cta" (nunca pergunta aberta como "e você?", "conte sua história", "qual é o seu caso?"). Escolha o tipo que combina com a história:
+   - "agora": uma ação de 1 minuto que a pessoa faz hoje ("Abre seu último post e lê só a primeira linha.");
+   - "salvar": salvar com o momento exato de uso ("Salva pra reler antes do próximo orçamento.");
+   - "seguir": o que vem no próximo post ("No próximo eu conto o que mudei depois disso.");
+   - "direct": oferta concreta e honesta, dentro da história ("Se quiser, me chama no direct que eu te conto como fiz."), sem palavra-chave.
+   O texto do slide fecha a cena; a CTA vai só no campo "cta" (o Motor desenha a faixa no pé do slide). Nunca banner, nunca palavra-chave para comentar, nunca pedir curtida, compartilhamento ou marcação.
 
 VOZ: português do Brasil falado. "Você", "a gente", "cara" com moderação, perguntas curtas ("Sabe?", "Né?"). Palavrão no máximo um, e só se a entrada tiver esse tom. Sem marketing (estratégia, framework, método, alavancar, transformador, revolucionário, jornada). Sem hype de IA. Números específicos.
 LIMITES: nunca política, nunca fé como gancho, nunca o Exército, nunca clientes políticos.
 CADA SLIDE: até 55 palavras, 1 a 4 parágrafos curtos. **negrito** em no máximo uma frase por slide.
-LEGENDA: 2 a 5 linhas que continuam a conversa e terminam com uma pergunta que a pessoa responde com o próprio caso. No máximo 3 hashtags.
-FRASES: devolva também 2 "frases" para posts de imagem única tiradas da história (texto com 1 a 3 palavras em **negrito**, "para" começando com "Para quem", legenda curta).
+LEGENDA: 2 a 5 linhas que continuam a conversa e terminam com a mesma CTA do último slide, em outras palavras (sem pergunta aberta). No máximo 3 hashtags.
+FRASES: devolva também 2 "frases" para posts de imagem única tiradas da história (texto com 1 a 3 palavras em **negrito**, "para" começando com "Para quem", legenda curta que termina com uma CTA concreta, sem pergunta aberta).
 
 ENTRADA DE DANIEL (o que aconteceu, contado por ele):
 """
@@ -2370,7 +2390,7 @@ ENTRADA DE DANIEL (o que aconteceu, contado por ele):
 """
 
 Responda só com JSON válido, sem texto antes ou depois:
-{"formato":"twitter","title":"título curto até 40 caracteres","slides":[{"tipo":"tweet","fundo":"claro","texto":["parágrafo","parágrafo"]}],"legenda":"...","frases":[{"texto":"...","para":"Para quem ...","legenda":"..."},{"texto":"...","para":"Para quem ...","legenda":"..."}]}`;
+{"formato":"twitter","title":"título curto até 40 caracteres","slides":[{"tipo":"tweet","fundo":"claro","texto":["parágrafo","parágrafo"]},{"tipo":"tweet","fundo":"claro","texto":["parágrafo que fecha a cena"],"cta":{"tipo":"agora|salvar|seguir|direct","texto":"..."}}],"legenda":"...","frases":[{"texto":"...","para":"Para quem ...","legenda":"..."},{"texto":"...","para":"Para quem ...","legenda":"..."}]}`;
   // ─── Formato Curto (v50, 01/11): 2 páginas, valor direto, CTA na página 2 ───
   const CURTO_PROMPT = `Você escreve 3 carrosséis CURTOS (exatamente 2 slides cada) para @danielbarboza.pro. São posts rápidos com valor que a pessoa usa hoje: não são análises de pessoas nem de marcas.
 
@@ -2457,6 +2477,8 @@ Responda só com JSON válido:
   const DIA = 86400000;
   let sampleRef = null, sampleChecado = false, gerando = false;
   let tr = null;
+  const LS_TRFMT = 'dan_editorial_tr_formato_v1';
+  let trFormato = ls.get(LS_TRFMT) === 'curto' ? 'curto' : 'editorial';
   try { tr = JSON.parse(ls.get(LS_TR) || 'null'); } catch (e) { tr = null; }
   const saveTr = () => { if (!ls.set(LS_TR, JSON.stringify(tr))) toast('A memória do navegador encheu.'); };
   function dataCurta(ms) { const d = new Date(ms); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); }
@@ -2524,8 +2546,9 @@ Responda só com JSON válido:
     }
     const n = tem ? tr.sel.length : 0;
     $('tr-gerar').disabled = gerando || !n || !sampleRef;
-    $('tr-gerar').textContent = n ? `Gerar 2 versões de ${n} tema${n > 1 ? 's' : ''}` : 'Marque os temas acima';
-    $('tr-pilar').disabled = gerando; document.querySelectorAll('#tr-modo button, #tr-credito button').forEach(b => b.disabled = gerando);
+    $('tr-gerar').textContent = !n ? 'Marque os temas acima' : trFormato === 'curto' ? (n === 1 ? 'Gerar 3 curtos deste tema' : `Gerar 3 curtos de cada um dos ${n} temas`) : `Gerar 2 versões de ${n} tema${n > 1 ? 's' : ''}`;
+    $('tr-pilar').hidden = trFormato === 'curto';
+    $('tr-pilar').disabled = gerando; document.querySelectorAll('#tr-modo button, #tr-credito button, #tr-formato button').forEach(b => b.disabled = gerando);
     renderTemas();
   }
 
@@ -2542,7 +2565,7 @@ Responda só com JSON válido:
         const pill = document.createElement('span'); pill.className = 'pill';
         if (c.reservaPara) { pill.className = 'pill reserva'; pill.textContent = 'reserva · ' + dataCurta(c.reservaPara); }
         else if (c.agora) { pill.className = 'pill agora'; pill.textContent = 'agora'; }
-        else pill.textContent = 'versão ' + c.versao;
+        else pill.textContent = (c.formato === 'curto' ? 'curto ' : 'versão ') + c.versao;
         const t = document.createElement('span'); t.className = 't'; t.textContent = c.title;
         const acts = document.createElement('div'); acts.className = 'row'; acts.style.flexWrap = 'nowrap';
         const ab = document.createElement('button'); ab.className = 'btn'; ab.textContent = 'Abrir';
@@ -2593,6 +2616,58 @@ Responda só com JSON válido:
     ? `- CRÉDITO na LEGENDA, numa linha antes das hashtags: "${frase}" Nos slides, não mencione o criador.`
     : '- NÃO mencione o criador nem o vídeo de origem, nem nos slides nem na legenda (sem linha de crédito, sem "vi num vídeo").';
   pintarTrModo();
+  // v51: Curto (2 slides) também a partir das transcrições — 3 curtos por tema
+  const pintarTrFormato = () => document.querySelectorAll('#tr-formato button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.f === trFormato)));
+  document.querySelectorAll('#tr-formato button').forEach(b => b.addEventListener('click', () => { trFormato = b.dataset.f; ls.set(LS_TRFMT, trFormato); pintarTrFormato(); renderTr(); }));
+  pintarTrFormato();
+  function promptCurtoTr(it) {
+    const perfil = (tr && tr.perfil) || 'perfil';
+    const regra = trModo === 'manter'
+      ? `MODO "MANTER O RACIOCÍNIO": as entregas dos 3 curtos saem das ideias práticas do PRÓPRIO vídeo (a regra, o passo, o erro e a correção que ele traz), em paráfrase na voz de Daniel, sem copiar frases. Fatos, números e nomes só os do vídeo. História pessoal do criador nunca vira história de Daniel.
+${linhaCredito('Ideia de um vídeo de @' + perfil + '.')}`
+      : `Use o vídeo só como ponto de partida de TEMA. Não copie frases, exemplos, histórias pessoais nem a estrutura do vídeo. Entregue MAIS valor que o vídeo: se ele só opina, os curtos trazem a regra prática, o checklist ou a fórmula.
+${linhaCredito('Tema que vi num vídeo de @' + perfil + '.')}`;
+    const story = `${regra}
+
+TÍTULO DO VÍDEO: ${it.titulo}
+TRANSCRIÇÃO:
+${(it.transcricao || '(sem fala)').slice(0, 6000)}
+DESCRIÇÃO DO POST:
+${(it.descricao || '').slice(0, 1200)}`;
+    return CURTO_PROMPT.replace('TEMA OU IDEIA DE DANIEL:', 'ENTRADA: transcrição de um vídeo de OUTRO criador do Instagram.').replace('[STORY]', story);
+  }
+  async function gerarCurtosTr(escolhidos, st) {
+    let feitos = 0, primeiro = null, parar = false;
+    for (let i = 0; i < escolhidos.length && !parar; i++) {
+      const it = escolhidos[i];
+      const tema = { titulo: it.titulo, link: it.link, ids: [], escolhido: null, pendente: 'Escrevendo 3 curtos…' };
+      tr.temas.unshift(tema); saveTr(); renderTemas();
+      st.textContent = `Tema ${i + 1} de ${escolhidos.length}: escrevendo 3 curtos. Leva uns 40 segundos.`;
+      try {
+        const v = await sampleRef.json(promptCurtoTr(it), { modelTier: 'default' });
+        const bruto = v && Array.isArray(v.carrosseis) ? v.carrosseis : (Array.isArray(v) ? v : [v]);
+        const grupo = 'g' + it.id + Date.now().toString(36);
+        bruto.slice(0, 3).forEach((x, k) => {
+          const c = normCarousel(Object.assign({ formato: 'curto' }, x, { slides: (x && x.slides || []).slice(0, 2), grupo, versao: String(k + 1), fonte: it.link }));
+          if (!c) return;
+          c.createdAt = Date.now(); c.isExample = false;
+          state.list.push(c); tema.ids.push(c.id);
+          if (!primeiro) primeiro = c.id;
+        });
+        if (tema.ids.length) feitos++;
+        persist(); renderHist();
+      } catch (e) {
+        const code = e && e.code;
+        if (code === 'not_granted') { st.textContent = 'A geração foi recusada nas permissões do Motor.'; st.className = 'status err'; parar = true; }
+        else if (code === 'rate_limited') { st.textContent = 'Limite de uso do Claude atingido. Tente de novo daqui a pouco.'; st.className = 'status err'; parar = true; }
+      }
+      tema.pendente = '';
+      if (!tema.ids.length) { tr.temas.shift(); if (!parar) toast('Um tema não saiu. Ele continua marcado para tentar de novo.'); }
+      else tr.sel = tr.sel.filter(id => id !== it.id);
+      saveTr(); renderTemas();
+    }
+    return { primeiro, parar, feitos };
+  }
   function entradaManter(letra) {
     const perfil = (tr && tr.perfil) || 'perfil';
     return `ENTRADA: transcrição de um vídeo de OUTRO criador do Instagram. MODO "MANTER O RACIOCÍNIO": Daniel quer aproveitar o raciocínio inteiro deste vídeo.
@@ -2657,6 +2732,14 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
     if (!escolhidos.length) return;
     gerando = true; renderTr();
     const st = $('tr-status'); st.className = 'status';
+    if (trFormato === 'curto') {
+      const r = await gerarCurtosTr(escolhidos, st);
+      gerando = false;
+      if (!r.parar && r.primeiro) { st.textContent = 'Pronto. Cada curto já tem a CTA no slide 2; abra, confira e mande para o vermelho.'; st.className = 'status ok'; }
+      else if (!r.parar) { st.textContent = 'Nenhum curto saiu. Tente de novo.'; st.className = 'status err'; }
+      if (r.primeiro) { state.activeId = r.primeiro; state.cur = 0; changed(); }
+      renderTr(); return;
+    }
     const pilar = $('tr-pilar').value;
     const total = escolhidos.length * 2; let feitos = 0, primeiro = null, parar = false;
     for (let i = 0; i < escolhidos.length && !parar; i++) {
@@ -2905,9 +2988,12 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
   let autoRodando = false, buscaBloqueada = false;
   async function autoFotos(c) {
     if (autoRodando) return;
-    const ks = c.slides.map((sl, k) => k).filter(k => IMG_TIPOS.includes(c.slides[k].tipo) && !c.slides[k].image);
+    // v51: print anotado precisa da imagem real (o banco de fotos não acha o post/tela certo): fica de fora da busca automática
+    const ks = c.slides.map((sl, k) => k).filter(k => IMG_TIPOS.includes(c.slides[k].tipo) && c.slides[k].tipo !== 'print' && !c.slides[k].image);
+    const prints = c.slides.map((sl, k) => k).filter(k => c.slides[k].tipo === 'print' && !c.slides[k].image);
     const st = $('sug-st');
-    if (!ks.length) { toast('Todos os slides de foto já têm foto. Use "↻ Outra foto" para trocar.'); return; }
+    const avisoPrint = prints.length ? ` O slide ${prints.map(k => k + 1).join(' e ')} é print anotado: coloque o print real com Galeria ou Colar.` : '';
+    if (!ks.length) { if (prints.length) { st.textContent = avisoPrint.trim(); st.className = 'status err'; go(prints[0]); } else toast('Todos os slides de foto já têm foto. Use "↻ Outra foto" para trocar.'); return; }
     autoRodando = true; $('auto-fotos').disabled = true;
     const usadas = new Set(c.slides.map(sl => sl.fotoUrl).filter(Boolean));
     let ok = 0;
@@ -2931,8 +3017,8 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
       atualizarCreditos(c); persist(); if (c === active()) { render(); updateUI(); renderFotos(); }
     }
     autoRodando = false; $('auto-fotos').disabled = false;
-    st.textContent = ok ? `${ok} de ${ks.length} fotos colocadas. Toque em "↻ Outra foto" para trocar; o crédito já está na legenda.` : 'Não achei fotos boas agora. Tente "Sugerir fotos" e depois de novo, ou use o Pinterest.';
-    st.className = ok ? 'status ok' : 'status err';
+    st.textContent = (ok ? `${ok} de ${ks.length} fotos colocadas. Toque em "↻ Outra foto" para trocar; o crédito já está na legenda.` : 'Não achei fotos boas agora. Tente "Sugerir fotos" e depois de novo, ou use o Pinterest.') + avisoPrint;
+    st.className = ok && !prints.length ? 'status ok' : 'status err';
   }
   async function proximaFoto(c, k) {
     const chave = c.id + ':' + k; const lista = fotoCands.get(chave) || [];
@@ -3329,7 +3415,12 @@ Regras:
 - Ângulos diferentes: a frase 1 nomeia a situação ou a dor; a frase 2 é a virada, o que a pessoa precisa perceber.
 - Para cada frase, um "para": de 6 a 12 palavras começando com "Para quem", descrevendo a pessoa que se reconhece nela (ex.: "Para quem posta toda semana e sente que ninguém lembra"). É o que faz a pessoa pensar em alguém e enviar sem ninguém pedir.
 - Sem emoji, sem hashtag, sem ponto de exclamação.
-- Para cada frase, uma legenda de 2 a 4 linhas que expande a ideia com um exemplo do dia a dia e termina com uma pergunta que a pessoa responde com a própria experiência. Sem engagement bait ("marca alguém", "compartilha", "comenta X").
+- Para cada frase, uma legenda de 2 a 4 linhas que expande a ideia com um exemplo do dia a dia e termina com UMA CTA direcionada, nunca pergunta aberta ("conte sua história", "e você?", "qual é o seu caso?"). Escolha uma, diferente entre as duas frases:
+  - agora: uma ação de 1 minuto ("Abra seu último post e corte a primeira frase.");
+  - salvar: salvar com o momento exato de uso ("Salve para reler antes de postar amanhã.");
+  - seguir: o que vem no próximo post da série ("No próximo post, o passo seguinte.");
+  - direct: oferta concreta e honesta, sem palavra-chave ("Me manda seu último post no direct que eu aponto a primeira linha a mudar.").
+- Sem engagement bait ("marca alguém", "compartilha", "comenta X", "manda pra alguém").
 
 CARROSSEL:
 [CARROSSEL]
@@ -3380,6 +3471,8 @@ Responda só com JSON válido, sem texto antes ou depois:
       const fn = document.createElement('p'); fn.className = 'fn'; fn.textContent = `Slide ${k + 1} · ${ROTULO[s.tipo]}`;
       const fi = document.createElement('p'); fi.className = 'fi' + (s.imgSuggestion ? '' : ' vaga');
       fi.textContent = s.imgSuggestion || (sampleRef ? 'Sem sugestão ainda. Toque em “Sugerir fotos” acima.' : 'Sem sugestão.');
+      const ehPrint = s.tipo === 'print';
+      if (ehPrint && !s.image) { fi.className = 'fi'; fi.style.color = 'var(--danger)'; fi.textContent = 'Precisa do print real' + (s.imgSuggestion ? ' (' + s.imgSuggestion + ')' : '') + '. Tire o print do post ou da tela e toque em Galeria, ou copie a imagem e toque em Colar.'; }
       fx.append(fn, fi);
       const q = s.imgBusca || s.imgSuggestion || c.title;
       if (s.imgBusca) { const fq = document.createElement('p'); fq.className = 'fq'; fq.textContent = 'Busca: ' + s.imgBusca; fx.append(fq); }
@@ -3395,7 +3488,7 @@ Responda só com JSON válido, sem texto antes ou depois:
       bc.onclick = () => colarNo(k);
       const bg = document.createElement('button'); bg.type = 'button'; bg.className = 'btn'; bg.textContent = 'Galeria';
       bg.onclick = () => galeriaNo(k);
-      acts.append(us, a, bc, bg);
+      if (ehPrint) { bg.className = 'btn primary'; acts.append(bg, bc, us, a); } else acts.append(us, a, bc, bg);
       if (s.image && (fotoCands.get(c.id + ':' + k) || []).length > 1) {
         const bn = document.createElement('button'); bn.type = 'button'; bn.className = 'btn ghost'; bn.textContent = '↻ Outra foto';
         bn.onclick = () => proximaFoto(c, k);

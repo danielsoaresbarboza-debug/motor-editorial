@@ -788,7 +788,7 @@
   }
   // ─── Sistema visual dos slides (v2: margens fixas, escala tipográfica, rodapé) ───
   // Grade de 1080 × 1350: margem de 96 px, cabeçalho em y=104, rodapé com fio em y=1222.
-  const M = 96, CW = W - M * 2;
+  let M = 96, CW = W - M * 2; // M muda só enquanto um slide com sobra de foto vizinha é desenhado (ver drawSlide)
   const TOP = 104, FOOT = 1222, BODY_T = 210, BODY_B = 1150;
   const PAPEL = '#F5F3EE', TINTA = '#0F0F10';
   // v2: "Vidro" (vidro líquido, estilo iPhone) entrou em 31/10/2026 e vira o padrão uma vez.
@@ -1056,7 +1056,7 @@
   // Faixa da foto do vizinho na borda deste slide: o cartão de foto é um pouco maior que a moldura.
   function faixaFoto(ladoDireito, c, k) {
     const sl = c.slides[k]; const im = img(sl.image); if (!im) return;
-    const x0 = ladoDireito ? W - VZ : 0, r = 36, y0 = 28, h = H - 56;
+    const x0 = ladoDireito ? W - VZ : 0, r = 36, y0 = 0, h = H; // altura inteira: é o cartão vizinho, do mesmo tamanho
     const forma = () => { ctx.beginPath(); if (ladoDireito) rrPath(x0, y0, VZ + r, h, r); else rrPath(-r, y0, VZ + r, h, r); };
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 30; ctx.shadowOffsetX = ladoDireito ? -8 : 8;
     forma(); ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
@@ -1113,7 +1113,7 @@
   // Recuo das caixas sobre foto: se a borda da foto vizinha entra por um lado, a caixa se afasta dela
   function recuos(c, i) {
     const on = pistaModo !== 'nenhuma';
-    return { esq: on && temFoto(c.slides[i - 1]) ? VZ + 22 : M - 40, dir: on && temFoto(c.slides[i + 1]) ? VZ + 22 : M - 40 };
+    return { esq: on && temFoto(c.slides[i - 1]) ? VZ + 44 : 56, dir: on && temFoto(c.slides[i + 1]) ? VZ + 44 : 56 };
   }
   function pistaEmenda(c, i, n) {
     if (pistaModo === 'nenhuma') return;
@@ -1433,7 +1433,7 @@
     ctx.restore();
   }
   const _drawSlide = drawSlide;
-  drawSlide = function (c, i) { slideAtual = { c, i }; _drawSlide(c, i); slideAtual = null; const lc = lastCover; ctx.save(); pistaEmenda(c, i, c.slides.length); ctx.restore(); lastCover = lc; };
+  drawSlide = function (c, i) { slideAtual = { c, i }; const sobra = pistaModo !== 'nenhuma' && (temFoto(c.slides[i - 1]) || temFoto(c.slides[i + 1])); if (sobra) { M = VZ + 56; CW = W - M * 2; } try { _drawSlide(c, i); } finally { M = 96; CW = W - M * 2; } slideAtual = null; const lc = lastCover; ctx.save(); pistaEmenda(c, i, c.slides.length); ctx.restore(); lastCover = lc; };
   function render() {
     const c = active();
     if (typeof agendarLinkFora === 'function') agendarLinkFora();

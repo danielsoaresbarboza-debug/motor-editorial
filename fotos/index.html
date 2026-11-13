@@ -2386,7 +2386,7 @@
   let LUZ = 1;
   const SEM_ESPELHO = ['regua', 'portfolio_base', 'portfolio_topo'];
   const LADO_ABAJUR = { A: [0, 1], B: [1, 0], C: [2, -1], D: [1, -1], E: [2, 1] };
-  function luzDe(id, i) { const V = 'ACDE'[Math.floor(hashN(id, 'lum') * 4)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3, L = LADO_ABAJUR[V]; return L && L[0] === k && L[1] < 0 ? -1 : 1; }
+  function luzDe(id, i) { const V = 'ACE'[Math.floor(hashN(id, 'lum') * 3)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3, L = LADO_ABAJUR[V]; return L && L[0] === k && L[1] < 0 ? -1 : 1; }
   function peca(nome, cx, cy, esc, rot, fn) {
     const im = PECA(nome), g = GEO[nome];
     ctx.save(); ctx.translate(cx, cy); ctx.rotate((rot || 0) * Math.PI / 180); ctx.scale(esc, esc); ctx.translate(-g.w / 2, -g.h / 2);
@@ -2406,8 +2406,8 @@
   const aj = s => Object.assign({}, AJ0, s.aj || {});
   const oTit = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TIT, w: 400, emIt: true, lh: 1.0, ls: -0.012, color: '#F4ECDD', em: OURO, mark: null, maxW: CW, max: 92, min: 54, gap: .5 }, extra || {}); o.max = Math.round(o.max * a.t); o.min = Math.round(o.min * a.t); return o; };
   const oCorpo = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: SANS, w: 400, emW: 600, lh: 1.42, ls: 0, color: 'rgba(244,236,221,.82)', em: '#F4ECDD', maxW: CW, max: 36, min: 28, equilibra: false }, extra || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
-  const oPapel = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TIT, w: 400, emIt: true, lh: 1.04, ls: -0.01, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 96, min: 52, gap: .45 }, extra || {}); o.max = Math.round(o.max * a.t); o.min = Math.round(o.min * a.t); return o; };
-  const oTyp = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TYP, w: 700, emW: 700, lh: 1.32, ls: 0, color: '#2B241B', em: '#2B241B', mark: '#F6C915', max: 40, min: 28, equilibra: false }, extra || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
+  const oPapel = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TIT, w: 400, emIt: true, lh: 1.08, ls: -0.01, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 68, min: 42, gap: .5 }, extra || {}); o.max = Math.round(o.max * a.t); o.min = Math.round(o.min * a.t); return o; };
+  const oTyp = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TYP, w: 400, emW: 700, lh: 1.55, ls: 0, color: '#3A3128', em: '#1C1712', mark: '#F6C915', max: 34, min: 28, equilibra: false }, extra || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
   function sombraTexto(on) { ctx.shadowColor = on ? 'rgba(0,0,0,.85)' : 'transparent'; ctx.shadowBlur = on ? 24 : 0; ctx.shadowOffsetY = on ? 4 : 0; }
   function chapeuMesa(txt, x, y, cor) {
     if (!txt) return 0;
@@ -2439,7 +2439,7 @@
     op = op || {}; const r = k => hashN(c.id, 'tit' + k);
     if (estilo === 'placa') return placaLatao(c, chap, paras, s, yBase, maxH);
     if (estilo === 'tira') {
-      const o = oManchete(s, { max: op.max || 88, min: op.min || 54, lh: 1.0, maxW: op.maxW || CW - 70 }); const L = gFit(paras, o, maxH || 300), ls = linhasDe(L);
+      const o = oManchete(s, { max: Math.min(op.max || 72, 92), min: Math.min(op.min || 44, 58), lh: 1.0, maxW: op.maxW || CW - 70 }); const L = gFit(paras, o, maxH || 300), ls = linhasDe(L);
       const hL = Math.round(L.size * 1.18), gapL = 12, tot = ls.length * (hL + gapL) + (chap ? 54 : 0);
       if (op.yTop != null) yBase = op.yTop + tot;
       let y = yBase - tot;
@@ -2453,8 +2453,8 @@
       return yBase - tot;
     }
     // ficha de arquivo: pauta azul bem clara, só nas entrelinhas
-    const o = oManchete(s, Object.assign({ max: op.max || 84, min: op.min || 52, lh: 1.08, maxW: op.maxW || Math.min(CW - 60, 780) }, op.fam ? { fam: op.fam, w: 400, emW: 600, emIt: false, lh: 1.4, ls: 0, equilibra: false } : {})); const L = gFit(paras, o, maxH || 300);
-    const w = op.fam ? Math.min(W - M * 2 + 30, (op.maxW || 700) + 100) : Math.min(W - M * 2 + 30, Math.max(560, L.maxLine + 100)), topo = 78, h = topo + L.h + 46, x = M - 10;
+    const o = oManchete(s, Object.assign({ max: Math.min(op.max || 70, 92), min: Math.min(op.min || 44, 58), lh: 1.1, maxW: op.maxW || Math.min(CW - 60, 780) }, op.fam ? { fam: op.fam, w: 400, emW: 600, emIt: false, lh: 1.4, ls: 0, equilibra: false } : {})); const L = gFit(paras, o, maxH || 300);
+    const w = op.fam ? Math.min(W - M * 2 + 30, (op.maxW || 700) + 100) : Math.min(W - M * 2 + 30, Math.max(560, L.maxLine + 100)), topo = 92, h = topo + L.h + 64, x = M - 10;
     if (op.yTop != null) yBase = op.yTop + h;
     const y = yBase - h;
     papelSombra(x, y, w, h, -1.2 + r('f') * 2.4, '#F4EEE0', () => {
@@ -2462,7 +2462,7 @@
       ctx.fillStyle = 'rgba(150,175,205,.22)'; for (let yy = topo - 18 + L.lh; yy < h - 8; yy += L.lh) ctx.fillRect(0, yy + Math.round(L.lh * .08), w, 1.5);
       ctx.font = fontStr(TYP, 19, 700); spaced(4); ctx.fillStyle = '#7A6040'; ctx.textBaseline = 'alphabetic';
       ctx.fillText(('CASO ' + casoTxt(c) + (chap ? ' · ' + chap : '')).toUpperCase().slice(0, 46), 40, 40); spaced(0);
-      gDesenha(L, o, 44, topo, 'left');
+      gDesenha(L, o, 56, topo, 'left');
     });
     return y;
   }
@@ -2510,7 +2510,7 @@
     return y;
   }
   // subtexto em tiras de papel branco, letra preta de máquina de escrever (uma tira por linha)
-  const oTira = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TYP, w: 700, emW: 700, lh: 1.6, ls: 0, color: '#17130F', em: '#17130F', maxW: CW - 60, max: 29, min: 22, equilibra: false, gap: .55 }, extra || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
+  const oTira = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TYP, w: 400, emW: 700, lh: 1.65, ls: 0, color: '#1F1A14', em: '#17130F', maxW: CW - 60, max: 31, min: 26, equilibra: false, gap: .55 }, extra || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
   function tirasDesk(L, o, x, y) {
     const lh = Math.round(L.size * o.lh), gap = Math.round(L.size * (o.gap ?? .6)); let cy = y, k = 0;
     L.blocks.forEach((lines, bi) => {
@@ -2684,7 +2684,7 @@
   // espera as peças carregarem (stories e vídeo são gerados na hora)
   function carregaPecas(nomes) { return Promise.all(nomes.map(n => new Promise(r => { const t0 = Date.now(); const f = () => { let ok = false; try { ok = !!PECA(n); } catch (e) {} if (ok || Date.now() - t0 > 5000) r(); else setTimeout(f, 80); }; f(); }))); }
   const PECAS_STORY = ['couroR', 'couroR_alto', 'tachinha', 'polaroid_v', 'envelope', 'lupa', 'postit', 'fita'];
-  const nomeFundo = (id, i) => { const V = 'ACDE'[Math.floor(hashN(id, 'lum') * 4)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3; return 'couro' + V + (k + 1); };
+  const nomeFundo = (id, i) => { const V = 'ACE'[Math.floor(hashN(id, 'lum') * 3)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3; return 'couro' + V + (k + 1); };
   // objetos altos (abajur, pilha de livros) por cima dos cantos de fotos e papéis, com sombra
   const ALTOS_EXISTE = new Set(["couroA1_alto", "couroA2_alto", "couroB1_alto", "couroB2_alto", "couroC1_alto", "couroC2_alto", "couroC3_alto", "couroD1_alto", "couroD2_alto", "couroE1_alto", "couroE2_alto", "couroE3_alto", "couroR_alto"]);
   function altosMesa(nome, w, h) { if (!ALTOS_EXISTE.has(nome + '_alto')) return; const im = PECA(nome + '_alto'); if (!im) return; ctx.save();
@@ -2790,7 +2790,7 @@
       if (!PECA(nome) && GEO[nome] && nome.includes('_')) nome = nome.split('_')[0];
       peca(nome, cx, cy, esc, rot, g => {
         microPapel(c, i, g, Object.assign({}, ps.md, { lapis: false }));
-        const [ax, ay, aw, ah] = g.area, pad = 70; let y = ay + 110 + a.y;
+        const [ax, ay, aw, ah] = g.area, pad = 112; let y = ay + 150 + a.y;
         const saveCW = CW; CW = aw - pad * 2;
         try {
           for (const b of blocos) {
@@ -2812,7 +2812,7 @@
       if (rec === 'status') statusCaso(c);
       if (!photo && false) {}
       let yB = cta ? ctaMesa(pe) - 40 : pe;
-      manchetePapel(c, chap, s.paras.slice(0, 1), s, yB, estiloManchete(c), 300);
+      manchetePapel(c, chap, s.paras.slice(0, 1), s, yB, estiloManchete(c), 330, { max: 90, min: 56 });
       if (n > 1) { textoCouro('ABRA O ARQUIVO', W - M - 150, H - 70, 24, 'right'); setaCouro(W - M - 125, H - 79, 125); }
     } else if ((s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') && ps.trat === 'pasta') {
       pin = null; // tachinha já vem com a foto da pasta
@@ -2870,21 +2870,21 @@
       }
     } else if (s.tipo === 'lista') {
       const itens = s.paras.slice(1).filter(t => t.trim());
-      pin = papelTexto('ficha', W / 2, 700, 1.08, (r - .5) * 3, [{ chap: s.chapeu || 'Tire print deste slide' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 80, min: 46 }), gap: 46, maxH: 260 },
-        ...itens.map((t, k) => ({ paras: [String(k + 1).padStart(2, '0') + '  ' + t], o: oTyp(s, { max: 38, min: 25 }), gap: 30, maxH: 220 }))]);
+      pin = papelTexto('ficha', W / 2, 700, 1.08, (r - .5) * 3, [{ chap: s.chapeu || 'Tire print deste slide' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 58, min: 40 }), gap: 46, maxH: 220 },
+        ...itens.map((t, k) => ({ paras: [String(k + 1).padStart(2, '0') + '  ' + t], o: oTyp(s, { max: 34, min: 28 }), gap: 30, maxH: 220 }))]);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'texto' || s.tipo === 'comparar' || s.tipo === 'revela' || (s.tipo === 'destaque' && s.fundo === 'claro')) {
       const ficha = s.fundo !== 'claro';
       let blocos;
-      if (s.tipo === 'comparar') blocos = [{ chap: s.chapeu || 'Antes e depois' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 66, min: 42 }), gap: 40, maxH: 220 }, { chap: 'O jeito comum' }, { paras: [s.paras[1] || ''], o: oTyp(s), gap: 40, maxH: 220 }, { chap: 'O que funciona' }, { paras: [s.paras[2] || ''], o: oPapel(s, { max: 56, min: 38, mark: '#F6C915' }), maxH: 260 }];
-      else if (s.tipo === 'destaque') blocos = [chap ? { chap } : null, { paras: s.paras, o: oPapel(s, { max: 112, min: 64, lh: .98 }), maxH: 720 }].filter(Boolean);
-      else blocos = [{ chap: chap || (s.tipo === 'revela' ? 'A resposta' : (i === 1 ? 'O caso' : '')) }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: i === 1 ? 92 : 80, min: 48 }), gap: 46, maxH: 520 }, s.paras.length > 1 ? { paras: s.paras.slice(1), o: oTyp(s), maxH: 480 } : null].filter(b => b && (b.paras || b.chap));
+      if (s.tipo === 'comparar') blocos = [{ chap: s.chapeu || 'Antes e depois' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 54, min: 38 }), gap: 40, maxH: 200 }, { chap: 'O jeito comum' }, { paras: [s.paras[1] || ''], o: oTyp(s), gap: 40, maxH: 220 }, { chap: 'O que funciona' }, { paras: [s.paras[2] || ''], o: oPapel(s, { max: 46, min: 34, mark: '#F6C915' }), maxH: 260 }];
+      else if (s.tipo === 'destaque') blocos = [chap ? { chap } : null, { paras: s.paras, o: oPapel(s, { max: 76, min: 50, lh: 1.02 }), maxH: 720 }].filter(Boolean);
+      else blocos = [{ chap: chap || (s.tipo === 'revela' ? 'A resposta' : (i === 1 ? 'O caso' : '')) }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: i === 1 ? 66 : 58, min: 40 }), gap: 46, maxH: 520 }, s.paras.length > 1 ? { paras: s.paras.slice(1), o: oTyp(s), maxH: 480 } : null].filter(b => b && (b.paras || b.chap));
       pin = papelTexto(ficha ? 'ficha' : 'folha', W / 2 + (r - .5) * 30, 690, 1.07, (r - .5) * 4, blocos);
       if (s.tipo === 'destaque') peca(P.maco === 'lacre_tri' && PECA('lacre_tri') ? 'lacre_tri' : 'lacre', W - 230, 1080, .9, r * 90);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'uv') {
       const vis = s.paras.slice(0, 1), ocu = s.paras.slice(1).filter(t => t.trim());
-      pin = papelTexto('folha', W / 2 + (r - .5) * 20, 690, 1.07, (r - .5) * 3, [{ chap: chap || 'Leia com a luz certa' }, { paras: vis, o: oPapel(s, { max: 70, min: 42 }), gap: 40, maxH: 330 }]);
+      pin = papelTexto('folha', W / 2 + (r - .5) * 20, 690, 1.07, (r - .5) * 3, [{ chap: chap || 'Leia com a luz certa' }, { paras: vis, o: oPapel(s, { max: 56, min: 38 }), gap: 40, maxH: 300 }]);
       luzUV(W / 2, 905 + a.y * .5, 300, ocu, s);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'armadilha') {
@@ -2892,7 +2892,7 @@
       pin = fotoPolaroid(W / 2 + 10, 520, 1.02, -2.5 + hashN(c.id, ci) * 2, false, { im: capaS ? img(capaS.image) : null, s: capaS || s, espelho: true, i: ci });
       postitMesa('compare\ncom a\ncapa', 'esq', 200, 215, -6, .64);
       const yB = cta ? ctaMesa(pe) - 40 : pe;
-      manchetePapel(c, chap || 'Teste de atenção', s.paras.slice(0, 1), s, yB, 'ficha', 300, { max: 76, min: 46 });
+      manchetePapel(c, chap || 'Teste de atenção', s.paras.slice(0, 1), s, yB, 'ficha', 280, { max: 60, min: 42 });
     } else if (s.tipo === 'numero') {
       chapeuMesa(chap || 'O número', M, 190 + a.y);
       const num = String(s.paras[0] || ''); let ns = Math.round(300 * a.t); ctx.font = fontStr(TIT, ns, 400); while (ctx.measureText(num).width > CW && ns > 120) { ns -= 10; ctx.font = fontStr(TIT, ns, 400); }
@@ -2904,7 +2904,7 @@
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'pergunta' && s.paras.slice(1).some(t => t.trim())) {
       const ops = s.paras.slice(1).filter(t => t.trim()).slice(0, 3), nq = ops.length, gw = 28, cw = Math.min(330, (W - M * 2 - gw * (nq - 1)) / nq), y0 = 650 + a.y;
-      manchetePapel(c, chap || 'Qual é a original?', s.paras.slice(0, 1), s, 600 + a.y, 'ficha', 430, { max: 84, min: 48 });
+      manchetePapel(c, chap || 'Qual é a original?', s.paras.slice(0, 1), s, 600 + a.y, 'ficha', 400, { max: 62, min: 42 });
       ops.forEach((t, k) => { const x = (W - (cw * nq + gw * (nq - 1))) / 2 + k * (cw + gw), rot = (hashN(c.id, 'op' + k) - .5) * 4;
         const o = { fam: SANS, w: 500, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 34, min: 22, lh: 1.15, gap: .3, maxW: cw - 50 };
         const L = gFit([t], o, 330), h = Math.max(300, L.h + 180);
@@ -2914,8 +2914,8 @@
     } else if (s.tipo === 'destaque' || s.tipo === 'pergunta') {
       const yB = cta ? ctaMesa(pe) - 60 : pe;
       if (s.tipo === 'destaque') { if (P.maco === 'prumo' && PECA('prumo')) peca('prumo', W - 300, H - 280, 1.0, 8 + r * 10); else peca('esquadro', W - 230, H - 260, .9, 8 + r * 10); }
-      if (s.tipo === 'pergunta') manchetePapel(c, chap || 'Responda de cabeça', s.paras.slice(0, 1), s, Math.min(yB, H / 2 + 300 + a.y), 'ficha', 520, { max: 92, min: 56 });
-      else manchetePapel(c, chap || 'O que eu acho', s.paras.slice(0, 9), s, Math.min(yB, H / 2 + 330 + a.y), 'tira', 640, { max: 96, min: 56 });
+      if (s.tipo === 'pergunta') manchetePapel(c, chap || 'Responda de cabeça', s.paras.slice(0, 1), s, Math.min(yB, H / 2 + 300 + a.y), 'ficha', 480, { max: 68, min: 46 });
+      else manchetePapel(c, chap || 'O que eu acho', s.paras.slice(0, 9), s, Math.min(yB, H / 2 + 330 + a.y), 'tira', 560, { max: 74, min: 50 });
       if (s.tipo === 'pergunta') postitMesa('a resposta\nestá no\npróximo', 'direita', W - 250, H - 300, 4);
     } else if (s.tipo === 'fecho') {
       const capaS = c.slides.find(x => x.tipo === 'capa'), ff = capaS ? img(capaS.image) : null;
@@ -2925,9 +2925,8 @@
       const f2 = [FEED_CTA[0], FEED_CTA[1], FEED_CTA[3], FEED_CTA[6]][Math.floor(hashN(c.id, 'f2') * 4)];
       const txt = f => f.slice(0, 3).filter(Boolean).join('\n').replace('#N', '#' + casoN(c));
       postitMesa(txt(FEED_CTA[2]), 'cima', 200, 250, -5, .74);
-      postitMesa(txt(f2), f2[3], W - 190, 760, 5, .7);
       const yB = s.cta && s.cta.texto ? ctaMesa(pe - 150) - 50 : pe - 150;
-      manchetePapel(c, s.chapeu || 'Caso encerrado', s.paras.slice(0, 1), s, yB, 'tira', 380, { max: 70, min: 44, maxW: 600 });
+      manchetePapel(c, s.chapeu || 'Caso encerrado', s.paras.slice(0, 1), s, yB, 'tira', 340, { max: 58, min: 40, maxW: 600 });
     } else {
       const o = oTit(s); const L = gFit(s.paras.length ? s.paras : [' '], o, 600); chapeuMesa(chap, M, 300 + a.y); textoDesk(L, o, M, 330 + a.y);
     }
@@ -2935,7 +2934,7 @@
     // abajur e livros por cima, só onde o canto não tem texto (capa, fotos, número, fecho)
     fioMesa(c, i);
     if (pin) tachMesa(pin);
-    if (['capa', 'imagem', 'foto', 'print', 'numero', 'destaque', 'pergunta'].includes(s.tipo) && ps.trat !== 'porta' && !ps.porta && !ps.cheio) altosMesa(nomeFundo(c.id, i));
+    if (['imagem', 'foto', 'print'].includes(s.tipo) && ps.trat !== 'pasta' && ps.trat !== 'porta' && !ps.porta && !ps.cheio) altosMesa(nomeFundo(c.id, i));
     cruzMesa(c, i, 'alto');
     if (i === 0 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', null, 0, 'alto'); } catch (e) {} }
     } finally { M = _M; CW = _CW; LUZ = 1; }
@@ -3056,7 +3055,7 @@
   }
   async function videoCapa(c, fmt, base) {
     const w = base.width, h = base.height, cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d');
-    const V = 'ACDE'[Math.floor(hashN(c.id, 'lum') * 4)], lado = (LADO_ABAJUR[V] || [0, 1])[1];
+    const V = 'ACE'[Math.floor(hashN(c.id, 'lum') * 3)], lado = (LADO_ABAJUR[V] || [0, 1])[1];
     const lx = fmt === 'reels' ? (lado < 0 ? 900 : 180) : (lado < 0 ? 900 : lado > 0 ? 180 : 540), ly = fmt === 'reels' ? 140 : 110;
     const som = await somMaquina(), { rec, mime, pronto } = gravador(cv, som);
     const poeira = Array.from({ length: 90 }, (_, k) => ({ x: hashN(c.id, 'px' + k), y: hashN(c.id, 'py' + k), r: .6 + hashN(c.id, 'pr' + k) * 2.2, v: .2 + hashN(c.id, 'pv' + k), f: hashN(c.id, 'pf' + k) * 6.28 }));

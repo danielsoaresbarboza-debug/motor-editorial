@@ -2458,8 +2458,8 @@
     if (op.yTop != null) yBase = op.yTop + h;
     const y = yBase - h;
     papelSombra(x, y, w, h, -1.2 + r('f') * 2.4, '#F4EEE0', () => {
-      ctx.fillStyle = 'rgba(196,80,70,.55)'; ctx.fillRect(0, topo - 18, w, 2.5);
-      ctx.fillStyle = 'rgba(150,175,205,.22)'; for (let yy = topo - 18 + L.lh; yy < h - 8; yy += L.lh) ctx.fillRect(0, yy + Math.round(L.lh * .08), w, 1.5);
+      ctx.fillStyle = 'rgba(196,80,70,.32)'; ctx.fillRect(0, topo - 18, w, 2);
+      ctx.fillStyle = 'rgba(150,175,205,.12)'; for (let yy = topo - 18 + L.lh; yy < h - 8; yy += L.lh) ctx.fillRect(0, yy + Math.round(L.lh * .08), w, 1.5);
       ctx.font = fontStr(TYP, 19, 700); spaced(4); ctx.fillStyle = '#7A6040'; ctx.textBaseline = 'alphabetic';
       ctx.fillText(('CASO ' + casoTxt(c) + (chap ? ' · ' + chap : '')).toUpperCase().slice(0, 46), 40, 40); spaced(0);
       gDesenha(L, o, 56, topo, 'left');
@@ -3087,7 +3087,7 @@
       const papel = (x, y, w, h, rot, cor, fn) => papelSombra(x, y, w, h, rot, cor, fn);
       if (modelo === 'texto') { // bloco amarelo pautado
         papel(90, 300, 900, 1260, -1.5, '#FAE282', () => { ctx.fillStyle = '#3C221A'; ctx.fillRect(0, 0, 900, 70); for (let x = 20; x < 900; x += 40) { ctx.fillStyle = '#1E120C'; ctx.beginPath(); ctx.arc(x + 6, 64, 6, 0, Math.PI * 2); ctx.fill(); }
-          ctx.fillStyle = 'rgba(120,150,190,.45)'; for (let y = 190; y < 1230; y += 58) ctx.fillRect(0, y, 900, 3); ctx.fillStyle = 'rgba(205,90,80,.6)'; ctx.fillRect(110, 70, 2, 1190); ctx.fillRect(120, 70, 2, 1190); });
+          ctx.fillStyle = 'rgba(120,150,190,.24)'; for (let y = 190; y < 1230; y += 58) ctx.fillRect(0, y, 900, 3); ctx.fillStyle = 'rgba(205,90,80,.6)'; ctx.fillRect(110, 70, 2, 1190); ctx.fillRect(120, 70, 2, 1190); });
         lupaSobre(900, 1600, .6, 1.5);
       } else if (modelo === 'perguntas') { // ficha de interrogatório
         papel(70, 380, 940, 1180, 1.2, '#F4EEE0', () => { ctx.fillStyle = 'rgba(196,80,70,.6)'; ctx.fillRect(0, 150, 940, 3); ctx.fillStyle = 'rgba(150,175,205,.22)'; for (let y = 214; y < 1180; y += 64) ctx.fillRect(0, y, 940, 2);

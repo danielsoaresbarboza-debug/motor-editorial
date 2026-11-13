@@ -237,6 +237,13 @@
     .palco { position: sticky; top: calc(12px + env(safe-area-inset-top, 0px)); align-self: start; }
     header.top p { display: block; }
   }
+  .perfil { position: fixed; inset: 0; z-index: 420; background: #0B0B0C; color: #F5F3EE; overflow-y: auto; padding: calc(12px + env(safe-area-inset-top, 0px)) 0 calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .perfil-bar { display: flex; justify-content: space-between; align-items: center; padding: 0 16px 8px; font: 600 16px var(--font-body); }
+  .perfil-bar .btn { background: #1b1b1d; color: #F5F3EE; border-color: #2a2a2c; }
+  .perfil-h { margin: 0 16px 12px; font-size: 12.5px; color: #9a968f; }
+  .perfil-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; max-width: 560px; margin: 0 auto; }
+  .perfil-g div { position: relative; aspect-ratio: 3 / 4; background: #1b1b1d center / cover no-repeat; }
+  .perfil-g div.novo { outline: 2px solid #FFD400; outline-offset: -2px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
@@ -262,7 +269,7 @@
       <div>
         <p class="ctitle" id="ctitle">—</p>
         <span class="meta" id="cmeta"></span>
-        <div class="row" style="margin-top:8px"><button class="btn" id="postado-btn" type="button">Marcar como postado</button><button class="so-escrita btn" id="outra-capa" type="button" hidden>↻ Outra capa</button></div>
+        <div class="row" style="margin-top:8px"><button class="btn" id="postado-btn" type="button">Marcar como postado</button><button class="so-escrita btn" id="outra-capa" type="button" hidden>↻ Outra capa</button><button class="btn" id="ver-perfil" type="button">▦ Ver no perfil</button></div>
         <div class="so-escrita capa-check" id="capa-check" hidden></div>
       </div>
       <div class="row so-fotos">
@@ -325,6 +332,7 @@
         <button class="btn" id="attach">Da galeria</button>
         <button class="btn" id="ajustar" hidden>Ajustar foto</button>
         <button class="btn" id="marcar" hidden type="button">Posicionar marcas</button>
+        <button class="btn" id="foto-cor" hidden type="button" aria-pressed="false">Manter a cor</button>
         <button class="btn ghost" id="rm-img" hidden>Remover</button>
         <button class="btn" id="panorama" hidden aria-pressed="false">↔ Foto continua no próximo slide</button>
         <input type="file" id="file" accept="image/*" hidden>
@@ -447,7 +455,7 @@
         </div>
         <div class="row">
           <select id="tipo" aria-label="Tipo de slide">
-            <option value="capa">Capa (foto + caixa)</option>
+            <option value="capa">Capa</option>
             <option value="texto">Texto</option>
             <option value="imagem">Título + foto + texto</option>
             <option value="foto">Foto com legendas</option>
@@ -467,6 +475,7 @@
             <button type="button" data-f="cor">Cor</button>
           </div>
         </div>
+        <input type="text" id="chapeu" placeholder="Chapéu (opcional): Tiffany &amp; Co. — 1845" aria-label="Chapéu, o rótulo pequeno acima do título" maxlength="48">
         <textarea id="editor" rows="6" aria-label="Texto do slide"></textarea>
         <p class="hint" id="editor-hint"></p>
         <div class="row" id="cta-row">
@@ -506,6 +515,14 @@
 
       <section class="card">
         <p class="label">Configurações</p>
+        <div class="row">
+          <span class="label">Estilo dos slides</span>
+          <div class="seg" id="estilo" role="group" aria-label="Estilo dos slides">
+            <button type="button" data-e="galeria">Galeria</button>
+            <button type="button" data-e="vidro">Vidro (antigo)</button>
+          </div>
+        </div>
+        <p class="hint">Galeria: foto em preto e branco com grão, título grande sem caixa e o amarelo só no destaque. Vale para este aparelho.</p>
         <div class="row">
           <div class="thumb" id="avatar-thumb" style="border-radius:50%"></div>
           <button class="btn" id="avatar-btn">Trocar foto de perfil</button>
@@ -557,6 +574,11 @@
   <button class="btn primary" id="volta-colar">Colar</button>
   <button class="btn" id="volta-galeria">Da galeria</button>
   <button class="btn ghost" id="volta-x" aria-label="Fechar">✕</button>
+</div>
+<div class="perfil" id="perfil" hidden role="dialog" aria-label="Como fica no perfil">
+  <div class="perfil-bar"><b>Como fica no seu perfil</b><button class="btn" id="perfil-x">Fechar</button></div>
+  <p class="perfil-h">Este carrossel entra no primeiro quadrado. O corte da grade (3:4) já está aplicado.</p>
+  <div class="perfil-g" id="perfil-g"></div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -643,6 +665,8 @@
     if (s.t) out.t = s.t;
     if (s.passo && /^\s*\d+\s*\/\s*\d+\s*$/.test(String(s.passo))) out.passo = String(s.passo).replace(/\s/g, '');
     if (s.marca) out.marca = true;
+    if (s.chapeu) out.chapeu = String(s.chapeu).slice(0, 48);
+    if (s.cor) out.cor = true;
     if (s.cta) { const ct = typeof s.cta === 'string' ? { tipo: 'agora', texto: s.cta } : s.cta; if (ct && ct.texto) out.cta = { tipo: ['agora', 'salvar', 'seguir', 'direct'].includes(ct.tipo) ? ct.tipo : 'agora', texto: String(ct.texto) }; }
     if (Array.isArray(s.marcas)) out.marcas = s.marcas.filter(m => m && isFinite(m.x) && isFinite(m.y)).slice(0, 3).map(m => ({ x: +m.x, y: +m.y }));
     return out;
@@ -1850,6 +1874,294 @@
   }
   const _drawSlide = drawSlide;
   drawSlide = function (c, i) { slideAtual = { c, i }; const sCta = c.slides[i] && c.slides[i].tipo !== 'fecho' && c.slides[i].cta; if (sCta) BODY_B = FOOT - 34 - CTA_H - 40; const sobra = pistaModo !== 'nenhuma' && (temFoto(c.slides[i - 1]) || temFoto(c.slides[i + 1])); if (sobra) { M = VZ + 56; CW = W - M * 2; } try { _drawSlide(c, i); if (sCta) { const sl = c.slides[i]; ctaBarra(sl.cta, ['capa', 'foto'].includes(sl.tipo) ? true : isDarkHex(bgColor(sl.fundo))); } } finally { M = 96; CW = W - M * 2; BODY_B = 1150; } slideAtual = null; const lc = lastCover; ctx.save(); pistaEmenda(c, i, c.slides.length); ctx.restore(); lastCover = lc; };
+  // ─── Estilo Galeria (v52, 12/11/2026): sem vidro, foto P&B com grão, serifada grande, itálico amarelo, chapéu e fólio ───
+  const LS_ESTILO = 'dan_editorial_estilo_v1';
+  let estilo = ls.get(LS_ESTILO) === 'vidro' ? 'vidro' : 'galeria';
+  const GB = '#0B0B0C', GP = '#F2EFE8', GI = '#F5F3EE', GIP = '#141414', GA = '#FFD400';
+  function gTema(f) {
+    if (f === 'claro') return { bg: GP, ink: GIP, sub: '#5F5B55', em: GIP, mark: GA, rule: GIP, dark: false };
+    if (f === 'cor') { const d = isDarkHex(corFundo); return { bg: corFundo, ink: d ? GI : GB, sub: d ? 'rgba(245,243,238,.75)' : 'rgba(11,11,12,.72)', em: d ? GI : GB, mark: null, rule: d ? GI : GB, dark: d }; }
+    return { bg: GB, ink: GI, sub: '#C3BFB7', em: GA, mark: null, rule: GA, dark: true };
+  }
+  // Texto: __x__ e **x** viram destaque (itálico na serifada; negrito na sem serifa). Linhas equilibradas (sem palavra sozinha no fim).
+  function gFonte(o, size, em) { return fontStr(o.fam, size, em && o.emW ? o.emW : o.w, !!(em && o.emIt)); }
+  function gQuebra(para, o, size, maxW) {
+    const lines = [];
+    spaced(o.ls ? o.ls * size : 0);
+    for (const hl of String(para).split('\n')) {
+      const toks = [];
+      for (const seg of parseInline(hl)) for (const p of seg.text.split(/(\s+)/)) if (p) toks.push({ text: p, em: seg.u || seg.b });
+      let line = [], lw = 0;
+      const fecha = () => { while (line.length && /^\s+$/.test(line[line.length - 1].text)) { lw -= line[line.length - 1].w; line.pop(); } lines.push({ tokens: line, width: lw }); line = []; lw = 0; };
+      for (const t of toks) {
+        const sp = /^\s+$/.test(t.text);
+        if (sp && !line.length) continue;
+        ctx.font = gFonte(o, size, t.em);
+        const tw = ctx.measureText(sp ? ' ' : t.text).width;
+        if (!sp && lw + tw > maxW && line.length) fecha();
+        if (sp && !line.length) continue;
+        line.push({ text: sp ? ' ' : t.text, em: t.em, w: tw }); lw += tw;
+      }
+      fecha();
+    }
+    spaced(0);
+    return lines;
+  }
+  function gLayout(paras, o, size) {
+    const lh = Math.round(size * o.lh), gap = Math.round(size * (o.gap ?? 0.6));
+    const blocks = []; let h = 0, maxLine = 0;
+    paras.forEach((p, k) => {
+      let lines = gQuebra(p, o, size, o.maxW);
+      if (o.equilibra !== false && lines.length > 1) {
+        let lo = o.maxW * 0.45, hi = o.maxW;
+        for (let it = 0; it < 12; it++) { const md = (lo + hi) / 2; if (gQuebra(p, o, size, md).length > lines.length) lo = md; else hi = md; }
+        lines = gQuebra(p, o, size, Math.min(o.maxW, hi + 2));
+      }
+      lines.forEach(l => { maxLine = Math.max(maxLine, l.width); });
+      blocks.push(lines); h += lines.length * lh + (k < paras.length - 1 ? gap : 0);
+    });
+    return { blocks, h, lh, gap, size, maxLine };
+  }
+  function gFit(paras, o, maxH) { let L; for (let s = o.max; s >= o.min; s -= 2) { L = gLayout(paras, o, s); if (L.h <= maxH) return L; } return L; }
+  function gDesenha(L, o, x, y, align) {
+    ctx.save(); ctx.textBaseline = 'alphabetic'; spaced(o.ls ? o.ls * L.size : 0);
+    let cy = y;
+    L.blocks.forEach((lines, bi) => {
+      for (const line of lines) {
+        let cx = align === 'center' ? x - line.width / 2 : x;
+        const base = cy + Math.round(L.size * 0.84);
+        if (o.mark) { // marca-texto: faixa baixa atrás das palavras em destaque
+          let mx = cx, ini = null;
+          line.tokens.forEach((t, ti) => { const em = t.em || (/^\s+$/.test(t.text) && line.tokens[ti - 1] && line.tokens[ti - 1].em && line.tokens[ti + 1] && line.tokens[ti + 1].em); if (em && ini === null) ini = mx; if ((!em || ti === line.tokens.length - 1) && ini !== null) { const fim = em ? mx + t.w : mx; ctx.fillStyle = o.mark; ctx.fillRect(ini - 4, base - Math.round(L.size * 0.30), fim - ini + 8, Math.round(L.size * 0.34)); ini = null; } mx += t.w; });
+        }
+        for (const t of line.tokens) { ctx.font = gFonte(o, L.size, t.em); ctx.fillStyle = t.em ? (o.em || o.color) : o.color; ctx.fillText(t.text, cx, base); cx += t.w; }
+        cy += L.lh;
+      }
+      if (bi < L.blocks.length - 1) cy += L.gap;
+    });
+    spaced(0); ctx.restore();
+  }
+  const gSerif = (T, extra) => Object.assign({ fam: SERIF, w: 500, emIt: true, lh: 1.04, ls: -0.022, max: 86, min: 50, color: T.ink, em: T.em, mark: T.mark, maxW: CW }, extra || {});
+  const gSans = (T, extra) => Object.assign({ fam: SANS, w: 500, emW: 700, lh: 1.42, ls: 0, max: 42, min: 32, color: T.sub, em: T.dark ? T.em : T.ink, mark: T.dark ? null : T.mark, maxW: CW, equilibra: false }, extra || {});
+  function gChapeu(txt, T, x, y) { // tracinho + rótulo em caixa alta; devolve a altura usada
+    if (!txt) return 0;
+    ctx.save(); ctx.fillStyle = T.rule; ctx.fillRect(x, y - 9, 44, 3);
+    ctx.font = fontStr(SANS, 22, 700); spaced(5); ctx.fillStyle = T.sub; ctx.textBaseline = 'alphabetic';
+    let t = String(txt).toUpperCase(); while (ctx.measureText(t).width > CW - 64 && t.length > 4) t = t.slice(0, -2);
+    ctx.fillText(t, x + 62, y); spaced(0); ctx.restore();
+    return 58;
+  }
+  function gFolio(i, n, cor, soHandle) {
+    ctx.save(); ctx.font = fontStr(SANS, 21, 600); spaced(4.5); ctx.fillStyle = cor; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(HANDLE.toUpperCase(), M, 100);
+    if (!soHandle) { ctx.textAlign = 'right'; ctx.fillText(`${String(i + 1).padStart(2, '0')} / ${String(n).padStart(2, '0')}`, W - M, 100); }
+    spaced(0); ctx.restore();
+  }
+  function gFoto(s, photo, x, y, w, h, dark) {
+    if (!photo) { placeholder(x, y, w, h, 0, dark !== false); return; }
+    const pb = !s.cor;
+    ctx.save();
+    const temFiltro = 'filter' in ctx;
+    if (temFiltro) ctx.filter = pb ? 'grayscale(1) contrast(1.16) brightness(0.97)' : 'saturate(0.86) contrast(1.07)';
+    cover(photo, x, y, w, h, s.t);
+    ctx.restore();
+    if (pb && !temFiltro) { try { const d = ctx.getImageData(x, y, w, h); for (let k = 0; k < d.data.length; k += 4) { const v = 0.3 * d.data[k] + 0.59 * d.data[k + 1] + 0.11 * d.data[k + 2]; d.data[k] = d.data[k + 1] = d.data[k + 2] = v; } ctx.putImageData(d, x, y); } catch (e) {} }
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = pb ? 0.2 : 0.13; ctx.fillStyle = graoPattern(); ctx.fillRect(x, y, w, h); ctx.restore();
+  }
+  function gCta(cta, yBase) { // cartão amarelo com a CTA; devolve o topo
+    const pad = 40, maxW = CW - pad * 2;
+    const L = gFit([cta.texto], { fam: SANS, w: 600, emW: 700, lh: 1.25, ls: 0, color: GB, em: GB, maxW, max: 38, min: 28, equilibra: false }, 150);
+    const h = 34 + 30 + L.h + 34, y = yBase - h;
+    ctx.save(); rr(M, y, CW, h, 28); ctx.fillStyle = GA; ctx.fill();
+    ctx.font = fontStr(SANS, 19, 700); spaced(4.5); ctx.fillStyle = 'rgba(11,11,12,.72)'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(CTA_ROT[cta.tipo] || 'FAÇA AGORA', M + pad, y + 34 + 18); spaced(0); ctx.restore();
+    gDesenha(L, { fam: SANS, w: 600, emW: 700, color: GB, em: GB }, M + pad, y + 34 + 34, 'left');
+    return y;
+  }
+  function drawGaleria(c, i) {
+    const s = c.slides[i], n = c.slides.length;
+    const photo = img(s.image);
+    ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left';
+    lastCover = null;
+    const ctaPe = s.cta && s.cta.texto && s.tipo !== 'fecho';
+    const pe = H - 104; // linha de base do conteúdo
+    let T = gTema(s.fundo);
+    const fundo = (TT) => { ctx.fillStyle = TT.bg; ctx.fillRect(0, 0, W, H); };
+    const chap = s.chapeu || (s.passo ? 'Passo ' + s.passo.replace('/', ' de ') : '');
+    const centro = (h, topo, base) => topo + Math.max(0, (base - topo - h) / 2);
+    if (s.tipo === 'capa') {
+      T = gTema('escuro'); fundo(T);
+      const fh = 960;
+      gFoto(s, photo, 0, 0, W, fh, true);
+      const gr = ctx.createLinearGradient(0, 0, 0, fh);
+      gr.addColorStop(0, 'rgba(11,11,12,.42)'); gr.addColorStop(0.16, 'rgba(11,11,12,0)'); gr.addColorStop(0.5, 'rgba(11,11,12,0)'); gr.addColorStop(0.995, GB);
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, fh);
+      gFolio(i, n, 'rgba(245,243,238,.78)', true);
+      const base = ctaPe ? pe - 40 : H - 150;
+      const oC = gSerif(T, { lh: 1.0, max: 116, min: 66 });
+      const L2 = gFit(s.paras.slice(0, 1), oC, 360);
+      let y = base - L2.h;
+      if (ctaPe) y = gCta(s.cta, pe) - 50 - L2.h;
+      if (s.chapeu) gChapeu(s.chapeu, T, M, y - 30);
+      gDesenha(L2, oC, M, y, 'left');
+      if (!ctaPe && n > 1) { ctx.save(); ctx.font = fontStr(SANS, 21, 600); spaced(4.5); ctx.fillStyle = 'rgba(245,243,238,.6)'; ctx.textAlign = 'right'; ctx.fillText('DESLIZE', W - M - 46, H - 76); spaced(0); ctx.fillStyle = GA; ctx.font = fontStr(SANS, 30, 600); ctx.fillText('→', W - M, H - 74); ctx.restore(); }
+    } else if (s.tipo === 'foto') {
+      T = gTema('escuro'); fundo(T);
+      gFoto(s, photo, 0, 0, W, H, true);
+      const gr = ctx.createLinearGradient(0, 0, 0, H);
+      gr.addColorStop(0, 'rgba(11,11,12,.45)'); gr.addColorStop(0.14, 'rgba(11,11,12,0)'); gr.addColorStop(0.42, 'rgba(11,11,12,0)'); gr.addColorStop(0.86, 'rgba(11,11,12,.93)');
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+      gFolio(i, n, 'rgba(245,243,238,.78)');
+      const base = ctaPe ? gCta(s.cta, pe) - 50 : pe - 20;
+      const A = gFit(s.paras.slice(0, 1), gSerif(T, { max: 78, min: 48 }), 260); // título
+      const B = s.paras.length > 1 ? gFit(s.paras.slice(1), gSans(T, { color: '#DAD6CE' }), 220) : null;
+      const h = A.h + (B ? 34 + B.h : 0);
+      let y = base - h;
+      gChapeu(chap, T, M, y - 34);
+      gDesenha(A, gSerif(T, { max: 78, min: 48 }), M, y, 'left');
+      if (B) gDesenha(B, gSans(T, { color: '#DAD6CE' }), M, y + A.h + 34, 'left');
+    } else if (s.tipo === 'imagem') {
+      if (s.fundo === 'cor') T = gTema('claro'); fundo(T);
+      gFolio(i, n, T.sub);
+      const topo = 200;
+      gChapeu(chap, T, M, topo);
+      const A = gFit(s.paras.slice(0, 1), gSerif(T, { max: 78, min: 48 }), 240);
+      const yA = chap ? topo + 40 : topo - 30;
+      gDesenha(A, gSerif(T), M, yA, 'left');
+      const nfig = c.slides.slice(0, i + 1).filter(x => x.tipo === 'imagem').length;
+      const leg = s.paras.slice(1).join(' ');
+      const base = ctaPe ? gCta(s.cta, pe) - 40 : pe;
+      const LC = leg ? gLayout(['**Fig. ' + nfig + '** — ' + leg], { fam: SANS, w: 500, emW: 700, lh: 1.4, ls: 0, color: T.sub, em: T.ink, maxW: CW - 40, equilibra: false }, 30) : null;
+      const yF = yA + A.h + 56;
+      const hF = Math.max(300, Math.min(700, base - yF - (LC ? LC.h + 28 : 0)));
+      gFoto(s, photo, M, yF, CW, hF, T.dark);
+      if (LC) gDesenha(LC, { fam: SANS, w: 500, emW: 700, color: T.sub, em: T.ink }, M, yF + hF + 26, 'left');
+    } else if (s.tipo === 'lista') {
+      fundo(T); gFolio(i, n, T.sub);
+      const topo = 196;
+      gChapeu(s.chapeu || 'Tire print deste slide', T, M, topo);
+      const A = gFit(s.paras.slice(0, 1), gSerif(T, { max: 78, min: 50 }), 250);
+      let y = topo + 40; gDesenha(A, gSerif(T), M, y, 'left'); y += A.h + 52;
+      const base = ctaPe ? gCta(s.cta, pe) - 40 : pe;
+      const itens = s.paras.slice(1).filter(t => t.trim());
+      const numW = 84, padI = 30;
+      let Ls = [], size = 42;
+      for (; size >= 28; size -= 2) { Ls = itens.map(t => gLayout([t], gSans(T, { color: T.ink, maxW: CW - numW, equilibra: true }), size)); const tot = Ls.reduce((a, L) => a + L.h + padI * 2, 0); if (y + tot <= base) break; }
+      ctx.fillStyle = T.ink; ctx.fillRect(M, y, CW, 3);
+      Ls.forEach((L, k) => {
+        ctx.save(); ctx.font = fontStr(SERIF, size + 2, 500, true); ctx.fillStyle = T.dark ? GA : T.ink; ctx.textBaseline = 'alphabetic';
+        ctx.fillText(String(k + 1).padStart(2, '0'), M, y + padI + Math.round(size * 0.84)); ctx.restore();
+        gDesenha(L, gSans(T, { color: T.ink }), M + numW, y + padI, 'left');
+        y += L.h + padI * 2;
+        ctx.fillStyle = T.dark ? 'rgba(245,243,238,.16)' : 'rgba(20,20,20,.16)'; ctx.fillRect(M, y - 1, CW, 1.5);
+      });
+    } else if (s.tipo === 'numero') {
+      fundo(T); gFolio(i, n, T.sub);
+      const base = ctaPe ? gCta(s.cta, pe) - 40 : pe;
+      const num = String(s.paras[0] || '');
+      let ns = 300; ctx.font = fontStr(SERIF, ns, 500); spaced(-0.04 * ns); while (ctx.measureText(num).width > CW && ns > 120) { ns -= 10; ctx.font = fontStr(SERIF, ns, 500); spaced(-0.04 * ns); } spaced(0);
+      const B = s.paras.length > 1 ? gFit(s.paras.slice(1), gSerif(T, { lh: 1.3, ls: -0.01, max: 50, min: 36, equilibra: false }), 300) : null;
+      const bMax = B ? B : null;
+      const h = 58 + Math.round(ns * 0.82) + 40 + (B ? B.h : 0);
+      let y = centro(h, 180, base);
+      gChapeu(s.chapeu || 'O número', T, M, y + 22);
+      y += 58;
+      ctx.save(); ctx.font = fontStr(SERIF, ns, 500); spaced(-0.04 * ns); ctx.fillStyle = T.dark ? GA : T.ink; ctx.textBaseline = 'alphabetic'; ctx.fillText(num, M - Math.round(ns * 0.03), y + Math.round(ns * 0.78)); spaced(0); ctx.restore();
+      y += Math.round(ns * 0.82) + 40;
+      if (bMax) gDesenha(B, gSerif(T, { lh: 1.3, ls: -0.01 }), M, y, 'left');
+    } else if (s.tipo === 'comparar') {
+      fundo(T); gFolio(i, n, T.sub);
+      const base = ctaPe ? gCta(s.cta, pe) - 40 : pe;
+      const A = gFit(s.paras.slice(0, 1), gSerif(T, { max: 72, min: 46 }), 220);
+      const Bn = gFit([s.paras[1] || ''], gSans(T), 260);
+      const Dp = gFit([s.paras[2] || ''], gSerif(T, { lh: 1.12, ls: -0.015, max: 58, min: 40 }), 300);
+      const rot = (txt, y, cor) => { ctx.save(); ctx.font = fontStr(SANS, 21, 700); spaced(4.5); ctx.fillStyle = cor; ctx.textBaseline = 'alphabetic'; ctx.fillText(txt, M, y); spaced(0); ctx.restore(); };
+      const h = 58 + A.h + 70 + 40 + Bn.h + 60 + 40 + Dp.h;
+      let y = centro(h, 180, base);
+      gChapeu(s.chapeu || 'Antes e depois', T, M, y + 22); y += 58;
+      gDesenha(A, gSerif(T, { max: 72, min: 46 }), M, y, 'left'); y += A.h + 60;
+      ctx.fillStyle = T.dark ? 'rgba(245,243,238,.18)' : 'rgba(20,20,20,.18)'; ctx.fillRect(M, y, CW, 1.5); y += 50;
+      rot('O JEITO COMUM', y, T.sub); y += 28; gDesenha(Bn, gSans(T), M, y, 'left'); y += Bn.h + 50;
+      ctx.fillStyle = T.rule; ctx.fillRect(M, y, CW, 3); y += 50;
+      rot('O QUE FUNCIONA', y, T.dark ? GA : T.ink); y += 30; gDesenha(Dp, gSerif(T, { lh: 1.12, ls: -0.015 }), M, y, 'left');
+    } else if (s.tipo === 'destaque') {
+      T = gTema(s.fundo === 'claro' ? 'claro' : 'cor'); fundo(T); gFolio(i, n, T.sub);
+      const base = ctaPe ? gCta(s.cta, pe) - 40 : pe;
+      const oD = gSerif(T, { lh: 1.0, max: 124, min: 72 });
+      const L = gFit(s.paras.length ? s.paras : [' '], oD, 720);
+      const h = (chap ? 58 : 0) + L.h;
+      let y = centro(h, 160, base);
+      if (chap) { gChapeu(chap, T, M, y + 22); y += 58; }
+      gDesenha(L, oD, M, y, 'left');
+    } else if (s.tipo === 'pergunta' || s.tipo === 'revela') {
+      fundo(T); gFolio(i, n, T.sub);
+      const base = ctaPe ? gCta(s.cta, pe) - 40 : pe - 40;
+      const oP = gSerif(T, s.tipo === 'revela' ? { lh: 1.0, max: 112, min: 60 } : { max: 80, min: 50 });
+      const A = gFit(s.paras.slice(0, 1), oP, s.tipo === 'revela' ? 420 : 330);
+      const resto = s.paras.slice(1).filter(t => t.trim());
+      const Ls = s.tipo === 'pergunta' ? resto.map(t => gLayout([t], gSans(T, { color: T.ink, maxW: CW - 70 }), 40)) : [];
+      const B = s.tipo === 'revela' && resto.length ? gFit(resto, gSans(T), 300) : null;
+      const hOp = Ls.reduce((a, L) => a + L.h + 56, 0);
+      const h = 58 + A.h + (Ls.length ? 50 + hOp : 0) + (B ? 44 + B.h : 0);
+      let y = centro(h, 170, base);
+      gChapeu(s.chapeu || (s.tipo === 'pergunta' ? 'Responda de cabeça' : 'A resposta'), T, M, y + 22); y += 58;
+      gDesenha(A, oP, M, y, 'left'); y += A.h;
+      if (Ls.length) {
+        y += 50; ctx.fillStyle = T.dark ? 'rgba(245,243,238,.18)' : 'rgba(20,20,20,.18)'; ctx.fillRect(M, y, CW, 1.5);
+        Ls.forEach((L, k) => { ctx.save(); ctx.font = fontStr(SERIF, 42, 500, true); ctx.fillStyle = T.dark ? GA : T.ink; ctx.textBaseline = 'alphabetic'; ctx.fillText('ABC'[k] || '', M, y + 28 + 34); ctx.restore(); gDesenha(L, gSans(T, { color: T.ink }), M + 70, y + 28, 'left'); y += L.h + 56; ctx.fillStyle = T.dark ? 'rgba(245,243,238,.18)' : 'rgba(20,20,20,.18)'; ctx.fillRect(M, y, CW, 1.5); });
+        ctx.save(); ctx.font = fontStr(SANS, 21, 700); spaced(4.5); ctx.fillStyle = T.dark ? GA : T.ink; ctx.textAlign = 'right'; ctx.fillText('RESPOSTA NO PRÓXIMO  →', W - M, H - 76); spaced(0); ctx.restore();
+      }
+      if (B) gDesenha(B, gSans(T), M, y + 44, 'left');
+    } else if (s.tipo === 'fecho') {
+      const capaS = c.slides.find(x => x.tipo === 'capa'); const ff = capaS ? img(capaS.image) : null;
+      T = gTema(ff ? 'escuro' : s.fundo); fundo(T);
+      if (ff) {
+        ctx.save(); if ('filter' in ctx) ctx.filter = (capaS.cor ? 'saturate(.7)' : 'grayscale(1)') + ' blur(36px) brightness(.5)'; cover(ff, -80, -80, W + 160, H + 160, capaS.t); ctx.restore();
+        ctx.fillStyle = 'rgba(11,11,12,.42)'; ctx.fillRect(0, 0, W, H);
+        ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.16; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
+      }
+      gFolio(i, n, T.sub);
+      // cartão de perfil
+      const pfY = H - 110 - 92;
+      ctx.fillStyle = T.dark ? 'rgba(245,243,238,.2)' : 'rgba(20,20,20,.18)'; ctx.fillRect(M, pfY - 40, CW, 1.5);
+      avatarCircle(M + 46, pfY + 46, 46, null);
+      ctx.save(); ctx.textBaseline = 'alphabetic'; ctx.fillStyle = T.ink; ctx.font = fontStr(SERIF, 36, 600); ctx.fillText(NAME, M + 92 + 26, pfY + 40);
+      ctx.fillStyle = T.sub; ctx.font = fontStr(SANS, 24, 500); ctx.fillText(HANDLE, M + 92 + 26, pfY + 76);
+      const pw = 172, ph = 64, px = W - M - pw, py = pfY + 46 - ph / 2;
+      rr(px, py, pw, ph, ph / 2); ctx.fillStyle = T.dark ? GI : GB; ctx.fill();
+      ctx.fillStyle = T.dark ? GB : GI; ctx.font = fontStr(SANS, 26, 700); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('Seguir', px + pw / 2, py + ph / 2 + 1); ctx.restore();
+      const igual = s.cta && s.cta.texto && (s.paras[0] || '').replace(/[_*]/g, '').trim() === s.cta.texto.trim();
+      let base = pfY - 80;
+      if (s.cta && s.cta.texto && !igual) base = gCta(s.cta, base) - 70;
+      const oF = gSerif(T, { max: 84, min: 52 });
+      const L = gFit(s.paras.slice(0, 1), oF, igual ? 420 : 380);
+      const B = s.paras.length > 1 ? gFit(s.paras.slice(1), gSans(T), 160) : null;
+      const h = 58 + L.h + (B ? 36 + B.h : 0);
+      let y = centro(h, 170, base);
+      gChapeu(s.chapeu || (igual ? (CTA_ROT[s.cta.tipo] || 'Faça agora') : 'Para fechar'), T, M, y + 22); y += 58;
+      gDesenha(L, oF, M, y, 'left');
+      if (B) gDesenha(B, gSans(T), M, y + L.h + 36, 'left');
+    } else { // texto (e qualquer outro)
+      fundo(T); gFolio(i, n, T.sub);
+      const base = ctaPe ? gCta(s.cta, pe) - 40 : pe;
+      const grande = i === 1;
+      const oA = gSerif(T, grande ? { max: 96, min: 58 } : { max: 84, min: 52 });
+      const A = gFit(s.paras.slice(0, 1), oA, 520);
+      const B = s.paras.length > 1 ? gFit(s.paras.slice(1), gSans(T), 380) : null;
+      const h = (chap ? 58 : 0) + A.h + (B ? 46 + B.h : 0);
+      let y = centro(h, 170, base);
+      if (chap) { gChapeu(chap, T, M, y + 22); y += 58; }
+      gDesenha(A, oA, M, y, 'left');
+      if (B) gDesenha(B, gSans(T), M, y + A.h + 46, 'left');
+    }
+    ctx.restore();
+  }
+  const _drawVidro = drawSlide;
+  drawSlide = function (c, i) {
+    const s = c.slides[i];
+    if (estilo === 'galeria' && s && s.tipo !== 'tweet' && s.tipo !== 'print') { slideAtual = { c, i }; try { drawGaleria(c, i); } finally { slideAtual = null; M = 96; CW = W - M * 2; } return; }
+    _drawVidro(c, i);
+  };
   function render() {
     const c = active();
     if (typeof agendarLinkFora === 'function') agendarLinkFora();
@@ -1873,7 +2185,7 @@
 
   // ─── UI ───
   const EDITOR_HINTS = {
-    capa: 'A manchete da capa. Use __palavra__ para sublinhar o destaque.',
+    capa: 'A manchete da capa, curta (até 3 linhas). Use __palavra__ para o destaque (itálico amarelo no estilo Galeria). O chapéu acima é o nome do caso e o ano.',
     texto: 'Um parágrafo por bloco. Deixe uma linha em branco entre parágrafos.',
     imagem: 'Primeiro bloco é o título em cima da foto. Depois de uma linha em branco, o texto embaixo.',
     foto: 'Cada bloco vira uma caixa branca sobre a foto. Separe as caixas com uma linha em branco.',
@@ -1920,9 +2232,13 @@
     $('editor-hint').textContent = EDITOR_HINTS[s.tipo];
     $('cta-tipo').value = s.cta ? s.cta.tipo : ''; $('cta-texto').value = s.cta ? s.cta.texto : '';
     $('cta-texto').hidden = !s.cta;
+    if (document.activeElement !== $('chapeu')) $('chapeu').value = s.chapeu || '';
     const usesImg = s.tipo === 'capa' || s.tipo === 'foto' || s.tipo === 'imagem' || s.tipo === 'print';
     $('marcar').hidden = !(s.tipo === 'print' && s.image); if ($('marcar').hidden) marcando = false; $('marcar').classList.toggle('on', marcando);
     $('img-row').hidden = !usesImg;
+    $('foto-cor').hidden = !(estilo === 'galeria' && s.image && s.tipo !== 'print');
+    $('foto-cor').setAttribute('aria-pressed', String(!!s.cor)); $('foto-cor').classList.toggle('on', !!s.cor);
+    $('foto-cor').textContent = s.cor ? '✓ Foto colorida' : 'Manter a cor';
     $('thumb').style.backgroundImage = s.image ? `url("${s.image}")` : '';
     $('attach').textContent = 'Da galeria';
     $('search').textContent = s.image ? 'Trocar foto' : 'Buscar foto';
@@ -2039,6 +2355,28 @@
   };
   $('cta-tipo').onchange = () => { salvarCta(); $('cta-texto').hidden = !$('cta-tipo').value; changed(); if ($('cta-tipo').value && !$('cta-texto').value) $('cta-texto').focus(); };
   $('cta-texto').onchange = () => { salvarCta(); changed(); };
+  $('chapeu').onchange = () => { const s = slide(), v = $('chapeu').value.trim(); if (v) s.chapeu = v; else delete s.chapeu; changed(); };
+  $('foto-cor').onclick = () => { const s = slide(); s.cor = !s.cor; if (!s.cor) delete s.cor; changed(); toast(s.cor ? 'Esta foto fica colorida (use quando a cor é o assunto).' : 'Foto em preto e branco.'); };
+  const pintarEstilo = () => document.querySelectorAll('#estilo button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.e === estilo)));
+  document.querySelectorAll('#estilo button').forEach(b => b.onclick = () => { estilo = b.dataset.e; ls.set(LS_ESTILO, estilo); pintarEstilo(); render(); updateUI(); try { frChave = ''; renderFrases(); } catch (e) {} toast(estilo === 'galeria' ? 'Estilo Galeria.' : 'Estilo Vidro (antigo).'); });
+  pintarEstilo();
+  // Ver no perfil (v52): a capa deste carrossel no primeiro quadrado, com as capas dos últimos salvos, no corte 3:4 da grade
+  async function verPerfil() {
+    const atual = active();
+    const outros = state.list.filter(x => x !== atual && !x.isExample).sort((a, b) => (b.postadoEm || b.createdAt || 0) - (a.postadoEm || a.createdAt || 0));
+    const lista = [atual].concat(outros).slice(0, 12);
+    lista.forEach(c => c.slides.forEach(sl => img(sl.image)));
+    toast('Montando a grade…');
+    await new Promise(r => setTimeout(r, 450));
+    const urls = lista.map(c => { const k = Math.max(0, c.slides.findIndex(x => x.tipo === 'capa')); drawSlide(c, k); const t = document.createElement('canvas'); t.width = 420; t.height = 560; t.getContext('2d').drawImage(canvas, 34, 0, 1012, 1350, 0, 0, 420, 560); return t.toDataURL('image/jpeg', 0.86); });
+    render();
+    const g = $('perfil-g'); g.innerHTML = '';
+    urls.forEach((u, k) => { const d = document.createElement('div'); d.style.backgroundImage = `url("${u}")`; if (!k) d.className = 'novo'; g.appendChild(d); });
+    for (let k = urls.length; k < 9; k++) g.appendChild(document.createElement('div'));
+    $('perfil').hidden = false;
+  }
+  $('ver-perfil').onclick = verPerfil;
+  $('perfil-x').onclick = () => { $('perfil').hidden = true; };
   $('save-text').onclick = () => {
     const s = slide();
     s.paras = $('editor').value.split(/\n\s*\n/).map(x => x.replace(/\s+$/, '')).filter(x => x.trim());
@@ -2313,7 +2651,7 @@ FOTO QUE PARA O DEDO (imgSuggestion + imgBusca):
 - Cada slide com foto pede uma foto diferente das outras.
 
 ESTRUTURA (5 a 10 slides, conforme TAMANHO VARIÁVEL):
-1. capa: AFIRMAÇÃO curta, de 6 a 10 palavras, nunca pergunta. Traz UM elemento concreto que a pessoa reconhece em meio segundo: nome de marca ou pessoa, número ou data. Nada de metáfora que precise ser decifrada ("feed cego", "invisível há meses"). UMA palavra-chave entre __sublinhado__. Nunca promessa. A fórmula longa ("[fenômeno] virou [Y]: como [marca] [ação] [consequência]") vai para o slide 2, não para a capa.
+1. capa: AFIRMAÇÃO curta, de 6 a 10 palavras, nunca pergunta. Traz UM elemento concreto que a pessoa reconhece em meio segundo: nome de marca ou pessoa, número ou data. Nada de metáfora que precise ser decifrada ("feed cego", "invisível há meses"). UMA palavra-chave entre __sublinhado__ (o Motor desenha em itálico amarelo). Cabe em até 3 linhas grandes: prefira 6 a 8 palavras. Nunca promessa. Junto, o campo "chapeu": 2 a 5 palavras que situam o caso, em geral o nome e o ano ("Tiffany & Co. — 1845", "Flávio Augusto"); só fato verdadeiro, nunca o nome do pilar; se o carrossel não tem caso nomeado, deixe sem chapéu. A fórmula longa ("[fenômeno] virou [Y]: como [marca] [ação] [consequência]") vai para o slide 2, não para a capa.
    Bom: "A Jaguar apagou o próprio __felino__ em 2024." Ruim: "Por que o seu feed pode estar cego para o que já é feio há meses?"
    A foto da capa precisa de UM ponto de contraste que o olho acha sozinho mesmo em miniatura: um sujeito claro sobre fundo escuro, ou uma cor forte isolada (como uma pessoa de vermelho numa plateia). Nunca cena escura e uniforme, nunca textura sem ponto focal.
 2. SLIDE 2 = SEGUNDA MANCHETE. O Instagram reapresenta o carrossel começando pelo slide 2 para quem passou pela capa sem deslizar; muita gente entra por ele. Ele precisa funcionar sozinho, sem a capa: tipo "texto" (fundo escuro) ou "imagem". Primeiro parágrafo = headline de 8 a 16 palavras, afirmação, com outro gancho que não repete a capa (a tensão, o número, a consequência ou a fórmula longa "[fenômeno] virou [Y]: como..."). Segundo parágrafo curto (até 30 palavras) promete o que vem nos próximos slides.
@@ -2321,15 +2659,15 @@ ESTRUTURA (5 a 10 slides, conforme TAMANHO VARIÁVEL):
 4. UM fundamento (autor, estudo ou caso com nome e data). Se não tiver certeza absoluta de que existe, não use: prefira um princípio de design que Daniel conhece. Nunca invente número, data, citação ou estudo.
 5. slide "lista" (antes da opinião): a aplicação em 3 a 5 itens curtos e acionáveis, cada um começando com verbo (Troque, Corte, Teste, Olhe...). Título do slide diz o que a lista resolve ("Como achar o que já ficou feio no seu feed"). É o slide para salvar.
 6. penúltimo slide: a opinião de Daniel, em primeira pessoa, retomando pelo nome o caso da capa (ver FIO DO CASO).
-7. último slide: tipo fecho com CTA DIRECIONADA no campo "cta" e o mesmo texto em "texto". Nada de pergunta aberta ("conte sua história", "qual é o seu caso?"): quase ninguém responde. Escolha um tipo:
+7. último slide: tipo fecho com CTA DIRECIONADA no campo "cta"; em "texto", a frase que fecha o raciocínio (não repita a CTA). Nada de pergunta aberta ("conte sua história", "qual é o seu caso?"): quase ninguém responde. Escolha um tipo:
    - "agora": uma ação de 1 minuto ligada ao caso ("Abra seu último post e corte a primeira frase.");
    - "salvar": salvar com o momento exato de uso ("Salve para usar na próxima revisão do feed.");
    - "seguir": o que vem no próximo post ("No próximo: como fazer isso com IA em 10 minutos.");
    - "direct": oferta concreta ("Me manda seu perfil no direct que eu aponto o primeiro ajuste."), sem palavra-chave.
-   Formato: {"tipo":"fecho","fundo":"escuro","texto":"a CTA","cta":{"tipo":"agora","texto":"a CTA"}}
+   Formato: {"tipo":"fecho","fundo":"escuro","texto":"frase curta que fecha o raciocínio retomando o caso pelo nome, até 14 palavras, com __uma__ palavra em destaque","cta":{"tipo":"agora","texto":"a CTA"}}
 
 TIPOS DE SLIDE (campo "tipo"):
-- "capa": {"tipo":"capa","texto":"manchete com __destaque__","imgSuggestion":"o que aparece na foto, em até 15 palavras","imgBusca":"busca em inglês para o Pinterest, 3 a 6 palavras"}
+- "capa": {"tipo":"capa","chapeu":"Nome do caso — ano","texto":"manchete com __destaque__","imgSuggestion":"o que aparece na foto, em até 15 palavras","imgBusca":"busca em inglês para o Pinterest, 3 a 6 palavras"}
 - imgSuggestion precisa QUEBRAR O PADRÃO do feed: escala estranha, objeto comum fora de contexto, foto de arquivo real, close extremo de textura, flash direto de editorial, um único elemento em muito vazio, still life surreal. Proibido clichê de banco de imagem: trilhos, estradas, escadas, perspectiva, lâmpada, quebra-cabeça, xadrez, engrenagem, alvo, bússola, labirinto, ampulheta, montanha, foguete, cérebro, aperto de mão, pessoa no notebook, post-its, gráfico subindo.
 - "texto": {"tipo":"texto","fundo":"escuro" ou "claro","texto":["parágrafo 1","parágrafo 2"]} — até 2 parágrafos, no máximo 50 palavras no total.
 - "imagem": {"tipo":"imagem","fundo":"claro","titulo":"frase curta em cima","texto":"1 a 2 frases embaixo","imgSuggestion":"..."}
@@ -2337,12 +2675,13 @@ TIPOS DE SLIDE (campo "tipo"):
 - "numero": {"tipo":"numero","fundo":"escuro" ou "claro","numero":"58M","texto":"o que esse número quer dizer, até 20 palavras"} — só com número real e verificável.
 - "comparar": {"tipo":"comparar","fundo":"claro" ou "escuro","titulo":"o que está sendo comparado","antes":"o jeito comum, que não funciona","depois":"o jeito que funciona, concreto"}.
 - "lista": {"tipo":"lista","fundo":"claro" ou "escuro","titulo":"o que a lista resolve","itens":["Verbo + ação concreta, até 18 palavras","..."]} — 3 a 5 itens.
-- "fecho": {"tipo":"fecho","fundo":"escuro","texto":"pergunta?"}
+- "fecho": {"tipo":"fecho","fundo":"escuro","texto":"frase que fecha retomando o caso","cta":{"tipo":"agora","texto":"ação de 1 minuto"}}
 - "destaque": {"tipo":"destaque","fundo":"escuro" ou "claro","texto":"frase de 6 a 10 palavras com **uma** palavra marcada"}
 - "pergunta": {"tipo":"pergunta","fundo":"escuro","pergunta":"pergunta curta","opcoes":["opção A","opção B"]} — 2 ou 3 opções curtas. O slide seguinte é SEMPRE "revela".
 - "revela": {"tipo":"revela","fundo":"claro","resposta":"a resposta em até 8 palavras","texto":"por quê, em até 30 palavras"}
 - "print": {"tipo":"print","fundo":"claro","titulo":"o que a imagem prova","notas":["nota 1 curta","nota 2","nota 3"],"imgSuggestion":"a imagem real exata","imgBusca":"busca em inglês"}
-- Campos extras em qualquer slide: "passo":"2/4" (contador da sequência) e "marca":true (marca-texto nas palavras em **negrito**).
+- Campos extras em qualquer slide: "passo":"2/4" (contador da sequência), "marca":true (marca-texto nas palavras em **negrito**) e "chapeu" (rótulo de 1 a 3 palavras acima do título, como "O caso", "A prova", "O mecanismo", "O que eu acho"; use em 2 a 4 slides do miolo, nunca o nome do pilar).
+- No slide "texto", o 1º parágrafo é o título (grande, serifado) e os outros são o corpo (menor). Escreva o 1º parágrafo como uma frase forte de até 16 palavras com __uma__ palavra em destaque.
 Alterne fundos escuro e claro. Use **negrito** só em nomes, números e datas, com moderação.
 
 VOZ: português do Brasil, direto, sem clichê de marketing (exclusivo, imperdível, transformador, revolucionário, jornada, crucial), sem pergunta retórica genérica na abertura, sem listar tipos de pessoas, sem metáfora enfeitada, sem "não é X, é Y" mais de uma vez. Nunca fé como gancho. Nunca política brasileira. Nunca o Exército Brasileiro como tema.

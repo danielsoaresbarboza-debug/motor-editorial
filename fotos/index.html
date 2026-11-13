@@ -743,6 +743,7 @@
       grupo: o.grupo || '', versao: o.versao || '', fonte: o.fonte || '',
       reservaPara: o.reservaPara || 0, agora: !!o.agora, postadoEm: o.postadoEm || 0,
       capas: Array.isArray(o.capas) ? o.capas.map(String).filter(x => x.trim()).slice(0, 4) : [],
+      vagaFeed: o.vagaFeed && o.vagaFeed.pos ? { dia: +o.vagaFeed.dia || 0, pos: String(o.vagaFeed.pos) } : null,
       fita: !!o.fita, especial: !!o.especial, envelope: !!(o.envelope || o.capaEnvelope), status: ['aberto', 'encerrado'].includes(o.status) ? o.status : '',
       formato: o.formato === 'curto' || (o.formato !== 'twitter' && o.formato !== 'editorial' && Array.isArray(o.slides) && o.slides.length === 2 && o.slides[1] && o.slides[1].cta) ? 'curto' : o.formato === 'twitter' || (Array.isArray(o.slides) && o.slides.length && o.slides.every(x => x && x.tipo === 'tweet')) ? 'twitter' : 'editorial',
       frases: Array.isArray(o.frases) ? o.frases.slice(0, 2).map((f, k) => ({
@@ -2389,7 +2390,11 @@
   let LUZ = 1;
   const SEM_ESPELHO = ['regua', 'portfolio_base', 'portfolio_topo'];
   const LADO_ABAJUR = { A: [0, 1], B: [1, 0], C: [2, -1], D: [1, -1], E: [2, 1] };
-  function luzDe(id, i) { const V = 'ACE'[Math.floor(hashN(id, 'lum') * 3)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3, L = LADO_ABAJUR[V]; return L && L[0] === k && L[1] < 0 ? -1 : 1; }
+  // mesa do dia: os 3 posts de uma fileira do feed usam os 3 cortes da MESMA mesa, então a grade vira um tampo só
+  const FUNDO_VAGA = {};
+  function mesaDe(id) { const v = FUNDO_VAGA[id]; if (v) return v; return { V: 'ACE'[Math.floor(hashN(id, 'lum') * 3)], f: Math.floor(hashN(id, 'f') * 3) }; }
+  function fixaMesa(id, vaga) { if (!vaga) { delete FUNDO_VAGA[id]; return; } FUNDO_VAGA[id] = { V: 'ACE'[Math.floor(hashN('dia' + vaga.dia, 'lum') * 3)], f: { esquerda: 0, meio: 1, direita: 2 }[vaga.pos] || 0 }; }
+  function luzDe(id, i) { const m = mesaDe(id), V = m.V, k = (i + m.f) % 3, L = LADO_ABAJUR[V]; return L && L[0] === k && L[1] < 0 ? -1 : 1; }
   function peca(nome, cx, cy, esc, rot, fn) {
     const im = PECA(nome), g = GEO[nome];
     ctx.save(); ctx.translate(cx, cy); ctx.rotate((rot || 0) * Math.PI / 180); ctx.scale(esc, esc); ctx.translate(-g.w / 2, -g.h / 2);
@@ -2694,7 +2699,7 @@
   // espera as peças carregarem (stories e vídeo são gerados na hora)
   function carregaPecas(nomes) { return Promise.all(nomes.map(n => new Promise(r => { const t0 = Date.now(); const f = () => { let ok = false; try { ok = !!PECA(n); } catch (e) {} if (ok || Date.now() - t0 > 5000) r(); else setTimeout(f, 80); }; f(); }))); }
   const PECAS_STORY = ['couroR', 'couroR_alto', 'tachinha', 'polaroid_v', 'envelope', 'lupa', 'postit', 'fita'];
-  const nomeFundo = (id, i) => { const V = 'ACE'[Math.floor(hashN(id, 'lum') * 3)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3; return 'couro' + V + (k + 1); };
+  const nomeFundo = (id, i) => { const m = mesaDe(id), k = (i + m.f) % 3; return 'couro' + m.V + (k + 1); };
   // objetos altos (abajur, pilha de livros) por cima dos cantos de fotos e papéis, com sombra
   const ALTOS_EXISTE = new Set(["couroA1_alto", "couroA2_alto", "couroB1_alto", "couroB2_alto", "couroC1_alto", "couroC2_alto", "couroC3_alto", "couroD1_alto", "couroD2_alto", "couroE1_alto", "couroE2_alto", "couroE3_alto", "couroR_alto"]);
   function altosMesa(nome, w, h) { if (!ALTOS_EXISTE.has(nome + '_alto')) return; const im = PECA(nome + '_alto'); if (!im) return; ctx.save();
@@ -2850,6 +2855,7 @@
   }
   function tachMesa(p) { if (p) peca('tachinha', p[0], p[1], .55, 0); }
   function drawMesa(c, i) {
+    try { fixaMesa(c.id, vagaCarrossel(c)); } catch (e) {}
     if (usaPagina(c, i)) return drawPagina(c, i);
     const s = c.slides[i], n = c.slides.length, a = aj(s), photo = img(s.image), r = hashN(c.id, i);
     ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left'; lastCover = null;
@@ -3051,7 +3057,7 @@
     // abajur e livros por cima, só onde o canto não tem texto (capa, fotos, número, fecho)
     fioMesa(c, i);
     if (pin) tachMesa(pin);
-    if (['imagem', 'foto', 'print'].includes(s.tipo) && ps.trat !== 'pasta' && ps.trat !== 'porta' && !ps.porta && !ps.cheio) altosMesa(nomeFundo(c.id, i));
+    if (['capa', 'imagem', 'foto', 'print'].includes(s.tipo) && ps.trat !== 'pasta' && ps.trat !== 'porta' && !ps.porta && !ps.cheio) altosMesa(nomeFundo(c.id, i));
     cruzMesa(c, i, 'alto');
     if (i === 0 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', null, 0, 'alto'); } catch (e) {} }
     } finally { M = _M; CW = _CW; LUZ = 1; }
@@ -3067,6 +3073,7 @@
   function drawFraseMesa(fr) {
     const txt = (fr.texto || '').trim() || 'Escreva a frase ao lado.', para = (fr.para || '').trim(), id = 'fr' + txt.length + txt.slice(0, 12);
     ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left';
+    try { fixaMesa(id, vagaFeed('frase')); } catch (e) {}
     const nf = nomeFundo(id, 0); LUZ = luzDe(id, 0); TEXTO_RECTS = [];
     const fundo = PECA(nf); if (fundo) ctx.drawImage(fundo, 0, 0, W, H); else { ctx.fillStyle = '#2a170c'; ctx.fillRect(0, 0, W, H); }
     const r = hashN(id, 'r'), nome = r > .5 && PECA('folha_dobra') ? 'folha_dobra' : 'folha';
@@ -3369,6 +3376,7 @@
   let histFiltro = 'todos';
   try { histFiltro = localStorage.getItem('dan_editorial_histfiltro_v1') || 'todos'; } catch (e) {}
   function alternarPostado(c) {
+    if (!c.postadoEm && !c.vagaFeed) { try { const v = vagaCarrossel(c); if (v) c.vagaFeed = v; } catch (e) {} } // congela a vaga: a ligação com os vizinhos não muda depois de postado
     c.postadoEm = c.postadoEm ? 0 : Date.now();
     persist(); renderHist(); updateUI();
     toast(c.postadoEm ? 'Marcado como postado.' : 'Voltou para “a postar”.');
@@ -5359,7 +5367,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
     if (i >= 0) {
       const velho = state.list[i];
       c.slides.forEach((sl, k) => { const v = velho.slides[k]; if (v && v.image && v.tipo === sl.tipo) { sl.image = v.image; sl.t = v.t; sl.credito = v.credito; sl.fotoUrl = v.fotoUrl; } });
-      c.postadoEm = velho.postadoEm; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed(); document.dispatchEvent(new CustomEvent('motor:aba', { detail: 'slides' }));
+      c.postadoEm = velho.postadoEm; c.vagaFeed = velho.vagaFeed || null; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed(); document.dispatchEvent(new CustomEvent('motor:aba', { detail: 'slides' }));
     } else addCarousels([c]);
     toast('Carrossel recebido. Buscando as fotos…');
     autoFotos(active());
@@ -5410,7 +5418,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
         // mesmo carrossel: atualiza o texto e mantém as fotos que já estavam aqui
         const velho = state.list[i];
         c.slides.forEach((sl, k) => { const v = velho.slides[k]; if (v && v.image && v.tipo === sl.tipo) { sl.image = v.image; sl.t = v.t; sl.credito = v.credito; sl.fotoUrl = v.fotoUrl; } });
-        c.postadoEm = velho.postadoEm; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed(); document.dispatchEvent(new CustomEvent('motor:aba', { detail: 'slides' }));
+        c.postadoEm = velho.postadoEm; c.vagaFeed = velho.vagaFeed || null; state.list[i] = c; state.activeId = c.id; state.cur = 0; changed(); document.dispatchEvent(new CustomEvent('motor:aba', { detail: 'slides' }));
       } else addCarousels([c]);
       try { history.replaceState(null, '', location.pathname); } catch (e) {}
       toast('Carrossel recebido. Buscando as fotos…');

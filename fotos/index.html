@@ -724,6 +724,7 @@
     if (s.marca) out.marca = true;
     if (s.chapeu) out.chapeu = String(s.chapeu).slice(0, 48);
     if (s.cor) out.cor = true;
+    if (s.pb) out.pb = true;
     if (s.cta) { const ct = typeof s.cta === 'string' ? { tipo: 'agora', texto: s.cta } : s.cta; if (ct && ct.texto) out.cta = { tipo: ['agora', 'salvar', 'seguir', 'direct'].includes(ct.tipo) ? ct.tipo : 'agora', texto: String(ct.texto) }; }
     if (Array.isArray(s.marcas)) out.marcas = s.marcas.filter(m => m && isFinite(m.x) && isFinite(m.y)).slice(0, 3).map(m => ({ x: +m.x, y: +m.y }));
     return out;
@@ -2644,7 +2645,7 @@
     const fw = 1180, fh = fw * .72, fx = o.cx + dx, fy = o.fy;
     ctx.save(); ctx.translate(fx, fy); ctx.rotate(o.frot * Math.PI / 180);
     ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 14; ctx.fillStyle = '#F3F1EA'; ctx.fillRect(-fw / 2 - 26, -fh / 2 - 26, fw + 52, fh + 52); ctx.shadowColor = 'transparent';
-    if (photo) { ctx.save(); if ('filter' in ctx) ctx.filter = s.cor ? 'saturate(.95) contrast(1.04)' : 'grayscale(1) contrast(1.1) sepia(.12)'; cover(photo, -fw / 2, -fh / 2, fw, fh, s.t); ctx.restore(); dataFoto(-fw / 2, -fh / 2, fw, fh); }
+    if (photo) { ctx.save(); if ('filter' in ctx) ctx.filter = !s.pb ? 'saturate(.95) contrast(1.04)' : 'grayscale(1) contrast(1.1) sepia(.12)'; cover(photo, -fw / 2, -fh / 2, fw, fh, s.t); ctx.restore(); dataFoto(-fw / 2, -fh / 2, fw, fh); }
     else { ctx.fillStyle = '#6b6258'; ctx.fillRect(-fw / 2, -fh / 2, fw, fh); }
     const gl = ctx.createLinearGradient(-fw / 2, -fh / 2, fw / 2, fh / 2); gl.addColorStop(0, 'rgba(255,255,255,.16)'); gl.addColorStop(.35, 'rgba(255,255,255,0)'); gl.addColorStop(1, 'rgba(255,255,255,.05)'); ctx.fillStyle = gl; ctx.fillRect(-fw / 2, -fh / 2, fw, fh);
     ctx.restore();
@@ -2659,7 +2660,7 @@
       const fw = 760, fh = 600, fx = ox + 545, fy = oy + 470;
       ctx.save(); ctx.translate(fx, fy); ctx.rotate(-3 * Math.PI / 180);
       ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 10; ctx.fillStyle = '#F3F1EA'; ctx.fillRect(-fw / 2 - 22, -fh / 2 - 22, fw + 44, fh + 44); ctx.shadowColor = 'transparent';
-      if (photo) { ctx.save(); if ('filter' in ctx) ctx.filter = s.cor ? 'saturate(.95) contrast(1.04)' : 'grayscale(1) contrast(1.1) sepia(.12)'; cover(photo, -fw / 2, -fh / 2, fw, fh, s.t); ctx.restore(); }
+      if (photo) { ctx.save(); if ('filter' in ctx) ctx.filter = !s.pb ? 'saturate(.95) contrast(1.04)' : 'grayscale(1) contrast(1.1) sepia(.12)'; cover(photo, -fw / 2, -fh / 2, fw, fh, s.t); ctx.restore(); }
       else { ctx.fillStyle = '#6b6258'; ctx.fillRect(-fw / 2, -fh / 2, fw, fh); }
       ctx.restore();
     }
@@ -2746,7 +2747,7 @@
   function fotoPg(im, sl, x, y, w, h, espelho) {
     cardPg(x, y, w, h); const p = 16;
     ctx.save(); ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x + p, y + p, w - p * 2, h - p * 2, 10) : ctx.rect(x + p, y + p, w - p * 2, h - p * 2); ctx.clip();
-    if (im) { if ('filter' in ctx) ctx.filter = sl && sl.cor ? 'saturate(.95) contrast(1.04)' : 'grayscale(1) contrast(1.08) sepia(.08)'; if (espelho) { ctx.translate((x + p) * 2 + (w - p * 2), 0); ctx.scale(-1, 1); } cover(im, x + p, y + p, w - p * 2, h - p * 2, sl && sl.t); }
+    if (im) { if ('filter' in ctx) ctx.filter = !(sl && sl.pb) ? 'saturate(.95) contrast(1.04)' : 'grayscale(1) contrast(1.08) sepia(.08)'; if (espelho) { ctx.translate((x + p) * 2 + (w - p * 2), 0); ctx.scale(-1, 1); } cover(im, x + p, y + p, w - p * 2, h - p * 2, sl && sl.t); }
     else { ctx.fillStyle = '#D9D1C3'; ctx.fillRect(x + p, y + p, w - p * 2, h - p * 2); }
     ctx.restore();
   }
@@ -2806,7 +2807,7 @@
         if (s.cta && s.cta.texto) { const oc = oCorpoPg(s, { max: 42, min: 32, color: '#FBF6EC', em: '#FFFFFF', maxW: PCW - 80 }), Lc = gFit([s.cta.texto], oc, 280), h = Lc.h + 130;
           cardPg(PM, y, PCW, h, PG.ink); ctx.save(); ctx.font = fontStr(TYP, 24, 700); spaced(5); ctx.fillStyle = '#F6C915'; ctx.textBaseline = 'alphabetic'; ctx.fillText(CTA_ROT[s.cta.tipo] || 'FAÇA AGORA', PM + 40, y + 60); spaced(0); ctx.restore(); gDesenha(Lc, oc, PM + 40, y + 86, 'left'); y += h; }
         // assinatura: foto, @ e uma linha que puxa para o feed
-        const ay = pe - 112; ctx.save(); ctx.beginPath(); ctx.arc(PM + 56, ay + 56, 56, 0, Math.PI * 2); ctx.clip(); if (avatarReady()) { if ('filter' in ctx) ctx.filter = 'grayscale(1) contrast(1.1)'; cover(avatarEl, PM, ay, 112, 112); } else { ctx.fillStyle = '#CFC6B6'; ctx.fillRect(PM, ay, 112, 112); } ctx.restore();
+        const ay = pe - 112; ctx.save(); ctx.beginPath(); ctx.arc(PM + 56, ay + 56, 56, 0, Math.PI * 2); ctx.clip(); if (avatarReady()) { if ('filter' in ctx) ctx.filter = 'saturate(.95) contrast(1.04)'; cover(avatarEl, PM, ay, 112, 112); } else { ctx.fillStyle = '#CFC6B6'; ctx.fillRect(PM, ay, 112, 112); } ctx.restore();
         ctx.save(); ctx.fillStyle = PG.ink; ctx.font = fontStr(SANS, 38, 600); ctx.textBaseline = 'alphabetic'; ctx.fillText(HANDLE, PM + 140, ay + 48); ctx.font = fontStr(SANS, 32, 400); ctx.fillStyle = PG.sub; ctx.fillText('Toda semana um caso novo no meu feed.', PM + 140, ay + 92); ctx.restore();
       } else { // texto, revela, tweet e outros: título dominante + um apoio menor
         const oT = oTitPg(s), L = gFit(P0, oT, 520), oc = oCorpoPg(s), Lc = resto.length ? gFit(resto, oc, 480) : null;
@@ -2882,7 +2883,7 @@
       const nome = vert ? 'polaroid_v' : 'polaroid_h'; op = op || {}; const ph = 'im' in op ? op.im : photo, sl = op.s || s, ik = 'i' in op ? op.i : i;
       peca(nome, cx, cy, esc, rot, g => {
         const [x, y, w, h] = g.jan;
-        if (ph) { ctx.save(); if ('filter' in ctx) ctx.filter = sl.cor ? 'saturate(.9) contrast(1.05)' : 'grayscale(1) contrast(1.1) sepia(.12)'; if (op.espelho) { ctx.translate(x * 2 + w, 0); ctx.scale(-1, 1); } cover(ph, x, y, w, h, sl.t); ctx.restore(); if (hashN(c.id, ik + 'dt') > .35) dataFoto(x, y, w, h); if (hashN(c.id, ik + 'dg') > .62) digitalMesa(x, y, w, h, c.id + ik); }
+        if (ph) { ctx.save(); if ('filter' in ctx) ctx.filter = !sl.pb ? 'saturate(.9) contrast(1.05)' : 'grayscale(1) contrast(1.1) sepia(.12)'; if (op.espelho) { ctx.translate(x * 2 + w, 0); ctx.scale(-1, 1); } cover(ph, x, y, w, h, sl.t); ctx.restore(); if (hashN(c.id, ik + 'dt') > .35) dataFoto(x, y, w, h); if (hashN(c.id, ik + 'dg') > .62) digitalMesa(x, y, w, h, c.id + ik); }
         else { ctx.fillStyle = '#6b6258'; ctx.fillRect(x, y, w, h); }
       });
       return pontoPeca(nome, cx, cy, esc, rot, GEO[nome].w / 2, 60);
@@ -2965,7 +2966,7 @@
       const fh = Math.round(H * .66);
       if (photo) {
         const [cv, g2] = off(W, fh); const salva = ctx; ctx = g2;
-        try { if ('filter' in ctx) ctx.filter = s.cor ? 'saturate(.95) contrast(1.05)' : 'grayscale(1) contrast(1.12) sepia(.1)'; cover(photo, 0, 0, W, fh, s.t); } finally { ctx = salva; }
+        try { if ('filter' in ctx) ctx.filter = !s.pb ? 'saturate(.95) contrast(1.05)' : 'grayscale(1) contrast(1.12) sepia(.1)'; cover(photo, 0, 0, W, fh, s.t); } finally { ctx = salva; }
         g2.globalCompositeOperation = 'destination-in'; const gm = g2.createLinearGradient(0, 0, 0, fh); gm.addColorStop(0, '#000'); gm.addColorStop(.55, 'rgba(0,0,0,.92)'); gm.addColorStop(1, 'rgba(0,0,0,0)'); g2.fillStyle = gm; g2.fillRect(0, 0, W, fh);
         ctx.drawImage(cv, 0, 0);
         if (hashN(c.id, 'lupa' + i) > .45) lupaSobre(W / 2 + 140, fh * .5, .8, 1.8);
@@ -3045,7 +3046,7 @@
       const capaS = c.slides.find(x => x.tipo === 'capa'), ff = capaS ? img(capaS.image) : null;
       pin = [W - 260, 200];
       if (PECA('envelope')) peca('envelope', W - 300, 470, 1.0, -6, g => carimboMesa(g.w - 200, g.h - 110, 'ABERTO EM', dataMesa() + ' · CASO ' + casoTxt(c), -6, '#6E1E1A'));
-      peca('polaroid_v', W - 260, 400, .5, 5, g => { const [x, y, w, h] = g.jan; if (avatarReady()) { dataFoto(x, y, w, h); ctx.save(); if ('filter' in ctx) ctx.filter = 'grayscale(1) contrast(1.1)'; cover(avatarEl, x, y, w, h); ctx.restore(); } });
+      peca('polaroid_v', W - 260, 400, .5, 5, g => { const [x, y, w, h] = g.jan; if (avatarReady()) { dataFoto(x, y, w, h); ctx.save(); if ('filter' in ctx) ctx.filter = 'saturate(.95) contrast(1.04)'; cover(avatarEl, x, y, w, h); ctx.restore(); } });
       const f2 = [FEED_CTA[0], FEED_CTA[1], FEED_CTA[3], FEED_CTA[6]][Math.floor(hashN(c.id, 'f2') * 4)];
       const txt = f => f.slice(0, 3).filter(Boolean).join('\n').replace('#N', '#' + casoN(c));
       postitMesa(txt(FEED_CTA[2]), 'cima', 200, 250, -5, .74);
@@ -3084,7 +3085,7 @@
       const fw = 880, fh = 1100, bd = 22, rot = (-1.6 + r * 1.2) * Math.PI / 180;
       ctx.save(); ctx.translate(W / 2, H / 2 - 10); ctx.rotate(rot);
       ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 40; ctx.shadowOffsetX = 14; ctx.shadowOffsetY = 26; ctx.fillStyle = '#F4F1E9'; ctx.fillRect(-fw / 2 - bd, -fh / 2 - bd, fw + bd * 2, fh + bd * 2); ctx.restore();
-      if (fp && fp.complete && fp.naturalWidth) { ctx.save(); if ('filter' in ctx) ctx.filter = fr.cor ? 'contrast(1.04)' : 'grayscale(1) contrast(1.1) sepia(.1)'; cover(fp, -fw / 2, -fh / 2, fw, fh); ctx.restore(); }
+      if (fp && fp.complete && fp.naturalWidth) { ctx.save(); if ('filter' in ctx) ctx.filter = !fr.pb ? 'contrast(1.04)' : 'grayscale(1) contrast(1.1) sepia(.1)'; cover(fp, -fw / 2, -fh / 2, fw, fh); ctx.restore(); }
       else { ctx.fillStyle = '#5b544c'; ctx.fillRect(-fw / 2, -fh / 2, fw, fh); }
       ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .22; ctx.fillStyle = graoPattern(); ctx.fillRect(-fw / 2, -fh / 2, fw, fh); ctx.restore();
       const gl = ctx.createLinearGradient(-fw / 2, -fh / 2, fw * .1, fh * .2); gl.addColorStop(0, 'rgba(255,248,230,.20)'); gl.addColorStop(1, 'rgba(255,248,230,0)'); ctx.fillStyle = gl; ctx.fillRect(-fw / 2 - bd, -fh / 2 - bd, fw + bd * 2, fh + bd * 2);
@@ -3229,7 +3230,7 @@
         lupaSobre(200, 1660, .62, 1.5); postitMesa('caso ' + casoTxt(c), 'baixo', 880, 1640, 6, .62);
       }
       // sua foto (polaroid pequena) e etiqueta do caso
-      if (modelo !== 'foto') peca('polaroid_v', 880, 1700, .3, 7, gg => { const [x, y, w, h] = gg.jan; if (avatarReady()) { ctx.save(); if ('filter' in ctx) ctx.filter = 'grayscale(1) contrast(1.1)'; cover(avatarEl, x, y, w, h); ctx.restore(); } });
+      if (modelo !== 'foto') peca('polaroid_v', 880, 1700, .3, 7, gg => { const [x, y, w, h] = gg.jan; if (avatarReady()) { ctx.save(); if ('filter' in ctx) ctx.filter = 'saturate(.95) contrast(1.04)'; cover(avatarEl, x, y, w, h); ctx.restore(); } });
       if (PECA('couroR_alto')) { const im = PECA('couroR_alto'); ctx.save(); ctx.shadowColor = 'rgba(20,8,0,.55)'; ctx.shadowBlur = 42; ctx.shadowOffsetX = 22; ctx.shadowOffsetY = 36; ctx.drawImage(im, 0, 0, 1080, 1920); ctx.restore(); }
       ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .1; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
       const vg = ctx.createRadialGradient(540, 900, 600, 540, 960, 1300); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.5)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, 1080, 1920);
@@ -3245,7 +3246,7 @@
     const salva = ctx; ctx = g2;
     try {
       if (modo !== 'teste') { try { ligaFeed(vagaFeed('reels'), 'reels', null, 0, 'base'); } catch (e) {} }
-      peca('polaroid_v', 540, 800, 1.15, -2, g => { const [x, y, w, h] = g.jan; if (photo) { ctx.save(); if ('filter' in ctx) ctx.filter = s.cor ? 'saturate(.9)' : 'grayscale(1) contrast(1.1) sepia(.12)'; cover(photo, x, y, w, h, s.t); ctx.restore(); } });
+      peca('polaroid_v', 540, 800, 1.15, -2, g => { const [x, y, w, h] = g.jan; if (photo) { ctx.save(); if ('filter' in ctx) ctx.filter = !s.pb ? 'saturate(.9)' : 'grayscale(1) contrast(1.1) sepia(.12)'; cover(photo, x, y, w, h, s.t); ctx.restore(); } });
       peca('tachinha', 540, 330, .6, 0);
       if (PECA('couroR_alto')) { const im = PECA('couroR_alto'); ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 34; ctx.shadowOffsetX = 14; ctx.shadowOffsetY = 24; ctx.drawImage(im, 0, 0, 1080, 1920); ctx.restore(); }
       if (modo !== 'teste') { try { ligaFeed(vagaFeed('reels'), 'reels', null, 0, 'alto'); } catch (e) {} }
@@ -3340,9 +3341,10 @@
     const usesImg = s.tipo === 'capa' || s.tipo === 'foto' || s.tipo === 'imagem' || s.tipo === 'print';
     $('marcar').hidden = !(s.tipo === 'print' && s.image); if ($('marcar').hidden) marcando = false; $('marcar').classList.toggle('on', marcando);
     $('img-row').hidden = !usesImg;
-    $('foto-cor').hidden = !(estilo === 'galeria' && s.image && s.tipo !== 'print');
-    $('foto-cor').setAttribute('aria-pressed', String(!!s.cor)); $('foto-cor').classList.toggle('on', !!s.cor);
-    $('foto-cor').textContent = s.cor ? '✓ Foto colorida' : 'Manter a cor';
+    $('foto-cor').hidden = !((estilo === 'galeria' || estilo === 'mesa') && s.image && s.tipo !== 'print');
+    if (estilo === 'mesa') { $('foto-cor').setAttribute('aria-pressed', String(!!s.pb)); $('foto-cor').classList.toggle('on', !!s.pb); $('foto-cor').textContent = s.pb ? '✓ Preto e branco' : 'Deixar em preto e branco'; }
+    else { $('foto-cor').setAttribute('aria-pressed', String(!!s.cor)); $('foto-cor').classList.toggle('on', !!s.cor);
+    $('foto-cor').textContent = s.cor ? '✓ Foto colorida' : 'Manter a cor'; }
     $('thumb').style.backgroundImage = s.image ? `url("${s.image}")` : '';
     $('attach').textContent = 'Da galeria';
     $('search').textContent = s.image ? 'Trocar foto' : 'Buscar foto';
@@ -3461,7 +3463,7 @@
   $('cta-tipo').onchange = () => { salvarCta(); $('cta-texto').hidden = !$('cta-tipo').value; changed(); if ($('cta-tipo').value && !$('cta-texto').value) $('cta-texto').focus(); };
   $('cta-texto').onchange = () => { salvarCta(); changed(); };
   $('chapeu').onchange = () => { const s = slide(), v = $('chapeu').value.trim(); if (v) s.chapeu = v; else delete s.chapeu; changed(); };
-  $('foto-cor').onclick = () => { const s = slide(); s.cor = !s.cor; if (!s.cor) delete s.cor; changed(); toast(s.cor ? 'Esta foto fica colorida (use quando a cor é o assunto).' : 'Foto em preto e branco.'); };
+  $('foto-cor').onclick = () => { const s = slide(); if (estilo === 'mesa') { s.pb = !s.pb; if (!s.pb) delete s.pb; changed(); toast(s.pb ? 'Esta foto fica em preto e branco.' : 'Foto colorida.'); return; } s.cor = !s.cor; if (!s.cor) delete s.cor; changed(); toast(s.cor ? 'Esta foto fica colorida (use quando a cor é o assunto).' : 'Foto em preto e branco.'); };
   const pintarEstilo = () => document.querySelectorAll('#estilo button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.e === estilo)));
   document.querySelectorAll('#estilo button').forEach(b => b.onclick = () => { estilo = b.dataset.e; ls.set(LS_ESTILO, estilo); pintarEstilo(); render(); updateUI(); try { frChave = ''; renderFrases(); } catch (e) {} toast(estilo === 'mesa' ? 'Estilo Mesa.' : estilo === 'galeria' ? 'Estilo Galeria.' : 'Estilo Vidro (antigo).'); });
   pintarEstilo();

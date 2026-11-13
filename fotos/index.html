@@ -340,7 +340,11 @@
         <button class="btn" id="reels-capa-teste" type="button">Capa de Reels · teste</button>
         <button class="btn" id="video-capa" type="button">▶ Capa em vídeo (5 s)</button>
         <button class="btn" id="video-reels" type="button">▶ Capa de Reels em vídeo</button>
+        <button class="btn" id="video-carrossel" type="button">▶ Carrossel inteiro em vídeo (Reels, com som)</button>
         <button class="btn" id="especial" type="button" aria-pressed="false">★ Caso especial (placa de latão)</button>
+        <button class="btn" id="fita-iso" type="button" aria-pressed="false">Fita de isolamento na capa</button>
+        <button class="btn" id="capa-envelope" type="button" aria-pressed="false">Capa envelope lacrado</button>
+        <div class="seg" id="status-caso" role="group" aria-label="Carimbo da capa"><button type="button" data-v="">Sem carimbo</button><button type="button" data-v="aberto">Caso aberto</button><button type="button" data-v="encerrado">Encerrado</button></div>
       </div>
       <div class="row">
         <span class="label">Stories</span>
@@ -649,7 +653,7 @@
   const LS_KEY = 'dan_editorial_v1';
   const LS_AVATAR = 'dan_editorial_avatar_v1';
   const LS_COR = 'dan_editorial_cor_v1';
-  const TIPOS = ['capa', 'texto', 'imagem', 'foto', 'lista', 'numero', 'comparar', 'fecho', 'tweet', 'destaque', 'pergunta', 'revela', 'print'];
+  const TIPOS = ['capa', 'texto', 'imagem', 'foto', 'lista', 'numero', 'comparar', 'fecho', 'tweet', 'destaque', 'pergunta', 'revela', 'print', 'uv', 'armadilha'];
   const PILARES = {
     'marca-decodificada': 'Marca Decodificada', 'olho-do-designer': 'Olho de quem cria',
     'ia-na-criacao': 'IA na Criação', 'bastidor': 'Bastidor dos 58M', 'repertorio': 'Repertório'
@@ -699,6 +703,8 @@
     else if (tipo === 'destaque') paras = asParas(s.texto || s.frase);
     else if (tipo === 'pergunta') paras = asParas(s.pergunta || s.texto).slice(0, 1).concat(asParas(s.opcoes));
     else if (tipo === 'revela') paras = asParas(s.resposta).slice(0, 1).concat(asParas(s.texto));
+    else if (tipo === 'uv') paras = asParas(s.texto).slice(0, 1).concat(asParas(s.oculto || s.revelado));
+    else if (tipo === 'armadilha') paras = asParas(s.texto || s.pergunta).slice(0, 1);
     else if (tipo === 'print') paras = [String(s.titulo || '')].concat(asParas(s.notas || s.texto));
     else if (tipo === 'capa' || tipo === 'fecho') paras = asParas(s.texto || s.manchete || s.pergunta).slice(0, 1).concat(asParas(s.texto || '').slice(1));
     else paras = asParas(s.texto || s.text);
@@ -712,6 +718,7 @@
     if (s.credito) out.credito = String(s.credito);
     if (s.fotoUrl) out.fotoUrl = String(s.fotoUrl);
     if (s.panorama) out.panorama = true;
+    if (s.carimbo) out.carimbo = String(s.carimbo).slice(0, 14);
     if (s.t) out.t = s.t;
     if (s.passo && /^\s*\d+\s*\/\s*\d+\s*$/.test(String(s.passo))) out.passo = String(s.passo).replace(/\s/g, '');
     if (s.marca) out.marca = true;
@@ -736,6 +743,7 @@
       grupo: o.grupo || '', versao: o.versao || '', fonte: o.fonte || '',
       reservaPara: o.reservaPara || 0, agora: !!o.agora, postadoEm: o.postadoEm || 0,
       capas: Array.isArray(o.capas) ? o.capas.map(String).filter(x => x.trim()).slice(0, 4) : [],
+      fita: !!o.fita, especial: !!o.especial, envelope: !!(o.envelope || o.capaEnvelope), status: ['aberto', 'encerrado'].includes(o.status) ? o.status : '',
       formato: o.formato === 'curto' || (o.formato !== 'twitter' && o.formato !== 'editorial' && Array.isArray(o.slides) && o.slides.length === 2 && o.slides[1] && o.slides[1].cta) ? 'curto' : o.formato === 'twitter' || (Array.isArray(o.slides) && o.slides.length && o.slides.every(x => x && x.tipo === 'tweet')) ? 'twitter' : 'editorial',
       frases: Array.isArray(o.frases) ? o.frases.slice(0, 2).map((f, k) => ({
         texto: String((f && (f.texto || f.frase)) || (typeof f === 'string' ? f : '')),
@@ -2285,7 +2293,7 @@
   // ─── Ligação do feed: objetos que cruzam a fronteira entre dois posts da mesma fileira do grid.
   //     O quadro do grid é 3:4: num post 4:5 o Instagram corta ~34 px de cada lado; num Reels 9:16, 240 px em cima e embaixo.
   //     Coordenadas do quadro: u 0..1 (largura), v 0..1 (altura). O objeto da borda direita da capa também continua no slide 2.
-  const LIGA_OBJ = ['lupa', 'fita', 'moedas', 'fio', 'regua', 'lacre'];
+  const LIGA_OBJ = ['lupa', 'fita', 'fio', 'regua', 'lacre'];
   function vagaFeed(tipo, nth) { // n-ésima vaga desse tipo a partir do próximo post
     const ordem = ['direita', 'meio', 'esquerda']; let achou = 0;
     for (let q = feed.postados; q < feed.postados + 60; q++) { const dia = Math.floor(q / 3), pos = ordem[q % 3]; if (trioDoDia(dia)[pos] === tipo) { if (achou === (nth || 0)) return { dia, pos }; achou++; } }
@@ -2298,7 +2306,7 @@
   }
   function ligaObj(dia, f) {
     const h = t => hashN('feed' + dia, f + t); let lista = LIGA_OBJ;
-    try { const t = trioDoDia(dia), par = f === 'em' ? [t.esquerda, t.meio] : [t.meio, t.direita]; lista = par.includes('frase') ? ['fita', 'fio', 'moedas', 'regua'] : ['lupa', 'fita', 'fio', 'lacre', 'moedas']; } catch (e) {}
+    try { const t = trioDoDia(dia), par = f === 'em' ? [t.esquerda, t.meio] : [t.meio, t.direita]; lista = par.includes('frase') ? ['fita', 'fio', 'regua'] : ['lupa', 'fita', 'fio', 'lacre']; } catch (e) {}
     return { nome: lista[Math.floor(h('o') * lista.length)], v: .36 + h('v') * .16, rot: -18 + h('r') * 36 };
   }
   function desenhaLiga(o, x, y, e) {
@@ -2319,6 +2327,9 @@
     const lados = [];
     if (vaga.pos !== 'direita') lados.push({ f: vaga.pos === 'esquerda' ? 'em' : 'md', u: 1 });
     if (vaga.pos !== 'esquerda' && so !== 'dir') lados.push({ f: vaga.pos === 'direita' ? 'md' : 'em', u: 0 });
+    ctx.save();
+    if (camada === 'alto' && TEXTO_RECTS.length) { ctx.beginPath(); ctx.rect(-50, -50, 1200, 2100); for (const [x, y, ww, hh] of TEXTO_RECTS) { ctx.moveTo(x - 10, y - 10); ctx.lineTo(x - 10, y + hh + 10); ctx.lineTo(x + ww + 10, y + hh + 10); ctx.lineTo(x + ww + 10, y - 10); ctx.closePath(); } ctx.clip('evenodd'); }
+    try {
     if (camada === 'alto' || so === 'dir') for (const l of lados) { const o = ligaObj(vaga.dia, l.f), [x, y] = map(l.u, o.v); desenhaLiga(o, x + (dx || 0), y, e); }
     if (so === 'dir') return;
     // ligações verticais: cada dia é uma fileira inteira, então o post de hoje encosta, embaixo, no post de ontem da mesma coluna.
@@ -2326,13 +2337,14 @@
     const col = { esquerda: 0, meio: 1, direita: 2 }[vaga.pos];
     const vs = [[vaga.dia + 1, 0]]; if (vaga.dia > 0) vs.push([vaga.dia, 1]);
     for (const [d, v] of vs) { const o = ligaVObj(d, col); if ((o.nome === 'folha') === (camada === 'base')) desenhaLigaV(o, map, e, v); }
+    } finally { ctx.restore(); }
   }
   // fronteira entre o dia d (em cima) e o dia d-1 (embaixo), na coluna col
   const LIGA_V = ['fio', 'fita', 'cafe', 'folha', 'postit', 'luz'];
   function ligaVObj(d, col) {
     const h = t => hashN('feedv' + d + ':' + col, t); let lista = LIGA_V;
     try { const pos = ['esquerda', 'meio', 'direita'][col], a = trioDoDia(d)[pos], b = trioDoDia(d - 1)[pos]; if (a === 'frase' || b === 'frase') lista = ['fita', 'fio', 'postit', 'cafe', 'luz']; } catch (e) {}
-    return { nome: lista[Math.floor(h('o') * lista.length)], u: .74 + h('u') * .08, rot: -10 + h('r') * 20 };
+    return { nome: lista[Math.floor(h('o') * lista.length)], u: .42 + h('u') * .1, rot: -10 + h('r') * 20 };
   }
   function desenhaLigaV(o, map, e, v) {
     const [x, y] = map(o.u, v);
@@ -2374,7 +2386,7 @@
   let LUZ = 1;
   const SEM_ESPELHO = ['regua', 'portfolio_base', 'portfolio_topo'];
   const LADO_ABAJUR = { A: [0, 1], B: [1, 0], C: [2, -1], D: [1, -1], E: [2, 1] };
-  function luzDe(id, i) { const V = 'ABCDE'[Math.floor(hashN(id, 'lum') * 5)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3, L = LADO_ABAJUR[V]; return L && L[0] === k && L[1] < 0 ? -1 : 1; }
+  function luzDe(id, i) { const V = 'ACDE'[Math.floor(hashN(id, 'lum') * 4)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3, L = LADO_ABAJUR[V]; return L && L[0] === k && L[1] < 0 ? -1 : 1; }
   function peca(nome, cx, cy, esc, rot, fn) {
     const im = PECA(nome), g = GEO[nome];
     ctx.save(); ctx.translate(cx, cy); ctx.rotate((rot || 0) * Math.PI / 180); ctx.scale(esc, esc); ctx.translate(-g.w / 2, -g.h / 2);
@@ -2454,6 +2466,30 @@
     });
     return y;
   }
+  // fita de isolamento (caso polêmico): só na capa, presa nos papéis — pedaço rasgado ou enrolada no canto da foto
+  function fitaIsolamento(c) {
+    const r = k => hashN(c.id, 'fz' + k), txt = ('NÃO ULTRAPASSE  ·  CASO ' + casoTxt(c) + '  ·  ÁREA ISOLADA  ·  ').repeat(4), larg = 74;
+    const trecho = (x1, y1, x2, y2, verso, rasgaIni, rasgaFim) => {
+      const ang = Math.atan2(y2 - y1, x2 - x1), L = Math.hypot(x2 - x1, y2 - y1), h = verso ? larg * .86 : larg;
+      ctx.save(); ctx.translate(x1, y1); ctx.rotate(ang);
+      const borda = (x, lado) => { const pts = []; for (let k = 0; k <= 8; k++) pts.push([x + (hashN(c.id, lado + k + x) - .5) * 22, -h / 2 + k * h / 8]); return pts; };
+      const a = rasgaIni ? borda(0, 'a') : [[0, -h / 2], [0, h / 2]], b = rasgaFim ? borda(L, 'b') : [[L, -h / 2], [L, h / 2]];
+      const forma = () => { ctx.beginPath(); ctx.moveTo(a[0][0], a[0][1]); ctx.lineTo(b[0][0], b[0][1]); b.forEach(q => ctx.lineTo(q[0], q[1])); ctx.lineTo(a[a.length - 1][0], a[a.length - 1][1]); a.slice().reverse().forEach(q => ctx.lineTo(q[0], q[1])); ctx.closePath(); };
+      ctx.save(); ctx.shadowColor = 'rgba(10,4,0,.55)'; ctx.shadowBlur = 16; ctx.shadowOffsetX = 6 * LUZ; ctx.shadowOffsetY = 12; forma(); ctx.fillStyle = verso ? '#B8920F' : '#F3C613'; ctx.fill(); ctx.restore();
+      ctx.save(); forma(); ctx.clip();
+      ctx.fillStyle = 'rgba(0,0,0,.9)'; ctx.fillRect(-20, -h / 2 + 5, L + 40, 6); ctx.fillRect(-20, h / 2 - 11, L + 40, 6);
+      if (!verso) { ctx.font = fontStr(SANS, 30, 800); spaced(3); ctx.fillStyle = '#111'; ctx.textBaseline = 'middle'; ctx.fillText(txt, 14 - r('o') * 200, 2); spaced(0); }
+      const gl = ctx.createLinearGradient(0, -h / 2, 0, h / 2); gl.addColorStop(0, 'rgba(255,255,255,.28)'); gl.addColorStop(.4, 'rgba(255,255,255,0)'); gl.addColorStop(1, 'rgba(0,0,0,.18)'); ctx.fillStyle = gl; ctx.fillRect(-20, -h / 2, L + 40, h);
+      ctx.restore(); ctx.restore();
+    };
+    if (r('t') > .5) { // pedaço rasgado solto sobre o canto da foto
+      const cx = 300 + r('x') * 60, cy = 210 + r('y') * 60, ang = (-24 - r('a') * 10) * Math.PI / 180, L = 620;
+      trecho(cx - Math.cos(ang) * L / 2, cy - Math.sin(ang) * L / 2, cx + Math.cos(ang) * L / 2, cy + Math.sin(ang) * L / 2, false, true, true);
+    } else { // enrolada no canto da polaroid: o verso aparece depois da dobra
+      trecho(70, 470, 520, 96, false, true, false);
+      trecho(520, 96, 640, 40, true, false, true);
+    }
+  }
   const estiloManchete = c => c.especial ? 'placa' : (hashN(c.id, 'estm') > .5 ? 'tira' : 'ficha');
   // placa de latão gravada (caso especial do mês)
   function placaLatao(c, chap, paras, s, yBase, maxH) {
@@ -2473,7 +2509,7 @@
     ctx.save(); const o2 = Object.assign({}, o, { color: 'rgba(255,240,200,.55)', em: 'rgba(255,240,200,.55)' }); gDesenha(L, o2, x + w / 2, ty + 2, 'center'); gDesenha(L, o, x + w / 2, ty, 'center'); ctx.restore();
     return y;
   }
-  function textoDesk(L, o, x, y) { ctx.save(); sombraTexto(true); gDesenha(L, o, x, y, 'left'); ctx.restore(); }
+  function textoDesk(L, o, x, y) { TEXTO_RECTS.push([x - 6, y - 12, CW + 12, L.h + 24]); ctx.save(); sombraTexto(true); gDesenha(L, o, x, y, 'left'); ctx.restore(); }
   function postitMesa(txt, seta, cx, cy, rot, esc) {
     peca('postit', cx, cy, esc || .82, rot, g => {
       const [ax, ay, aw, ah] = g.area; ctx.fillStyle = '#1D1830'; ctx.font = fontStr(MAO, 62, 700); ctx.textBaseline = 'alphabetic';
@@ -2489,13 +2525,56 @@
   }
   function off(w, h) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return [cv, cv.getContext('2d')]; }
   function gastar(g, w, h, forca) { g.save(); g.globalCompositeOperation = 'destination-out'; g.globalAlpha = forca; g.fillStyle = g.createPattern(graoPattern ? (() => { const [cv, gg] = off(64, 64); const d = gg.createImageData(64, 64); for (let k = 0; k < d.data.length; k += 4) { const v = Math.random(); d.data[k + 3] = v > .55 ? 255 : v * 120; } gg.putImageData(d, 0, 0); return cv; })() : null, 'repeat'); g.fillRect(0, 0, w, h); g.restore(); }
-  function carimboMesa(x, y, l1, l2, rot, cor) {
-    const [cv, g] = off(520, 220); g.strokeStyle = g.fillStyle = cor || '#A8221E';
+  function carimboMesa(x, y, l1, l2, rot, cor, esc) {
+    const [cv, g] = off(520, 220); g.strokeStyle = g.fillStyle = cor || '#A8221E'; esc = esc || .62;
     g.lineWidth = 8; g.beginPath(); g.roundRect ? g.roundRect(8, 8, 504, 204, 16) : g.rect(8, 8, 504, 204); g.stroke();
     g.lineWidth = 2.5; g.beginPath(); g.roundRect ? g.roundRect(22, 22, 476, 176, 10) : g.rect(22, 22, 476, 176); g.stroke();
-    g.textAlign = 'center'; g.font = fontStr(TYP, 70, 700); g.fillText(l1, 260, 112); g.font = fontStr(TYP, 28, 700); g.fillText(l2, 260, 168);
+    g.textAlign = 'center'; let t1 = 70; g.font = fontStr(TYP, t1, 700); while (g.measureText(l1).width > 456 && t1 > 30) { t1 -= 3; g.font = fontStr(TYP, t1, 700); } g.fillText(l1, 260, 88 + t1 * .34); let t2 = 28; g.font = fontStr(TYP, t2, 700); while (g.measureText(l2).width > 456 && t2 > 16) { t2 -= 2; g.font = fontStr(TYP, t2, 700); } g.fillText(l2, 260, 168);
     gastar(g, 520, 220, .55);
-    ctx.save(); ctx.translate(x, y); ctx.rotate(rot * Math.PI / 180); ctx.globalAlpha = .8; ctx.drawImage(cv, -260 * .62, -110 * .62, 520 * .62, 220 * .62); ctx.restore();
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot * Math.PI / 180); ctx.globalAlpha = .8; ctx.drawImage(cv, -260 * esc, -110 * esc, 520 * esc, 220 * esc); ctx.restore();
+  }
+  // impressão digital revelada com pó (sobre a foto, recortada na janela)
+  function digitalMesa(x, y, w, h, sd) {
+    const q = k => hashN(sd, 'dg' + k), cx = x + w * (.62 + q('x') * .26), cy = y + h * (.16 + q('y') * .3), R = Math.min(w, h) * .15, ang = (q('a') - .5) * 1.4;
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.translate(cx, cy); ctx.rotate(ang); ctx.globalCompositeOperation = 'screen';
+    ctx.lineCap = 'round'; ctx.lineWidth = R * .045;
+    for (let k = 0; k < 17; k++) { const rk = R * (.08 + k * .055); ctx.beginPath(); let on = false;
+      for (let t = 0; t <= Math.PI * 2 + .01; t += .07) { const br = hashN(sd, k + 'b' + Math.floor(t * 3)) > .86, rr2 = rk * (1 + .05 * Math.sin(t * 3 + k)), px = Math.cos(t) * rr2, py = Math.sin(t) * rr2 * 1.32 - (t > Math.PI ? 0 : k * R * .006);
+        if (br) { on = false; continue; } if (!on) { ctx.moveTo(px, py); on = true; } else ctx.lineTo(px, py); }
+      ctx.strokeStyle = `rgba(236,230,218,${.16 + .1 * (1 - k / 17)})`; ctx.stroke(); }
+    for (let k = 0; k < 140; k++) { const a = hashN(sd, 'pa' + k) * 6.283, d = R * (.3 + hashN(sd, 'pd' + k) * 1.3); ctx.fillStyle = `rgba(236,230,218,${.06 + hashN(sd, 'pt' + k) * .14})`; ctx.fillRect(Math.cos(a) * d, Math.sin(a) * d * 1.3, 1.6, 1.6); }
+    ctx.restore();
+  }
+  // carimbo de situação do caso (capa)
+  function statusCaso(c) { const ab = c.status !== 'encerrado'; carimboMesa(W - 245, 150, ab ? 'CASO ABERTO' : 'ENCERRADO', 'CASO ' + casoTxt(c) + ' · ' + dataMesa(), ab ? 9 : -8, ab ? '#B3201C' : '#22406E', .78); }
+  // capa envelope: a foto aparece por cima da aba, o envelope está lacrado e carimbado
+  function envelopeCapa(c) {
+    peca('envelope', W / 2, 720, 1.78, -2.5, g => carimboMesa(g.w * .5, g.h * .78, 'CONFIDENCIAL', 'CASO ' + casoTxt(c) + ' · ABRA →', -7, '#A8221E', .78));
+    if (PECA('lacre')) peca('lacre', W / 2 + 4, 716, .62, hashN(c.id, 'lc') * 90);
+  }
+  // slide 2 do envelope: o envelope já aberto, encostado no canto
+  function envelopeAberto(c) { peca('envelope', 190, 1180, 1.25, 14, g => carimboMesa(g.w * .55, g.h * .62, 'ABERTO', dataMesa() + ' · CASO ' + casoTxt(c), -5, '#6E1E1A', .7)); }
+  // lanterna de luz negra: escurece a sala e revela a tinta invisível dentro do círculo
+  function luzUV(lx, ly, R, ocultos, s) {
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(lx, ly, R, 0, Math.PI * 2, true); ctx.fillStyle = 'rgba(6,3,16,.62)'; ctx.fill('evenodd'); ctx.restore();
+    // feixe: da lanterna (canto de baixo) até o círculo
+    const hx = W - 120, hy = H - 70;
+    ctx.save(); ctx.globalCompositeOperation = 'screen'; const fb = ctx.createLinearGradient(hx, hy, lx, ly); fb.addColorStop(0, 'rgba(150,110,255,.35)'); fb.addColorStop(1, 'rgba(150,110,255,.05)');
+    const an = Math.atan2(ly - hy, lx - hx), px = Math.cos(an + Math.PI / 2), py = Math.sin(an + Math.PI / 2);
+    ctx.beginPath(); ctx.moveTo(hx + px * 30, hy + py * 30); ctx.lineTo(lx + px * R, ly + py * R); ctx.lineTo(lx - px * R, ly - py * R); ctx.lineTo(hx - px * 30, hy - py * 30); ctx.closePath(); ctx.fillStyle = fb; ctx.fill(); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.arc(lx, ly, R, 0, Math.PI * 2); ctx.clip();
+    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = '#A08CFF'; ctx.fillRect(lx - R, ly - R, R * 2, R * 2);
+    ctx.globalCompositeOperation = 'screen'; const gl = ctx.createRadialGradient(lx, ly, R * .1, lx, ly, R); gl.addColorStop(0, 'rgba(120,80,255,.28)'); gl.addColorStop(.85, 'rgba(120,80,255,.10)'); gl.addColorStop(1, 'rgba(200,170,255,.35)'); ctx.fillStyle = gl; ctx.fillRect(lx - R, ly - R, R * 2, R * 2);
+    ctx.globalCompositeOperation = 'source-over';
+    if (ocultos.length) { const o = { fam: MAO, w: 700, color: '#ECFFF9', em: '#ECFFF9', mark: 'rgba(0,0,0,0)', max: 66, min: 36, lh: 1.08, gap: .35, maxW: R * 1.5 }; const L = gFit(ocultos, o, R * 1.35);
+      ctx.shadowColor = 'rgba(120,250,255,.95)'; ctx.shadowBlur = 26; gDesenha(L, o, lx, ly - L.h / 2, 'center'); ctx.shadowBlur = 10; gDesenha(L, o, lx, ly - L.h / 2, 'center'); }
+    ctx.restore();
+    TEXTO_RECTS.push([lx - R, ly - R, R * 2, R * 2]);
+    // lanterna
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(an - Math.PI / 2); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 24; ctx.shadowOffsetX = 10 * LUZ; ctx.shadowOffsetY = 16;
+    const corpo = ctx.createLinearGradient(-38, 0, 38, 0); corpo.addColorStop(0, '#0d0d10'); corpo.addColorStop(.35, '#4a4a52'); corpo.addColorStop(.6, '#1c1c22'); corpo.addColorStop(1, '#060608');
+    ctx.fillStyle = corpo; ctx.fillRect(-34, -260, 68, 300); ctx.shadowColor = 'transparent'; ctx.fillStyle = corpo; ctx.fillRect(-48, 30, 96, 70);
+    ctx.fillStyle = '#B9A6FF'; ctx.fillRect(-40, 96, 80, 8); ctx.restore();
   }
   function cafeMesa(x, y, r) {
     ctx.save(); ctx.translate(x, y); ctx.lineCap = 'round';
@@ -2584,13 +2663,14 @@
   // espera as peças carregarem (stories e vídeo são gerados na hora)
   function carregaPecas(nomes) { return Promise.all(nomes.map(n => new Promise(r => { const t0 = Date.now(); const f = () => { let ok = false; try { ok = !!PECA(n); } catch (e) {} if (ok || Date.now() - t0 > 5000) r(); else setTimeout(f, 80); }; f(); }))); }
   const PECAS_STORY = ['couroR', 'couroR_alto', 'tachinha', 'polaroid_v', 'envelope', 'lupa', 'postit', 'fita'];
-  const nomeFundo = (id, i) => { const V = 'ABCDE'[Math.floor(hashN(id, 'lum') * 5)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3; return 'couro' + V + (k + 1); };
+  const nomeFundo = (id, i) => { const V = 'ACDE'[Math.floor(hashN(id, 'lum') * 4)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3; return 'couro' + V + (k + 1); };
   // objetos altos (abajur, pilha de livros) por cima dos cantos de fotos e papéis, com sombra
-  function altosMesa(nome, w, h) { const im = PECA(nome + '_alto'); if (!im) return; ctx.save();
+  const ALTOS_EXISTE = new Set(["couroA1_alto", "couroA2_alto", "couroB1_alto", "couroB2_alto", "couroC1_alto", "couroC2_alto", "couroC3_alto", "couroD1_alto", "couroD2_alto", "couroE1_alto", "couroE2_alto", "couroE3_alto", "couroR_alto"]);
+  function altosMesa(nome, w, h) { if (!ALTOS_EXISTE.has(nome + '_alto')) return; const im = PECA(nome + '_alto'); if (!im) return; ctx.save();
     if (TEXTO_RECTS.length) { ctx.beginPath(); ctx.rect(0, 0, w || W, h || H); for (const [x, y, ww, hh] of TEXTO_RECTS) { ctx.moveTo(x - 14, y - 14); ctx.lineTo(x - 14, y + hh + 14); ctx.lineTo(x + ww + 14, y + hh + 14); ctx.lineTo(x + ww + 14, y - 14); ctx.closePath(); } ctx.clip('evenodd'); } ctx.shadowColor = 'rgba(20,8,0,.55)'; ctx.shadowBlur = 42; ctx.shadowOffsetX = 22 * LUZ; ctx.shadowOffsetY = 36; if ('filter' in ctx) ctx.filter = 'blur(1.1px)'; ctx.drawImage(im, 0, 0, w || W, h || H); ctx.restore(); }
   function fundoMesa(c, i) {
     const k = (i + Math.floor(hashN(c.id, 'f') * 3)) % 3;
-    const nome = PECA(nomeFundo(c.id, i)) ? nomeFundo(c.id, i) : MESA_FUNDOS[k], im = PECA(nome);
+    const nome = nomeFundo(c.id, i), im = PECA(nome);
     if (im) ctx.drawImage(im, 0, 0, W, H); else { const gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#3b2416'); gr.addColorStop(1, '#140b06'); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H); }
   }
   function folioMesa(i, n, c) {
@@ -2645,6 +2725,7 @@
     P.cruz = P.cruz.filter(o => o.tipo !== 'porta');
     P.slides.forEach((x, k) => { if (x.trat === 'porta') P.cruz.push({ k, tipo: 'porta', camada: 'base' }); });
     cruzMesa(c, i, 'base');
+    if (c.envelope && i === 1) envelopeAberto(c);
     if (i <= 1 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', i === 1 ? 'dir' : null, i === 1 ? -W : 0, 'base'); } catch (e) {} } // ligação do feed: o que fica por baixo do conteúdo
     const _M = M, _CW = CW;
     if (P.slides[i - 1] && P.slides[i - 1].trat === 'pasta') { M = 300; CW = W - M - 96; }
@@ -2652,11 +2733,11 @@
     try {
     const pe = H - 120 + a.y, chap = s.chapeu || (s.passo ? 'Passo ' + s.passo.replace('/', ' de ') : '');
     const cta = s.cta && s.cta.texto && s.tipo !== 'fecho';
-    const fotoPolaroid = (cx, cy, esc, rot, vert) => {
-      const nome = vert ? 'polaroid_v' : 'polaroid_h';
+    const fotoPolaroid = (cx, cy, esc, rot, vert, op) => {
+      const nome = vert ? 'polaroid_v' : 'polaroid_h'; op = op || {}; const ph = 'im' in op ? op.im : photo, sl = op.s || s, ik = 'i' in op ? op.i : i;
       peca(nome, cx, cy, esc, rot, g => {
         const [x, y, w, h] = g.jan;
-        if (photo) { ctx.save(); if ('filter' in ctx) ctx.filter = s.cor ? 'saturate(.9) contrast(1.05)' : 'grayscale(1) contrast(1.1) sepia(.12)'; cover(photo, x, y, w, h, s.t); ctx.restore(); if (hashN(c.id, i + 'dt') > .35) dataFoto(x, y, w, h); }
+        if (ph) { ctx.save(); if ('filter' in ctx) ctx.filter = sl.cor ? 'saturate(.9) contrast(1.05)' : 'grayscale(1) contrast(1.1) sepia(.12)'; if (op.espelho) { ctx.translate(x * 2 + w, 0); ctx.scale(-1, 1); } cover(ph, x, y, w, h, sl.t); ctx.restore(); if (hashN(c.id, ik + 'dt') > .35) dataFoto(x, y, w, h); if (hashN(c.id, ik + 'dg') > .62) digitalMesa(x, y, w, h, c.id + ik); }
         else { ctx.fillStyle = '#6b6258'; ctx.fillRect(x, y, w, h); }
       });
       return pontoPeca(nome, cx, cy, esc, rot, GEO[nome].w / 2, 60);
@@ -2702,7 +2783,12 @@
       return pontoPeca(nome, cx, cy, esc, rot, GEO[nome].w / 2, 60);
     };
     if (s.tipo === 'capa') {
-      pin = fotoPolaroid(W / 2 + 10, 520, 1.02, -2.5 + r * 2);
+      // um recurso de atenção por capa, nunca somados: envelope > fita > carimbo de situação > carimbo vermelho
+      const rec = c.envelope ? 'envelope' : c.fita ? 'fita' : c.status ? 'status' : s.carimbo ? 'carimbo' : '';
+      if (rec === 'envelope') { pin = fotoPolaroid(W / 2 + 20, 380, .84, 3 + r * 2); envelopeCapa(c); }
+      else pin = fotoPolaroid(W / 2 + 10, 520, 1.02, -2.5 + r * 2);
+      if (rec === 'fita') fitaIsolamento(c);
+      if (rec === 'status') statusCaso(c);
       if (!photo && false) {}
       let yB = cta ? ctaMesa(pe) - 40 : pe;
       manchetePapel(c, chap, s.paras.slice(0, 1), s, yB, estiloManchete(c), 300);
@@ -2773,8 +2859,18 @@
       else blocos = [{ chap: chap || (s.tipo === 'revela' ? 'A resposta' : (i === 1 ? 'O caso' : '')) }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: i === 1 ? 92 : 80, min: 48 }), gap: 46, maxH: 520 }, s.paras.length > 1 ? { paras: s.paras.slice(1), o: oTyp(s), maxH: 480 } : null].filter(b => b && (b.paras || b.chap));
       pin = papelTexto(ficha ? 'ficha' : 'folha', W / 2 + (r - .5) * 30, 690, 1.07, (r - .5) * 4, blocos);
       if (s.tipo === 'destaque') peca(P.maco === 'lacre_tri' && PECA('lacre_tri') ? 'lacre_tri' : 'lacre', W - 230, 1080, .9, r * 90);
-      if (hashN(c.id, i + 'm') > .7) peca('moedas', 150, 1180, .9, r * 120);
       if (cta) ctaMesa(pe);
+    } else if (s.tipo === 'uv') {
+      const vis = s.paras.slice(0, 1), ocu = s.paras.slice(1).filter(t => t.trim());
+      pin = papelTexto('folha', W / 2 + (r - .5) * 20, 690, 1.07, (r - .5) * 3, [{ chap: chap || 'Leia com a luz certa' }, { paras: vis, o: oPapel(s, { max: 70, min: 42 }), gap: 40, maxH: 330 }]);
+      luzUV(W / 2, 905 + a.y * .5, 300, ocu, s);
+      if (cta) ctaMesa(pe);
+    } else if (s.tipo === 'armadilha') {
+      const ci = Math.max(0, c.slides.findIndex(x => x.tipo === 'capa')), capaS = c.slides[ci];
+      pin = fotoPolaroid(W / 2 + 10, 520, 1.02, -2.5 + hashN(c.id, ci) * 2, false, { im: capaS ? img(capaS.image) : null, s: capaS || s, espelho: true, i: ci });
+      postitMesa('compare\ncom a\ncapa', 'esq', 200, 215, -6, .64);
+      const yB = cta ? ctaMesa(pe) - 40 : pe;
+      manchetePapel(c, chap || 'Teste de atenção', s.paras.slice(0, 1), s, yB, 'ficha', 300, { max: 76, min: 46 });
     } else if (s.tipo === 'numero') {
       chapeuMesa(chap || 'O número', M, 190 + a.y);
       const num = String(s.paras[0] || ''); let ns = Math.round(300 * a.t); ctx.font = fontStr(TIT, ns, 400); while (ctx.measureText(num).width > CW && ns > 120) { ns -= 10; ctx.font = fontStr(TIT, ns, 400); }
@@ -2784,12 +2880,21 @@
       if (PECA('regua')) peca('regua', M + 250, H - 190, 1.0, -3 + r * 4);
       if (P.maco === 'prumo' && PECA('prumo')) peca('prumo', W - 300, H - 330, 1.0, -15 + r * 20); else peca('esquadro', W - 250, H - 300, 1.0, -10 + r * 20);
       if (cta) ctaMesa(pe);
+    } else if (s.tipo === 'pergunta' && s.paras.slice(1).some(t => t.trim())) {
+      const ops = s.paras.slice(1).filter(t => t.trim()).slice(0, 3), nq = ops.length, gw = 28, cw = Math.min(330, (W - M * 2 - gw * (nq - 1)) / nq), y0 = 650 + a.y;
+      manchetePapel(c, chap || 'Qual é a original?', s.paras.slice(0, 1), s, 600 + a.y, 'ficha', 430, { max: 84, min: 48 });
+      ops.forEach((t, k) => { const x = (W - (cw * nq + gw * (nq - 1))) / 2 + k * (cw + gw), rot = (hashN(c.id, 'op' + k) - .5) * 4;
+        const o = { fam: SANS, w: 500, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 34, min: 22, lh: 1.15, gap: .3, maxW: cw - 50 };
+        const L = gFit([t], o, 330), h = Math.max(300, L.h + 180);
+        papelSombra(x, y0, cw, h, rot, '#F4EEE0', () => { ctx.fillStyle = '#1C1712'; ctx.font = fontStr(TIT, 96, 400); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'; ctx.fillText('ABC'[k], 24, 104); ctx.fillStyle = 'rgba(196,80,70,.55)'; ctx.fillRect(0, 128, cw, 3); gDesenha(L, o, 25, 156, 'left'); });
+        peca('tachinha', x + cw / 2, y0 + 10, .42, 0); });
+      postitMesa('a resposta\nestá no\npróximo', 'direita', W - 200, H - 150, 4, .55);
     } else if (s.tipo === 'destaque' || s.tipo === 'pergunta') {
       const yB = cta ? ctaMesa(pe) - 60 : pe;
+      if (s.tipo === 'destaque') { if (P.maco === 'prumo' && PECA('prumo')) peca('prumo', W - 300, H - 280, 1.0, 8 + r * 10); else peca('esquadro', W - 230, H - 260, .9, 8 + r * 10); }
       if (s.tipo === 'pergunta') manchetePapel(c, chap || 'Responda de cabeça', s.paras.slice(0, 1), s, Math.min(yB, H / 2 + 300 + a.y), 'ficha', 520, { max: 92, min: 56 });
       else manchetePapel(c, chap || 'O que eu acho', s.paras.slice(0, 9), s, Math.min(yB, H / 2 + 330 + a.y), 'tira', 640, { max: 96, min: 56 });
       if (s.tipo === 'pergunta') postitMesa('a resposta\nestá no\npróximo', 'direita', W - 250, H - 300, 4);
-      else if (P.maco === 'prumo' && PECA('prumo')) peca('prumo', W - 300, H - 280, 1.0, 8 + r * 10); else peca('esquadro', W - 230, H - 260, .9, 8 + r * 10);
     } else if (s.tipo === 'fecho') {
       const capaS = c.slides.find(x => x.tipo === 'capa'), ff = capaS ? img(capaS.image) : null;
       pin = [W - 260, 200];
@@ -2804,6 +2909,7 @@
     } else {
       const o = oTit(s); const L = gFit(s.paras.length ? s.paras : [' '], o, 600); chapeuMesa(chap, M, 300 + a.y); textoDesk(L, o, M, 330 + a.y);
     }
+    if (s.carimbo && !(s.tipo === 'capa' && (c.envelope || c.fita || c.status))) { const emPapel = ['texto', 'lista', 'comparar', 'revela'].includes(s.tipo); carimboMesa(s.tipo === 'capa' ? 250 : W - 250, s.tipo === 'capa' ? 150 : emPapel ? H - 260 + a.y * .3 : 235, String(s.carimbo).toUpperCase().slice(0, 14), 'CASO ' + casoTxt(c), -9 + r * 6, '#B3201C', .74); }
     // abajur e livros por cima, só onde o canto não tem texto (capa, fotos, número, fecho)
     if (['capa', 'imagem', 'foto', 'print', 'numero', 'destaque', 'pergunta'].includes(s.tipo) && ps.trat !== 'porta' && !ps.porta && !ps.cheio) altosMesa(nomeFundo(c.id, i));
     cruzMesa(c, i, 'alto');
@@ -2823,7 +2929,7 @@
   function drawFraseMesa(fr) {
     const txt = (fr.texto || '').trim() || 'Escreva a frase ao lado.', para = (fr.para || '').trim(), id = 'fr' + txt.length + txt.slice(0, 12);
     ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left';
-    const nf = PECA(nomeFundo(id, 0)) ? nomeFundo(id, 0) : MESA_FUNDOS[Math.floor(hashN(id, 'f') * 3)]; LUZ = luzDe(id, 0); TEXTO_RECTS = [];
+    const nf = nomeFundo(id, 0); LUZ = luzDe(id, 0); TEXTO_RECTS = [];
     const fundo = PECA(nf); if (fundo) ctx.drawImage(fundo, 0, 0, W, H); else { ctx.fillStyle = '#2a170c'; ctx.fillRect(0, 0, W, H); }
     const r = hashN(id, 'r'), nome = r > .5 && PECA('folha_dobra') ? 'folha_dobra' : 'folha';
     const fp = fr.foto ? img(fr.foto) : null;
@@ -2840,7 +2946,6 @@
       ctx.restore();
       peca('tachinha', W / 2, H / 2 - 10 - fh / 2 - 6, .55, 0);
       if ((fr.texto || '').trim()) { const c0 = { id: id }; const sM = M; try { manchetePapel(c0, '', [txt], {}, H - 70, 'tira', 200); } finally { M = sM; } }
-      altosMesa(nf);
       try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {}
       const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.4)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
       ctx.restore(); LUZ = 1; return;
@@ -2850,6 +2955,7 @@
       try {
         const o = { fam: TIT, w: 400, emIt: true, lh: 1.04, ls: -0.012, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 104, min: 54, gap: .45, maxW: aw - pad * 2 };
         const L = gFit([txt], o, 700); const y = ay + Math.max(150, (ah - L.h) / 2 - 60); gDesenha(L, o, ax + pad, y, 'left');
+        TEXTO_RECTS.push([120, 690 - 620 + y - 40, 840, L.h + 200]);
         { const t = '— ' + (para || 'D.B.'); let tam = 54; ctx.font = fontStr(MAO, tam, 700); while (ctx.measureText(t).width > aw - pad * 2 && tam > 30) { tam -= 2; ctx.font = fontStr(MAO, tam, 700); } maoMesa(t, ax + pad, y + L.h + 90, tam, INK_AZUL, -2); }
         if (r > .3) carimboMesa(ax + aw - 200, ay + ah - 130, 'ANOTADO', dataMesa(), -7);
       } finally { CW = saveCW; }
@@ -2859,15 +2965,78 @@
     try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {}
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
     const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
-    ctx.restore();
+    ctx.restore(); LUZ = 1;
+  }
+  // ─── Som da marca: máquina de escrever (teclas + sino), gerado na hora e gravado junto com o vídeo
+  async function somMaquina() {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    try {
+      const a = new AC(); try { await Promise.race([a.resume(), new Promise(r => setTimeout(r, 500))]); } catch (e) {}
+      if (a.state !== 'running') { try { a.close(); } catch (e) {} return null; }
+      const dest = a.createMediaStreamDestination(), mix = a.createGain(); mix.gain.value = .85; mix.connect(dest);
+      const sr = a.sampleRate, bufR = (dur, dec) => { const b = a.createBuffer(1, Math.floor(sr * dur), sr), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * Math.exp(-k / (sr * dec)); return b; };
+      const clique = bufR(.07, .007), sopro = bufR(.5, .18);
+      const T = t => a.currentTime + t;
+      const tecla = (t, forte) => {
+        const src = a.createBufferSource(); src.buffer = clique; src.playbackRate.value = .8 + Math.random() * .5;
+        const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1700 + Math.random() * 1500; f.Q.value = .8; const g = a.createGain(); g.gain.value = forte ? 1 : .6;
+        src.connect(f); f.connect(g); g.connect(mix); src.start(T(t));
+        const o = a.createOscillator(), og = a.createGain(); o.frequency.value = 120 + Math.random() * 50; og.gain.setValueAtTime(forte ? .45 : .3, T(t)); og.gain.exponentialRampToValueAtTime(.001, T(t) + .06); o.connect(og); og.connect(mix); o.start(T(t)); o.stop(T(t) + .07);
+      };
+      const sino = t => { for (const [fq, v] of [[2093, .22], [4186, .07], [3140, .05]]) { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = fq; g.gain.setValueAtTime(0, T(t)); g.gain.linearRampToValueAtTime(v, T(t) + .004); g.gain.exponentialRampToValueAtTime(.0008, T(t) + 1.5); o.connect(g); g.connect(mix); o.start(T(t)); o.stop(T(t) + 1.6); } };
+      const papel = t => { const src = a.createBufferSource(); src.buffer = sopro; const f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = .6; f.frequency.setValueAtTime(700, T(t)); f.frequency.exponentialRampToValueAtTime(3200, T(t) + .4); const g = a.createGain(); g.gain.setValueAtTime(0, T(t)); g.gain.linearRampToValueAtTime(.35, T(t) + .12); g.gain.exponentialRampToValueAtTime(.001, T(t) + .5); src.connect(f); f.connect(g); g.connect(mix); src.start(T(t)); };
+      // assinatura: sempre o mesmo ritmo de 6 teclas e o sino — vira a vinheta sonora do perfil
+      const assinatura = t0 => { [0, .12, .21, .36, .44, .56].forEach((d, k) => tecla(t0 + d, k === 5)); sino(t0 + .82); };
+      return { a, dest, tecla, sino, papel, assinatura, fim: () => { try { a.close(); } catch (e) {} } };
+    } catch (e) { return null; }
+  }
+  function gravador(cv, som) {
+    if (!window.MediaRecorder || !cv.captureStream) throw new Error('Este navegador não grava vídeo.');
+    const vt = cv.captureStream(30).getVideoTracks(), at = som ? som.dest.stream.getAudioTracks() : [], st = new MediaStream(vt.concat(at));
+    const tipos = at.length ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,opus', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'] : ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+    const mime = tipos.find(t => MediaRecorder.isTypeSupported(t)); if (!mime) throw new Error('Este navegador não grava vídeo.');
+    const rec = new MediaRecorder(st, { mimeType: mime, videoBitsPerSecond: 9e6, audioBitsPerSecond: 128000 }), partes = []; rec.ondataavailable = e => e.data.size && partes.push(e.data);
+    const pronto = new Promise(res => rec.onstop = () => res(new Blob(partes, { type: mime.split(';')[0] })));
+    return { rec, mime, pronto };
+  }
+  // ─── Vídeo do carrossel inteiro: a câmera anda pela mesa contínua, slide a slide, com a lupa passando no slide 2
+  async function videoCarrossel(c, quadros, fmt) {
+    const reels = fmt === 'reels', w = 1080, h = reels ? 1920 : 1350, oy = reels ? Math.round((1920 - 1350) / 2) : 0;
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d');
+    let bg = null; if (reels) { bg = document.createElement('canvas'); bg.width = w; bg.height = h; const gb = bg.getContext('2d'); const f = PECA('couroR'); if (f) { if ('filter' in gb) gb.filter = 'blur(6px) brightness(.55)'; gb.drawImage(f, 0, 0, w, h); gb.filter = 'none'; } else { gb.fillStyle = '#1a0f08'; gb.fillRect(0, 0, w, h); } }
+    const palavras = k => (c.slides[k].paras || []).join(' ').split(/\s+/).filter(Boolean).length;
+    const hold = quadros.map((q, k) => Math.min(5.2, Math.max(2.2, 1.6 + palavras(k) * .075)) + (k === 0 ? .8 : 0) + (k === 1 ? 1.2 : 0)), TR = .8;
+    const marcos = []; let acc = 0; hold.forEach((d, k) => { marcos.push({ k, ini: acc, fim: acc + d }); acc += d + (k < quadros.length - 1 ? TR : 0); }); const total = acc + .6;
+    const titulo = 'CASO ' + casoTxt(c), som = await somMaquina(), { rec, mime, pronto } = gravador(cv, som), grao = graoPattern();
+    const ease = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    if (som) { som.assinatura(.2); marcos.forEach(m => { if (m.k < quadros.length - 1) som.papel(m.fim + .1); }); som.sino(total - 1.1); }
+    let t0 = null;
+    const quadro = ts => { try { quadroC(ts); } catch (e) { console.error(e); setTimeout(() => rec.stop(), 50); } };
+    const quadroC = ts => {
+      if (t0 === null) t0 = ts; const t = (ts - t0) / 1000;
+      g.setTransform(1, 0, 0, 1, 0, 0); if (bg) g.drawImage(bg, 0, 0); else { g.fillStyle = '#000'; g.fillRect(0, 0, w, h); }
+      const m = marcos.find(x => t < x.fim + (x.k < quadros.length - 1 ? TR : 99)) || marcos[marcos.length - 1];
+      if (t <= m.fim || m.k >= quadros.length - 1) g.drawImage(quadros[m.k], 0, oy);
+      else { const p = ease(Math.min(1, (t - m.fim) / TR)), x = Math.round(-p * 1080); g.drawImage(quadros[m.k], x, oy); g.drawImage(quadros[m.k + 1], x + 1080, oy); }
+      // lupa passeando no slide 2
+      if (m.k === 1 && t <= m.fim && quadros.length > 1) { const u = Math.min(1, (t - m.ini) / (m.fim - m.ini)), lx = 240 + 600 * u, ly = oy + 430 + 380 * Math.sin(u * Math.PI) + 40 * Math.sin(u * 9);
+        const salva = ctx; ctx = g; try { lupaSobre(lx, ly, .62, 1.8); } finally { ctx = salva; } }
+      if (reels) { // faixa de cima: número do caso batido à máquina; embaixo: posição no arquivo
+        const nch = Math.max(0, Math.min(titulo.length, Math.floor((t - .2) / .1) + 1)); g.save(); g.font = fontStr(TYP, 44, 700); g.textAlign = 'center'; g.fillStyle = 'rgba(240,228,205,.92)'; g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 12; g.fillText(titulo.slice(0, nch), w / 2, oy - 90); g.restore();
+        g.save(); quadros.forEach((q, k) => { g.beginPath(); g.arc(w / 2 + (k - (quadros.length - 1) / 2) * 30, oy + 1350 + 90, k === m.k ? 7 : 4.5, 0, Math.PI * 2); g.fillStyle = k === m.k ? 'rgba(240,210,140,.95)' : 'rgba(240,228,205,.4)'; g.fill(); }); g.restore(); }
+      g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = .07; g.translate((t * 977) % 64, (t * 613) % 64); g.fillStyle = grao; g.fillRect(-64, -64, w + 128, h + 128); g.restore();
+      if (t > total - .6) { g.fillStyle = `rgba(0,0,0,${Math.min(1, (t - (total - .6)) / .6)})`; g.fillRect(0, 0, w, h); }
+      if (t < total) requestAnimationFrame(quadro); else setTimeout(() => rec.stop(), 120);
+    };
+    rec.start(250); requestAnimationFrame(quadro);
+    const blob = await pronto; if (som) som.fim();
+    return { blob, ext: mime.includes('mp4') ? 'mp4' : 'webm', seg: Math.round(total) };
   }
   async function videoCapa(c, fmt, base) {
     const w = base.width, h = base.height, cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d');
-    const V = 'ABCDE'[Math.floor(hashN(c.id, 'lum') * 5)], lado = (LADO_ABAJUR[V] || [0, 1])[1];
+    const V = 'ACDE'[Math.floor(hashN(c.id, 'lum') * 4)], lado = (LADO_ABAJUR[V] || [0, 1])[1];
     const lx = fmt === 'reels' ? (lado < 0 ? 900 : 180) : (lado < 0 ? 900 : lado > 0 ? 180 : 540), ly = fmt === 'reels' ? 140 : 110;
-    const tipos = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'], mime = tipos.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
-    if (!mime) throw new Error('Este navegador não grava vídeo.');
-    const st = cv.captureStream(30), rec = new MediaRecorder(st, { mimeType: mime, videoBitsPerSecond: 9e6 }), partes = []; rec.ondataavailable = e => e.data.size && partes.push(e.data);
+    const som = await somMaquina(), { rec, mime, pronto } = gravador(cv, som);
     const poeira = Array.from({ length: 90 }, (_, k) => ({ x: hashN(c.id, 'px' + k), y: hashN(c.id, 'py' + k), r: .6 + hashN(c.id, 'pr' + k) * 2.2, v: .2 + hashN(c.id, 'pv' + k), f: hashN(c.id, 'pf' + k) * 6.28 }));
     const grao = graoPattern(); const T = 5000; let t0 = null;
     const quadro = ts => {
@@ -2885,15 +3054,15 @@
       g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = .08; g.translate((t * 977) % 64, (t * 613) % 64); g.fillStyle = grao; g.fillRect(-64, -64, w + 128, h + 128); g.restore();
       if (t < 1) requestAnimationFrame(quadro); else setTimeout(() => rec.stop(), 120);
     };
-    const pronto = new Promise(res => rec.onstop = () => res(new Blob(partes, { type: mime.split(';')[0] })));
-    rec.start(200); requestAnimationFrame(quadro);
-    return { blob: await pronto, ext: mime.includes('mp4') ? 'mp4' : 'webm' };
+    rec.start(200); if (som) som.assinatura(.25); requestAnimationFrame(quadro);
+    const blob = await pronto; if (som) som.fim();
+    return { blob, ext: mime.includes('mp4') ? 'mp4' : 'webm' };
   }
   // ─── Stories (1080×1920): só o desenho, com sua foto e o número do caso; você escreve por cima com as fontes do Instagram
   function storyMesa(c, modelo) {
     const cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1920; const g2 = cv.getContext('2d'), salva = ctx; ctx = g2; LUZ = 1; TEXTO_RECTS = [];
     try {
-      const f = PECA('couroR') || PECA('mesa_reels'); if (f) ctx.drawImage(f, 0, 0, 1080, 1920); else { ctx.fillStyle = '#2a170c'; ctx.fillRect(0, 0, 1080, 1920); }
+      const f = PECA('couroR'); if (f) ctx.drawImage(f, 0, 0, 1080, 1920); else { ctx.fillStyle = '#2a170c'; ctx.fillRect(0, 0, 1080, 1920); }
       const papel = (x, y, w, h, rot, cor, fn) => papelSombra(x, y, w, h, rot, cor, fn);
       if (modelo === 'texto') { // bloco amarelo pautado
         papel(90, 300, 900, 1260, -1.5, '#FAE282', () => { ctx.fillStyle = '#3C221A'; ctx.fillRect(0, 0, 900, 70); for (let x = 20; x < 900; x += 40) { ctx.fillStyle = '#1E120C'; ctx.beginPath(); ctx.arc(x + 6, 64, 6, 0, Math.PI * 2); ctx.fill(); }
@@ -2924,8 +3093,8 @@
   // capa de Reels 1080×1920 sem o título (para pôr a headline no Edits): foto e objetos dentro da área 3:4 do centro
   function capaReels(c, modo) {
     const cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1920;
-    const g2 = cv.getContext('2d'), s = c.slides[0], photo = img(s.image);
-    const fundo = PECA('couroR') || PECA('mesa_reels') || PECA('mesa1');
+    const g2 = cv.getContext('2d'), s = c.slides[0], photo = img(s.image); LUZ = 1; TEXTO_RECTS = [];
+    const fundo = PECA('couroR');
     if (fundo) { const ir = fundo.naturalWidth / fundo.naturalHeight; const h = 1920, w = h * ir; g2.drawImage(fundo, (1080 - w) / 2, 0, w, h); } else { g2.fillStyle = '#1e120a'; g2.fillRect(0, 0, 1080, 1920); }
     const salva = ctx; ctx = g2;
     try {
@@ -3401,6 +3570,9 @@
   const pintaEspecial = () => { const c = active(); $('especial').setAttribute('aria-pressed', c && c.especial ? 'true' : 'false'); $('especial').classList.toggle('postado-on', !!(c && c.especial)); };
   $('especial').onclick = () => { const c = active(); if (!c) return; c.especial = !c.especial; changed(); pintaEspecial(); toast(c.especial ? 'Caso especial: a capa ganha a placa de latão. Use 1 vez por mês.' : 'Capa volta para papel.'); };
   setInterval(pintaEspecial, 1500);
+  const pintaFita = () => { const c = active(); $('fita-iso').setAttribute('aria-pressed', c && c.fita ? 'true' : 'false'); $('fita-iso').classList.toggle('postado-on', !!(c && c.fita)); };
+  $('fita-iso').onclick = () => { const c = active(); if (!c) return; c.fita = !c.fita; if (c.fita) { c.envelope = false; c.status = ''; } changed(); pintaFita(); toast(c.fita ? 'Fita de isolamento na capa: para casos polêmicos. Fica só neste post.' : 'Fita removida.'); };
+  setInterval(pintaFita, 1500);
   document.querySelectorAll('#stories button').forEach(b => b.onclick = async () => {
     const c = active(); if (!c) return; await carregaPecas(PECAS_STORY); const cv = storyMesa(c, b.dataset.s), bl = await new Promise(r => cv.toBlob(r, 'image/png'));
     const r = await saveFile(`${slug(c.title)}-story-${b.dataset.s}.png`, bl);
@@ -3408,6 +3580,22 @@
     const box = $('overlay-imgs'); box.innerHTML = ''; const im = document.createElement('img'); im.src = cv.toDataURL('image/png'); box.append(im); $('overlay').hidden = false; document.body.style.overflow = 'hidden';
   });
   $('reels-capa-teste').onclick = () => baixarCapaReels('teste');
+  const pintaEnv = () => { const c = active(); $('capa-envelope').setAttribute('aria-pressed', c && c.envelope ? 'true' : 'false'); $('capa-envelope').classList.toggle('postado-on', !!(c && c.envelope)); document.querySelectorAll('#status-caso button').forEach(b => b.setAttribute('aria-pressed', ((c && c.status) || '') === b.dataset.v ? 'true' : 'false')); };
+  $('capa-envelope').onclick = () => { const c = active(); if (!c) return; c.envelope = !c.envelope; if (c.envelope) { c.fita = false; c.status = ''; } changed(); pintaEnv(); toast(c.envelope ? 'Capa envelope: a foto sai do envelope lacrado e o slide 2 mostra o envelope aberto.' : 'Capa volta para a polaroid.'); };
+  document.querySelectorAll('#status-caso button').forEach(b => b.onclick = () => { const c = active(); if (!c) return; c.status = b.dataset.v; if (c.status) { c.fita = false; c.envelope = false; } changed(); pintaEnv(); });
+  setInterval(pintaEnv, 1500);
+  $('video-carrossel').onclick = async () => {
+    const c = active(); if (!c) return; const bt = $('video-carrossel'), txt = bt.textContent, volta = state.cur; bt.disabled = true; bt.textContent = 'Preparando os slides…';
+    try {
+      await carregaPecas(PECAS_STORY.concat([...new Set(c.slides.map((x, k) => nomeFundo(c.id, k)))]));
+      const quadros = []; for (let k = 0; k < c.slides.length; k++) { go(k); render(); await new Promise(r => setTimeout(r, 60)); render(); const q = document.createElement('canvas'); q.width = W; q.height = H; q.getContext('2d').drawImage(canvas, 0, 0); quadros.push(q); }
+      go(volta); bt.textContent = 'Gravando… (deixe esta aba aberta)';
+      const { blob, ext, seg } = await videoCarrossel(c, quadros, 'reels');
+      await saveFile(`${slug(c.title)}-carrossel-video.${ext}`, blob);
+      toast(`Vídeo de ${seg} s salvo (${ext.toUpperCase()}), com a assinatura de máquina de escrever. Poste como Reels com a mesma legenda do carrossel.`);
+    } catch (e) { toast('Não deu para gravar o vídeo aqui: ' + (e.message || e)); }
+    finally { bt.disabled = false; bt.textContent = txt; }
+  };
   function pintarAjuste() {
     const s = slide(); if (!s || !$('af-t')) return; const a = aj(s);
     $('af-t').textContent = Math.round(a.t * 100) + '%'; $('af-c').textContent = Math.round(a.c * 100) + '%'; $('af-y').textContent = String(a.y); $('af-g').textContent = Math.round(a.g * 100) + '%';
@@ -3563,10 +3751,23 @@ TIPOS DE SLIDE (campo "tipo"):
 - "destaque": {"tipo":"destaque","fundo":"escuro" ou "claro","texto":"frase de 6 a 10 palavras com **uma** palavra marcada"}
 - "pergunta": {"tipo":"pergunta","fundo":"escuro","pergunta":"pergunta curta","opcoes":["opção A","opção B"]} — 2 ou 3 opções curtas. O slide seguinte é SEMPRE "revela".
 - "revela": {"tipo":"revela","fundo":"claro","resposta":"a resposta em até 8 palavras","texto":"por quê, em até 30 palavras"}
+- "uv" e "armadilha": ver RECURSOS DE ATENÇÃO DA MESA abaixo.
 - "print": {"tipo":"print","fundo":"claro","titulo":"o que a imagem prova","notas":["nota 1 curta","nota 2","nota 3"],"imgSuggestion":"a imagem real exata","imgBusca":"busca em inglês"}
 - Campos extras em qualquer slide: "passo":"2/4" (contador da sequência), "marca":true (marca-texto nas palavras em **negrito**) e "chapeu" (rótulo de 1 a 3 palavras acima do título, como "O caso", "A prova", "O mecanismo", "O que eu acho"; use em 2 a 4 slides do miolo, nunca o nome do pilar).
 - No slide "texto", o 1º parágrafo é o título (grande, serifado) e os outros são o corpo (menor). Escreva o 1º parágrafo como uma frase forte de até 16 palavras com __uma__ palavra em destaque.
 Alterne fundos escuro e claro. Use **negrito** só em nomes, números e datas, com moderação.
+
+RECURSOS DE ATENÇÃO DA MESA (opcionais; NO MÁXIMO UM por carrossel, e a maioria dos carrosséis não usa nenhum):
+O carrossel normal já é a mesa de detetive. Um recurso extra só entra quando o conteúdo pede, nunca para enfeitar. Na dúvida, não use.
+- "status":"aberto" (raiz do JSON): carimbo CASO ABERTO na capa, para assunto que ainda está acontecendo. "status":"encerrado" para caso fechado com resultado conhecido.
+- "envelope":true (raiz): capa com envelope lacrado CONFIDENCIAL, para bastidor ou informação pouco conhecida. O slide 2 mostra o envelope aberto, então ele precisa ENTREGAR a informação prometida.
+- "carimbo":"PALAVRA" (em UM slide do miolo): uma palavra de até 12 letras carimbada em vermelho, que resume o veredito do slide (FALSO, PROVA, MITO, ERRO).
+- tipo "uv": {"tipo":"uv","texto":"o que todo mundo vê, até 14 palavras","oculto":"o que pouca gente percebe, até 18 palavras"} — a lanterna de luz negra revela o "oculto". Use para o mecanismo escondido do caso.
+- tipo "armadilha": {"tipo":"armadilha","texto":"Percebeu o que mudou desde a capa?"} — repete a foto da capa espelhada; a pessoa volta à capa para conferir. Só se a capa tiver foto marcante, nunca junto com "envelope". A resposta vai na legenda.
+- "pergunta" com 3 "opcoes" vira cartões A, B e C (ex.: "Qual destas é a original?"); o "revela" seguinte dá a resposta.
+- "fita" (fita de isolamento): SÓ para tema polêmico de verdade. O Daniel liga no Motor; não use.
+
+SÉRIE (o que faz quem gostou seguir): cada carrossel é um "Caso" numerado pelo Motor. Escreva como episódio de uma série: o fecho com CTA "seguir" diz o que vem no próximo caso, concreto ("No próximo caso: por que a Havaianas trocou a fonte."). Use "seguir" em cerca de 1 a cada 3 carrosséis; nos outros, "agora" ou "salvar".
 
 VOZ: português do Brasil, direto, sem clichê de marketing (exclusivo, imperdível, transformador, revolucionário, jornada, crucial), sem pergunta retórica genérica na abertura, sem listar tipos de pessoas, sem metáfora enfeitada, sem "não é X, é Y" mais de uma vez. Nunca fé como gancho. Nunca política brasileira. Nunca o Exército Brasileiro como tema.
 
@@ -3579,7 +3780,8 @@ ENTRADA DE DANIEL:
 """
 
 Responda só com JSON válido, sem texto antes ou depois, neste formato:
-{"formato":"editorial","pilar":"...","title":"título curto até 40 caracteres","capas":["outra capa 1","outra capa 2","outra capa 3"],"slides":[...],"legenda":"..."}`;
+{"formato":"editorial","pilar":"...","title":"título curto até 40 caracteres","capas":["outra capa 1","outra capa 2","outra capa 3"],"slides":[...],"legenda":"..."}
+(Só acrescente "status" ou "envelope" na raiz se for usar o recurso.)`;
 
 
   // ─── Formato Conversa (Twitter): método do Elton Luiz adaptado ao posicionamento v4 ───
@@ -3919,7 +4121,8 @@ ${(it.descricao || '').slice(0, 1500)}
 ${ASPAS}
 
 Responda só com JSON válido, sem texto antes ou depois, neste formato:
-{"formato":"editorial","pilar":"...","title":"título curto até 40 caracteres","capas":["outra capa 1","outra capa 2","outra capa 3"],"slides":[...],"legenda":"..."}`;
+{"formato":"editorial","pilar":"...","title":"título curto até 40 caracteres","capas":["outra capa 1","outra capa 2","outra capa 3"],"slides":[...],"legenda":"..."}
+(Só acrescente "status" ou "envelope" na raiz se for usar o recurso.)`;
     const angulo = letra === 'A'
       ? 'ângulo do MECANISMO: explique por que isso acontece, com o fundamento no centro.'
       : 'ângulo do CASO: parta de uma marca, campanha, produto ou momento cultural real que mostra o tema na prática e chegue à aplicação.';
@@ -3946,7 +4149,8 @@ ${(it.descricao || '').slice(0, 1500)}
 ${ASPAS}
 
 Responda só com JSON válido, sem texto antes ou depois, neste formato:
-{"formato":"editorial","pilar":"...","title":"título curto até 40 caracteres","capas":["outra capa 1","outra capa 2","outra capa 3"],"slides":[...],"legenda":"..."}`;
+{"formato":"editorial","pilar":"...","title":"título curto até 40 caracteres","capas":["outra capa 1","outra capa 2","outra capa 3"],"slides":[...],"legenda":"..."}
+(Só acrescente "status" ou "envelope" na raiz se for usar o recurso.)`;
   }
 
   async function gerarTemas() {

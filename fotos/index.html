@@ -338,6 +338,19 @@
         <button class="so-fotos btn" id="png">Baixar este slide</button>
         <button class="btn" id="reels-capa" type="button">Capa de Reels · feed</button>
         <button class="btn" id="reels-capa-teste" type="button">Capa de Reels · teste</button>
+        <button class="btn" id="video-capa" type="button">▶ Capa em vídeo (5 s)</button>
+        <button class="btn" id="video-reels" type="button">▶ Capa de Reels em vídeo</button>
+        <button class="btn" id="especial" type="button" aria-pressed="false">★ Caso especial (placa de latão)</button>
+      </div>
+      <div class="row">
+        <span class="label">Stories</span>
+        <div class="seg" id="stories" role="group" aria-label="Modelos de stories">
+          <button type="button" data-s="texto">Texto</button>
+          <button type="button" data-s="perguntas">Caixa de perguntas</button>
+          <button type="button" data-s="enquete">Enquete A/B</button>
+          <button type="button" data-s="direct">Chegou no direct</button>
+          <button type="button" data-s="foto">Foto/vídeo</button>
+        </div>
       </div>
       <p class="hint so-escrita" id="envio-dica" hidden>Se o vermelho abriu sem o carrossel, toque em <strong>Colar do Motor azul</strong> lá. Se abriu dentro do Claude, use <strong>⋮ → Abrir no Chrome</strong>.</p>
       <p class="so-fotos hint" id="enviar-hint">Copia a legenda e manda todos os slides de uma vez. No Instagram, escolha <strong>Feed</strong> e cole a legenda.</p>
@@ -2264,6 +2277,9 @@
     const papelTipo = s => ['texto', 'lista', 'comparar', 'revela'].includes(s.tipo) || (s.tipo === 'destaque' && s.fundo === 'claro');
     const kc = c.slides.findIndex((s, k) => k >= 1 && k < n - 1 && !papelTipo(s) && !['pasta', 'porta'].includes(P.slides[k].trat) && !(P.slides[k + 1] && P.slides[k + 1].porta) && !P.cruz.some(o => o.k === k));
     if (n > 3 && kc > 0) P.cruz.push({ k: kc, tipo: 'continua', camada: 'alto', x: W - 200, y: H - 92 });
+    // limite de enfeites: no máximo 2 microdetalhes, e 1 se o slide já recebe post-it ou "continua"
+    P.slides.forEach((x, k) => { const extra = P.cruz.filter(o => o.k === k).length, lim = Math.max(0, 2 - extra), ks = Object.keys(x.md).filter(m => !['furos', 'dobra'].includes(m));
+      ks.slice(lim).forEach(m => delete x.md[m]); x.cheio = extra > 0; });
     _planos[c.id] = P; return P;
   }
   // ─── Ligação do feed: objetos que cruzam a fronteira entre dois posts da mesma fileira do grid.
@@ -2280,9 +2296,13 @@
     const fila = state.list.filter(x => !x.postadoEm && x.slides && x.slides.length > 2).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     const k = fila.indexOf(c); return k < 0 ? null : vagaFeed('carrossel', k);
   }
-  function ligaObj(dia, f) { const h = t => hashN('feed' + dia, f + t); return { nome: LIGA_OBJ[Math.floor(h('o') * LIGA_OBJ.length)], v: .24 + h('v') * .42, rot: -18 + h('r') * 36 }; }
+  function ligaObj(dia, f) {
+    const h = t => hashN('feed' + dia, f + t); let lista = LIGA_OBJ;
+    try { const t = trioDoDia(dia), par = f === 'em' ? [t.esquerda, t.meio] : [t.meio, t.direita]; lista = par.includes('frase') ? ['fita', 'fio', 'moedas', 'regua'] : ['lupa', 'fita', 'fio', 'lacre', 'moedas']; } catch (e) {}
+    return { nome: lista[Math.floor(h('o') * lista.length)], v: .36 + h('v') * .16, rot: -18 + h('r') * 36 };
+  }
   function desenhaLiga(o, x, y, e) {
-    if (o.nome === 'lupa' && PECA('lupa')) lupaSobre(x, y, .62 * e, 1.6);
+    if (o.nome === 'lupa' && PECA('lupa')) lupaSobre(x, y, .5 * e, 1.6);
     else if (o.nome === 'fio' && PECA('tachinha')) {
       const L = 250 * e; ctx.save(); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(x - L, y); ctx.quadraticCurveTo(x, y + 70 * e, x + L, y - 20 * e); ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 3.5; if ('filter' in ctx) ctx.filter = 'blur(3px)'; ctx.translate(6, 10); ctx.stroke();
@@ -2292,13 +2312,49 @@
     else if (PECA(o.nome)) peca(o.nome, x, y, ({ fita: 1.5, moedas: 1.15, regua: 1.05, lacre: .95 })[o.nome] * e, o.nome === 'regua' ? o.rot * .4 : o.rot);
   }
   // fmt: 'post' (4:5) ou 'reels' (9:16); so: 'dir' desenha só o objeto da borda direita; dx desloca (slide 2 = -W)
-  function ligaFeed(vaga, fmt, so, dx) {
-    if (!vaga) return;
+  // camada 'base' (por baixo do conteúdo): continuação no slide 2 e a folha que escorrega; 'alto' (por cima): o resto
+  function ligaFeed(vaga, fmt, so, dx, camada) {
+    if (!vaga) return; camada = camada || 'alto';
     const map = fmt === 'reels' ? (u, v) => [u * 1080, 240 + v * 1440] : (u, v) => [34 + u * 1012, v * 1350], e = fmt === 'reels' ? 1080 / 1012 : 1;
     const lados = [];
     if (vaga.pos !== 'direita') lados.push({ f: vaga.pos === 'esquerda' ? 'em' : 'md', u: 1 });
     if (vaga.pos !== 'esquerda' && so !== 'dir') lados.push({ f: vaga.pos === 'direita' ? 'md' : 'em', u: 0 });
-    for (const l of lados) { const o = ligaObj(vaga.dia, l.f), [x, y] = map(l.u, o.v); desenhaLiga(o, x + (dx || 0), y, e); }
+    if (camada === 'alto' || so === 'dir') for (const l of lados) { const o = ligaObj(vaga.dia, l.f), [x, y] = map(l.u, o.v); desenhaLiga(o, x + (dx || 0), y, e); }
+    if (so === 'dir') return;
+    // ligações verticais: cada dia é uma fileira inteira, então o post de hoje encosta, embaixo, no post de ontem da mesma coluna.
+    // Borda de baixo: completa o objeto que o post de ontem deixou. Borda de cima: deixa meio objeto para o post de amanhã.
+    const col = { esquerda: 0, meio: 1, direita: 2 }[vaga.pos];
+    const vs = [[vaga.dia + 1, 0]]; if (vaga.dia > 0) vs.push([vaga.dia, 1]);
+    for (const [d, v] of vs) { const o = ligaVObj(d, col); if ((o.nome === 'folha') === (camada === 'base')) desenhaLigaV(o, map, e, v); }
+  }
+  // fronteira entre o dia d (em cima) e o dia d-1 (embaixo), na coluna col
+  const LIGA_V = ['fio', 'fita', 'cafe', 'folha', 'postit', 'luz'];
+  function ligaVObj(d, col) {
+    const h = t => hashN('feedv' + d + ':' + col, t); let lista = LIGA_V;
+    try { const pos = ['esquerda', 'meio', 'direita'][col], a = trioDoDia(d)[pos], b = trioDoDia(d - 1)[pos]; if (a === 'frase' || b === 'frase') lista = ['fita', 'fio', 'postit', 'cafe', 'luz']; } catch (e) {}
+    return { nome: lista[Math.floor(h('o') * lista.length)], u: .74 + h('u') * .08, rot: -10 + h('r') * 20 };
+  }
+  function desenhaLigaV(o, map, e, v) {
+    const [x, y] = map(o.u, v);
+    if (o.nome === 'fio' && PECA('tachinha')) {
+      const a = [x + 60 * e, y - 170 * e], b = [x - 120 * e, y + 210 * e];
+      ctx.save(); ctx.lineCap = 'round';
+      const curva = () => { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo((a[0] + b[0]) / 2 + 50 * e, (a[1] + b[1]) / 2, b[0], b[1]); };
+      if ('filter' in ctx) ctx.filter = 'blur(3px)'; ctx.translate(6, 10); curva(); ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 3.5; ctx.stroke();
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = 'none'; curva(); ctx.strokeStyle = '#6E1418'; ctx.lineWidth = 2.6; ctx.stroke(); ctx.restore();
+      peca('tachinha', a[0], a[1], .55 * e, 0); peca('tachinha', b[0], b[1], .55 * e, 0);
+    }
+    else if (o.nome === 'fita' && PECA('fita')) peca('fita', x, y, 1.6 * e, 84 + o.rot * .3);
+    else if (o.nome === 'regua' && PECA('regua')) peca('regua', x, y, 1.05 * e, 88 + o.rot * .1);
+    else if (o.nome === 'cafe') cafeMesa(x, y, 120 * e);
+    else if (o.nome === 'folha' && PECA('folha')) peca('folha', x, y, .46 * e, -24 + o.rot);
+    else if (o.nome === 'postit') postitMesa('o post de\nontem', 'baixo', x, y, -6 + o.rot * .3, .6 * e);
+    else if (o.nome === 'luz') { // faixas de luz de janela atravessando as fileiras
+      ctx.save(); ctx.globalCompositeOperation = 'screen'; if ('filter' in ctx) ctx.filter = 'blur(10px)';
+      for (let k = 0; k < 7; k++) { const x0 = x - 500 * e + k * 95 * e; ctx.beginPath(); ctx.moveTo(x0, y - 520 * e); ctx.lineTo(x0 + 40 * e, y - 520 * e); ctx.lineTo(x0 + 340 * e, y + 620 * e); ctx.lineTo(x0 + 300 * e, y + 620 * e); ctx.closePath();
+        const g = ctx.createLinearGradient(0, y - 520 * e, 0, y + 620 * e); g.addColorStop(0, 'rgba(255,214,150,0)'); g.addColorStop(.5, 'rgba(255,214,150,.16)'); g.addColorStop(1, 'rgba(255,214,150,0)'); ctx.fillStyle = g; ctx.fill(); }
+      ctx.restore();
+    }
   }
   // desenha objetos que atravessam slides (do slide k vistos a partir do slide i)
   function cruzMesa(c, i, camada) {
@@ -2314,10 +2370,16 @@
   }
   function hashN(s, k) { let h = 2166136261; for (const ch of String(s) + ':' + k) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; }
   // desenha uma peça centrada em (cx,cy), com escala e rotação; fn opcional desenha "dentro" dela (coordenadas da imagem da peça)
+  // LUZ = 1: luz do alto à esquerda (sombras para a direita); -1: abajur à direita, as peças são espelhadas para a sombra cair para a esquerda
+  let LUZ = 1;
+  const SEM_ESPELHO = ['regua', 'portfolio_base', 'portfolio_topo'];
+  const LADO_ABAJUR = { A: [0, 1], B: [1, 0], C: [2, -1], D: [1, -1], E: [2, 1] };
+  function luzDe(id, i) { const V = 'ABCDE'[Math.floor(hashN(id, 'lum') * 5)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3, L = LADO_ABAJUR[V]; return L && L[0] === k && L[1] < 0 ? -1 : 1; }
   function peca(nome, cx, cy, esc, rot, fn) {
     const im = PECA(nome), g = GEO[nome];
     ctx.save(); ctx.translate(cx, cy); ctx.rotate((rot || 0) * Math.PI / 180); ctx.scale(esc, esc); ctx.translate(-g.w / 2, -g.h / 2);
-    if (im) ctx.drawImage(im, 0, 0, g.w, g.h);
+    if (im && LUZ < 0 && !SEM_ESPELHO.includes(nome)) { ctx.save(); ctx.translate(g.w, 0); ctx.scale(-1, 1); ctx.drawImage(im, 0, 0, g.w, g.h); ctx.restore(); }
+    else if (im) ctx.drawImage(im, 0, 0, g.w, g.h);
     else { ctx.fillStyle = 'rgba(240,234,222,.92)'; const a = g.area || g.jan || [0, 0, g.w, g.h]; ctx.fillRect(a[0], a[1], a[2], a[3]); }
     if (fn) { ctx.save(); ctx.globalCompositeOperation = 'multiply'; fn(g); ctx.restore(); }
     ctx.restore();
@@ -2347,6 +2409,69 @@
     ctx.save(); ctx.font = fontStr(TYP, 26, 700); spaced(3); ctx.fillStyle = '#6E5C40'; ctx.textBaseline = 'alphabetic';
     let t = String(txt).toUpperCase(); while (ctx.measureText(t).width > maxW && t.length > 4) t = t.slice(0, -2);
     ctx.fillText(t, x, y); spaced(0); ctx.restore(); return 56;
+  }
+  // headline em papel sobre a mesa — 'tira': tiras brancas recortadas, uma por linha; 'ficha': cartão de arquivo pautado bem claro
+  const oManchete = (s, extra) => oTit(s, Object.assign({ color: '#14110E', em: '#14110E', mark: null, maxW: CW - 70 }, extra || {}));
+  function linhasDe(L) { const r = []; L.blocks.forEach(b => b.forEach(l => r.push(l))); return r; }
+  let TEXTO_RECTS = []; // áreas de texto do slide: os objetos altos não passam por cima delas
+  function papelSombra(x, y, w, h, rot, cor, fn) {
+    TEXTO_RECTS.push([x, y, w, h]);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot * Math.PI / 180);
+    ctx.save(); ctx.shadowColor = 'rgba(14,6,0,.55)'; ctx.shadowBlur = 24; ctx.shadowOffsetX = 9 * LUZ; ctx.shadowOffsetY = 18;
+    ctx.beginPath(); ctx.moveTo(0, 1.5); ctx.lineTo(w, 0); ctx.lineTo(w - 2, h); ctx.lineTo(1.5, h - 1.5); ctx.closePath(); ctx.fillStyle = cor; ctx.fill(); ctx.restore();
+    ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .18; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, w, h); ctx.restore();
+    const gl = ctx.createLinearGradient(0, 0, w, h); gl.addColorStop(0, 'rgba(255,255,255,.10)'); gl.addColorStop(1, 'rgba(0,0,0,.06)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, w, h);
+    if (fn) fn(); ctx.restore();
+  }
+  function manchetePapel(c, chap, paras, s, yBase, estilo, maxH, op) {
+    op = op || {}; const r = k => hashN(c.id, 'tit' + k);
+    if (estilo === 'placa') return placaLatao(c, chap, paras, s, yBase, maxH);
+    if (estilo === 'tira') {
+      const o = oManchete(s, { max: op.max || 88, min: op.min || 54, lh: 1.0, maxW: op.maxW || CW - 70 }); const L = gFit(paras, o, maxH || 300), ls = linhasDe(L);
+      const hL = Math.round(L.size * 1.18), gapL = 12, tot = ls.length * (hL + gapL) + (chap ? 54 : 0);
+      if (op.yTop != null) yBase = op.yTop + tot;
+      let y = yBase - tot;
+      if (chap) { ctx.save(); ctx.font = fontStr(TYP, 20, 700); spaced(4); const t = String(chap).toUpperCase(), tw = ctx.measureText(t).width; spaced(0); ctx.restore();
+        papelSombra(M, y, tw + 44, 40, -1 + r('c') * 2, '#EFE7D4', () => { ctx.font = fontStr(TYP, 20, 700); spaced(4); ctx.fillStyle = '#5A4630'; ctx.textBaseline = 'alphabetic'; ctx.fillText(String(chap).toUpperCase(), 22, 28); spaced(0); }); y += 54; }
+      ls.forEach((ln, k) => {
+        const w = ln.width + 56, x = M - 8 + (k % 2 ? 14 : 0) * r('x' + k);
+        papelSombra(x, y, w, hL, -1.4 + r('r' + k) * 2.8, '#F6F3EC', () => gDesenha({ blocks: [[ln]], h: L.lh, lh: L.lh, gap: 0, size: L.size }, o, 28, Math.round((hL - L.size * 1.02) / 2), 'left'));
+        y += hL + gapL;
+      });
+      return yBase - tot;
+    }
+    // ficha de arquivo: pauta azul bem clara, só nas entrelinhas
+    const o = oManchete(s, Object.assign({ max: op.max || 84, min: op.min || 52, lh: 1.08, maxW: op.maxW || Math.min(CW - 60, 780) }, op.fam ? { fam: op.fam, w: 400, emW: 600, emIt: false, lh: 1.4, ls: 0, equilibra: false } : {})); const L = gFit(paras, o, maxH || 300);
+    const w = op.fam ? Math.min(W - M * 2 + 30, (op.maxW || 700) + 100) : Math.min(W - M * 2 + 30, Math.max(560, L.maxLine + 100)), topo = 78, h = topo + L.h + 46, x = M - 10;
+    if (op.yTop != null) yBase = op.yTop + h;
+    const y = yBase - h;
+    papelSombra(x, y, w, h, -1.2 + r('f') * 2.4, '#F4EEE0', () => {
+      ctx.fillStyle = 'rgba(196,80,70,.55)'; ctx.fillRect(0, topo - 18, w, 2.5);
+      ctx.fillStyle = 'rgba(150,175,205,.22)'; for (let yy = topo - 18 + L.lh; yy < h - 8; yy += L.lh) ctx.fillRect(0, yy + Math.round(L.lh * .08), w, 1.5);
+      ctx.font = fontStr(TYP, 19, 700); spaced(4); ctx.fillStyle = '#7A6040'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(('CASO ' + casoTxt(c) + (chap ? ' · ' + chap : '')).toUpperCase().slice(0, 46), 40, 40); spaced(0);
+      gDesenha(L, o, 44, topo, 'left');
+    });
+    return y;
+  }
+  const estiloManchete = c => c.especial ? 'placa' : (hashN(c.id, 'estm') > .5 ? 'tira' : 'ficha');
+  // placa de latão gravada (caso especial do mês)
+  function placaLatao(c, chap, paras, s, yBase, maxH) {
+    const o = oManchete(s, { max: 78, min: 48, lh: 1.04, maxW: W - M * 2 - 120, color: '#2A1A08', em: '#2A1A08' }); const L = gFit(paras, o, maxH || 260);
+    const w = W - M * 2 + 20, h = L.h + (chap ? 150 : 110), x = M - 10, y = yBase - h;
+    TEXTO_RECTS.push([x, y, w, h]);
+    ctx.save(); ctx.shadowColor = 'rgba(14,6,0,.6)'; ctx.shadowBlur = 26; ctx.shadowOffsetX = 10 * LUZ; ctx.shadowOffsetY = 20;
+    const gr = ctx.createLinearGradient(x, y, x + w, y + h); gr.addColorStop(0, '#B8893E'); gr.addColorStop(.35, '#F2D48A'); gr.addColorStop(.55, '#C99A48'); gr.addColorStop(.8, '#E8C477'); gr.addColorStop(1, '#9C7030');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 14) : ctx.rect(x, y, w, h); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 14) : ctx.rect(x, y, w, h); ctx.clip();
+    for (let k = 0; k < h; k += 2) { ctx.fillStyle = `rgba(${hashN(c.id, 'b' + k) > .5 ? '255,240,200' : '90,60,20'},${.05 + hashN(c.id, 'a' + k) * .07})`; ctx.fillRect(x, y + k, w, 1); } // escovado
+    ctx.strokeStyle = 'rgba(255,238,190,.55)'; ctx.lineWidth = 2; ctx.strokeRect(x + 10, y + 10, w - 20, h - 20); ctx.restore();
+    for (const sx of [x + 30, x + w - 30]) { ctx.beginPath(); ctx.arc(sx, y + h / 2, 11, 0, Math.PI * 2); ctx.fillStyle = '#8E6526'; ctx.fill(); ctx.strokeStyle = '#5A3C12'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx - 8, y + h / 2); ctx.lineTo(sx + 8, y + h / 2); ctx.stroke(); }
+    let ty = y + 50;
+    if (chap) { ctx.save(); ctx.font = fontStr(TYP, 20, 700); spaced(5); ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,240,205,.7)'; ctx.fillText(String(chap).toUpperCase(), x + w / 2, ty + 1.5); ctx.fillStyle = '#4A3210'; ctx.fillText(String(chap).toUpperCase(), x + w / 2, ty); spaced(0); ctx.restore(); ty += 40; }
+    // gravado: luz embaixo, tinta escura em cima
+    ctx.save(); const o2 = Object.assign({}, o, { color: 'rgba(255,240,200,.55)', em: 'rgba(255,240,200,.55)' }); gDesenha(L, o2, x + w / 2, ty + 2, 'center'); gDesenha(L, o, x + w / 2, ty, 'center'); ctx.restore();
+    return y;
   }
   function textoDesk(L, o, x, y) { ctx.save(); sombraTexto(true); gDesenha(L, o, x, y, 'left'); ctx.restore(); }
   function postitMesa(txt, seta, cx, cy, rot, esc) {
@@ -2426,22 +2551,46 @@
     if (PECA('portfolio_topo')) ctx.drawImage(PECA('portfolio_topo'), ox, oy, 2100, 1290);
   }
   function lupaSobre(cx, cy, esc, zoom) {
-    // lente: amplia o que já está desenhado embaixo
-    const g = GEO.lupa, r = g.aro[2] * esc * .94;
+    // lente: amplia o que já está desenhado embaixo, mais no centro que na borda (vidro convexo)
+    const g = GEO.lupa, r = g.aro[2] * esc * .94, z = zoom || 1.7;
     try {
-      const tmp = document.createElement('canvas'); tmp.width = Math.round(r * 2); tmp.height = Math.round(r * 2);
-      const z = zoom || 1.7, sw = r * 2 / z;
-      tmp.getContext('2d').drawImage(canvas, cx - sw / 2, cy - sw / 2, sw, sw, 0, 0, r * 2, r * 2);
-      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(tmp, cx - r, cy - r);
-      const gr = ctx.createRadialGradient(cx - r * .35, cy - r * .4, 0, cx, cy, r);
-      gr.addColorStop(0, 'rgba(255,255,255,.28)'); gr.addColorStop(.35, 'rgba(255,255,255,.04)'); gr.addColorStop(.85, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.35)');
-      ctx.fillStyle = gr; ctx.fillRect(cx - r, cy - r, r * 2, r * 2); ctx.restore();
+      const src = document.createElement('canvas'); src.width = Math.round(r * 2); src.height = Math.round(r * 2);
+      src.getContext('2d').drawImage(ctx.canvas, cx - r, cy - r, r * 2, r * 2, 0, 0, r * 2, r * 2);
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+      const N = 10;
+      for (let k = 0; k < N; k++) { // anéis de fora para dentro, cada um com mais aumento
+        const rk = r * (1 - k / N), t = 1 - (rk / r) ** 2, zk = 1 + (z - 1) * (.35 + .65 * t), sw = rk * 2 / zk;
+        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, rk, 0, Math.PI * 2); ctx.clip();
+        ctx.drawImage(src, r - sw / 2, r - sw / 2, sw, sw, cx - rk, cy - rk, rk * 2, rk * 2); ctx.restore();
+      }
+      // franja de cor na borda (dispersão) e borda escura do vidro grosso
+      ctx.globalCompositeOperation = 'screen';
+      ctx.lineWidth = r * .05; ctx.strokeStyle = 'rgba(255,90,60,.10)'; ctx.beginPath(); ctx.arc(cx + 1.5, cy, r * .955, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(60,140,255,.10)'; ctx.beginPath(); ctx.arc(cx - 1.5, cy, r * .955, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+      const ed = ctx.createRadialGradient(cx, cy, r * .78, cx, cy, r); ed.addColorStop(0, 'rgba(0,0,0,0)'); ed.addColorStop(.75, 'rgba(10,8,6,.18)'); ed.addColorStop(1, 'rgba(10,8,6,.55)'); ctx.fillStyle = ed; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      // reflexo da janela/abajur: mancha suave em cima à esquerda + arco fino do lado oposto
+      const hl = ctx.createRadialGradient(cx - r * .42, cy - r * .46, 0, cx - r * .42, cy - r * .46, r * .55); hl.addColorStop(0, 'rgba(255,250,235,.42)'); hl.addColorStop(.4, 'rgba(255,250,235,.10)'); hl.addColorStop(1, 'rgba(255,250,235,0)');
+      ctx.fillStyle = hl; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.strokeStyle = 'rgba(255,248,228,.55)'; ctx.lineWidth = Math.max(2, r * .018); ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(cx, cy, r * .86, Math.PI * .15, Math.PI * .45); ctx.stroke();
+      ctx.restore();
+      // cáustica: a lente concentra a luz num ponto quente na mesa, do lado da sombra
+      ctx.save(); ctx.globalCompositeOperation = 'screen'; const ca = ctx.createRadialGradient(cx + r * .9, cy + r * 1.05, 0, cx + r * .9, cy + r * 1.05, r * .32); ca.addColorStop(0, 'rgba(255,226,170,.45)'); ca.addColorStop(1, 'rgba(255,226,170,0)'); ctx.fillStyle = ca; ctx.fillRect(cx + r * .5, cy + r * .6, r * .8, r * .9); ctx.restore();
     } catch (e) {}
     peca('lupa', cx, cy, esc, 0);
   }
+
+  // mesa de couro: 3 panoramas (abajur de banqueiro à esquerda, domo no centro, banqueiro à direita); cada carrossel usa um
+  // espera as peças carregarem (stories e vídeo são gerados na hora)
+  function carregaPecas(nomes) { return Promise.all(nomes.map(n => new Promise(r => { const t0 = Date.now(); const f = () => { let ok = false; try { ok = !!PECA(n); } catch (e) {} if (ok || Date.now() - t0 > 5000) r(); else setTimeout(f, 80); }; f(); }))); }
+  const PECAS_STORY = ['couroR', 'couroR_alto', 'tachinha', 'polaroid_v', 'envelope', 'lupa', 'postit', 'fita'];
+  const nomeFundo = (id, i) => { const V = 'ABCDE'[Math.floor(hashN(id, 'lum') * 5)], k = (i + Math.floor(hashN(id, 'f') * 3)) % 3; return 'couro' + V + (k + 1); };
+  // objetos altos (abajur, pilha de livros) por cima dos cantos de fotos e papéis, com sombra
+  function altosMesa(nome, w, h) { const im = PECA(nome + '_alto'); if (!im) return; ctx.save();
+    if (TEXTO_RECTS.length) { ctx.beginPath(); ctx.rect(0, 0, w || W, h || H); for (const [x, y, ww, hh] of TEXTO_RECTS) { ctx.moveTo(x - 14, y - 14); ctx.lineTo(x - 14, y + hh + 14); ctx.lineTo(x + ww + 14, y + hh + 14); ctx.lineTo(x + ww + 14, y - 14); ctx.closePath(); } ctx.clip('evenodd'); } ctx.shadowColor = 'rgba(20,8,0,.55)'; ctx.shadowBlur = 42; ctx.shadowOffsetX = 22 * LUZ; ctx.shadowOffsetY = 36; if ('filter' in ctx) ctx.filter = 'blur(1.1px)'; ctx.drawImage(im, 0, 0, w || W, h || H); ctx.restore(); }
   function fundoMesa(c, i) {
-    const k = (i + Math.floor(hashN(c.id, 'f') * 3)) % 3, pers = planoMesa(c).slides[i].pers && PECA(MESA_PERS[k]);
-    const nome = pers ? MESA_PERS[k] : MESA_FUNDOS[k], im = PECA(nome);
+    const k = (i + Math.floor(hashN(c.id, 'f') * 3)) % 3;
+    const nome = PECA(nomeFundo(c.id, i)) ? nomeFundo(c.id, i) : MESA_FUNDOS[k], im = PECA(nome);
     if (im) ctx.drawImage(im, 0, 0, W, H); else { const gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#3b2416'); gr.addColorStop(1, '#140b06'); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H); }
   }
   function folioMesa(i, n, c) {
@@ -2488,7 +2637,7 @@
   function drawMesa(c, i) {
     const s = c.slides[i], n = c.slides.length, a = aj(s), photo = img(s.image), r = hashN(c.id, i);
     ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left'; lastCover = null;
-    fundoMesa(c, i);
+    fundoMesa(c, i); LUZ = luzDe(c.id, i); TEXTO_RECTS = [];
     const P = planoMesa(c), ps = P.slides[i];
     // pasta: registra o objeto que atravessa (centro no slide da pasta)
     P.cruz = P.cruz.filter(o => o.tipo !== 'pasta');
@@ -2496,7 +2645,7 @@
     P.cruz = P.cruz.filter(o => o.tipo !== 'porta');
     P.slides.forEach((x, k) => { if (x.trat === 'porta') P.cruz.push({ k, tipo: 'porta', camada: 'base' }); });
     cruzMesa(c, i, 'base');
-    if (i <= 1 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', i === 1 ? 'dir' : null, i === 1 ? -W : 0); } catch (e) {} } // ligação do feed (e sua continuação no slide 2), por baixo do conteúdo
+    if (i <= 1 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', i === 1 ? 'dir' : null, i === 1 ? -W : 0, 'base'); } catch (e) {} } // ligação do feed: o que fica por baixo do conteúdo
     const _M = M, _CW = CW;
     if (P.slides[i - 1] && P.slides[i - 1].trat === 'pasta') { M = 300; CW = W - M - 96; }
     else if (P.slides[i + 1] && P.slides[i + 1].trat === 'pasta') { CW = W - M - 300; }
@@ -2556,9 +2705,7 @@
       pin = fotoPolaroid(W / 2 + 10, 520, 1.02, -2.5 + r * 2);
       if (!photo && false) {}
       let yB = cta ? ctaMesa(pe) - 40 : pe;
-      const o = oTit(s, { max: 104, min: 66, lh: .98 }); const L = gFit(s.paras.slice(0, 1), o, 300);
-      let y = yB - L.h; if (chap) chapeuMesa(chap, M, y - 26);
-      textoDesk(L, o, M, y);
+      manchetePapel(c, chap, s.paras.slice(0, 1), s, yB, estiloManchete(c), 300);
       if (n > 1) { ctx.save(); sombraTexto(true); ctx.font = fontStr(TYP, 18, 700); spaced(4); ctx.fillStyle = 'rgba(240,228,205,.6)'; ctx.textAlign = 'right'; ctx.fillText('ABRA O ARQUIVO  →', W - M, H - 78); spaced(0); ctx.restore(); }
     } else if ((s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') && ps.trat === 'pasta') {
       pin = null; // tachinha já vem com a foto da pasta
@@ -2594,9 +2741,9 @@
       }
       const tit = s.paras.slice(0, 1), resto = s.paras.slice(1).join(' ');
       const yB = cta ? ctaMesa(pe) - 40 : pe;
-      const o = oTit(s, { max: 84, min: 50 }); const L = gFit(tit, o, 260);
       const oc = oCorpo(s); const Lc = resto ? gFit([resto], oc, 200) : null;
-      let y = yB - L.h - (Lc ? Lc.h + 26 : 0); if (chap) chapeuMesa(chap, M, y - 26); textoDesk(L, o, M, y); if (Lc) textoDesk(Lc, oc, M, y + L.h + 26);
+      const yT = manchetePapel(c, chap, tit, s, yB - (Lc ? Lc.h + 34 : 0), estiloManchete(c) === 'tira' ? 'tira' : 'ficha', 240);
+      if (Lc) textoDesk(Lc, oc, M, yB - Lc.h);
     } else if (s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') {
       const vert = s.tipo === 'foto' && photo && photo.naturalHeight > photo.naturalWidth;
       const yFoto = s.tipo === 'imagem' ? 560 : 470;
@@ -2633,14 +2780,14 @@
       const num = String(s.paras[0] || ''); let ns = Math.round(300 * a.t); ctx.font = fontStr(TIT, ns, 400); while (ctx.measureText(num).width > CW && ns > 120) { ns -= 10; ctx.font = fontStr(TIT, ns, 400); }
       ctx.save(); sombraTexto(true); const gr = ctx.createLinearGradient(0, 220 + a.y, 0, 220 + a.y + ns); gr.addColorStop(0, '#FFF6CF'); gr.addColorStop(.4, '#FFD970'); gr.addColorStop(.75, '#D9A23C'); gr.addColorStop(1, '#FFE39A');
       ctx.fillStyle = gr; ctx.textBaseline = 'alphabetic'; ctx.fillText(num, M - 8, 220 + a.y + ns * .8); ctx.restore();
-      const oc = oCorpo(s, { max: 38, min: 28, maxW: 640 }); if (s.paras.length > 1) { const Lc = gFit(s.paras.slice(1), oc, 300); textoDesk(Lc, oc, M, 260 + a.y + ns * .85); }
+      if (s.paras.length > 1) manchetePapel(c, chap, s.paras.slice(1), s, 0, 'ficha', 300, { yTop: 250 + a.y + ns * .85, max: 40, min: 28, maxW: 700, fam: SANS });
       if (PECA('regua')) peca('regua', M + 250, H - 190, 1.0, -3 + r * 4);
       if (P.maco === 'prumo' && PECA('prumo')) peca('prumo', W - 300, H - 330, 1.0, -15 + r * 20); else peca('esquadro', W - 250, H - 300, 1.0, -10 + r * 20);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'destaque' || s.tipo === 'pergunta') {
-      const o = oTit(s, { max: 110, min: 60, lh: .98 }); const L = gFit(s.paras.slice(0, s.tipo === 'pergunta' ? 1 : 9), o, 640);
-      const yB = cta ? ctaMesa(pe) - 60 : pe; let y = Math.max(220, (H - L.h) / 2 - 40 + a.y); if (y + L.h > yB) y = yB - L.h;
-      chapeuMesa(chap || (s.tipo === 'pergunta' ? 'Responda de cabeça' : 'O que eu acho'), M, y - 30); textoDesk(L, o, M, y);
+      const yB = cta ? ctaMesa(pe) - 60 : pe;
+      if (s.tipo === 'pergunta') manchetePapel(c, chap || 'Responda de cabeça', s.paras.slice(0, 1), s, Math.min(yB, H / 2 + 300 + a.y), 'ficha', 520, { max: 92, min: 56 });
+      else manchetePapel(c, chap || 'O que eu acho', s.paras.slice(0, 9), s, Math.min(yB, H / 2 + 330 + a.y), 'tira', 640, { max: 96, min: 56 });
       if (s.tipo === 'pergunta') postitMesa('a resposta\nestá no\npróximo', 'direita', W - 250, H - 300, 4);
       else if (P.maco === 'prumo' && PECA('prumo')) peca('prumo', W - 300, H - 280, 1.0, 8 + r * 10); else peca('esquadro', W - 230, H - 260, .9, 8 + r * 10);
     } else if (s.tipo === 'fecho') {
@@ -2653,15 +2800,17 @@
       postitMesa(txt(FEED_CTA[2]), 'cima', 200, 250, -5, .74);
       postitMesa(txt(f2), f2[3], W - 190, 760, 5, .7);
       const yB = s.cta && s.cta.texto ? ctaMesa(pe - 150) - 50 : pe - 150;
-      const o = oTit(s, { max: 76, min: 48, maxW: 620 }); const L = gFit(s.paras.slice(0, 1), o, 380);
-      const y = yB - L.h; chapeuMesa(s.chapeu || 'Caso encerrado', M, y - 26); textoDesk(L, o, M, y);
+      manchetePapel(c, s.chapeu || 'Caso encerrado', s.paras.slice(0, 1), s, yB, 'tira', 380, { max: 70, min: 44, maxW: 600 });
     } else {
       const o = oTit(s); const L = gFit(s.paras.length ? s.paras : [' '], o, 600); chapeuMesa(chap, M, 300 + a.y); textoDesk(L, o, M, 330 + a.y);
     }
+    // abajur e livros por cima, só onde o canto não tem texto (capa, fotos, número, fecho)
+    if (['capa', 'imagem', 'foto', 'print', 'numero', 'destaque', 'pergunta'].includes(s.tipo) && ps.trat !== 'porta' && !ps.porta && !ps.cheio) altosMesa(nomeFundo(c.id, i));
     cruzMesa(c, i, 'alto');
+    if (i === 0 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', null, 0, 'alto'); } catch (e) {} }
     fioMesa(c, i);
     if (pin) tachMesa(pin);
-    } finally { M = _M; CW = _CW; }
+    } finally { M = _M; CW = _CW; LUZ = 1; }
     // profundidade de campo: bordas de cima e de baixo levemente fora de foco
     if ('filter' in ctx) { try { const [cv, g2] = off(W, H); g2.drawImage(canvas, 0, 0);
       for (const [y0, y1, b] of [[0, 40, 3], [40, 80, 1.6], [H - 80, H - 40, 1.6], [H - 40, H, 3]]) { ctx.save(); ctx.beginPath(); ctx.rect(0, y0, W, y1 - y0); ctx.clip(); ctx.filter = `blur(${b}px)`; ctx.drawImage(cv, 0, 0); ctx.restore(); } } catch (e) {} }
@@ -2674,24 +2823,30 @@
   function drawFraseMesa(fr) {
     const txt = (fr.texto || '').trim() || 'Escreva a frase ao lado.', para = (fr.para || '').trim(), id = 'fr' + txt.length + txt.slice(0, 12);
     ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left';
-    const fundo = PECA(MESA_FUNDOS[Math.floor(hashN(id, 'f') * 3)]); if (fundo) ctx.drawImage(fundo, 0, 0, W, H); else { ctx.fillStyle = '#2a170c'; ctx.fillRect(0, 0, W, H); }
+    const nf = PECA(nomeFundo(id, 0)) ? nomeFundo(id, 0) : MESA_FUNDOS[Math.floor(hashN(id, 'f') * 3)]; LUZ = luzDe(id, 0); TEXTO_RECTS = [];
+    const fundo = PECA(nf); if (fundo) ctx.drawImage(fundo, 0, 0, W, H); else { ctx.fillStyle = '#2a170c'; ctx.fillRect(0, 0, W, H); }
     const r = hashN(id, 'r'), nome = r > .5 && PECA('folha_dobra') ? 'folha_dobra' : 'folha';
     const fp = fr.foto ? img(fr.foto) : null;
-    try { ligaFeed(vagaFeed('frase'), 'post'); } catch (e) {}
-    if (fr.foto) { // foto pessoal: polaroid grande + título datilografado numa tira de papel
-      peca('polaroid_v', W / 2 + 10, 560, 1.12, -2 + r * 3, g => { const [x, y, w, h] = g.jan; if (fp && fp.complete && fp.naturalWidth) { ctx.save(); if ('filter' in ctx) ctx.filter = 'grayscale(1) contrast(1.1) sepia(.12)'; cover(fp, x, y, w, h); ctx.restore(); dataFoto(x, y, w, h); } else { ctx.fillStyle = '#6b6258'; ctx.fillRect(x, y, w, h); } });
-      peca('tachinha', W / 2 + 10, 70, .55, 0);
-      const o = { fam: TIT, w: 400, emIt: true, lh: 1.04, ls: -0.012, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 60, min: 38, gap: .45 }, tw = 820;
-      const saveCW = CW; CW = tw - 80; let L; try { L = gFit([txt], Object.assign({}, o, { maxW: tw - 80 }), 200); } finally { CW = saveCW; }
-      const th = L.h + 70, ty = H - 70 - th;
-      ctx.save(); ctx.translate((W - tw) / 2, ty); ctx.rotate(1.2 * Math.PI / 180); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 8; ctx.fillStyle = '#F1EBDD'; ctx.fillRect(0, 0, tw, th); ctx.shadowColor = 'transparent';
-      ctx.globalCompositeOperation = 'multiply'; const s2 = CW; CW = tw - 80; try { gDesenha(L, Object.assign({}, o, { maxW: tw - 80 }), 40, 35, 'left'); } finally { CW = s2; } ctx.restore();
-      ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
-      const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
-      ctx.restore(); return;
+    try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'base'); } catch (e) {}
+    if (fr.foto) { // foto pessoal: impressão grande em papel fotográfico, quase o quadro todo; título opcional numa tira por cima da borda
+      const fw = 880, fh = 1100, bd = 22, rot = (-1.6 + r * 1.2) * Math.PI / 180;
+      ctx.save(); ctx.translate(W / 2, H / 2 - 10); ctx.rotate(rot);
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 40; ctx.shadowOffsetX = 14; ctx.shadowOffsetY = 26; ctx.fillStyle = '#F4F1E9'; ctx.fillRect(-fw / 2 - bd, -fh / 2 - bd, fw + bd * 2, fh + bd * 2); ctx.restore();
+      if (fp && fp.complete && fp.naturalWidth) { ctx.save(); if ('filter' in ctx) ctx.filter = fr.cor ? 'contrast(1.04)' : 'grayscale(1) contrast(1.1) sepia(.1)'; cover(fp, -fw / 2, -fh / 2, fw, fh); ctx.restore(); }
+      else { ctx.fillStyle = '#5b544c'; ctx.fillRect(-fw / 2, -fh / 2, fw, fh); }
+      ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .22; ctx.fillStyle = graoPattern(); ctx.fillRect(-fw / 2, -fh / 2, fw, fh); ctx.restore();
+      const gl = ctx.createLinearGradient(-fw / 2, -fh / 2, fw * .1, fh * .2); gl.addColorStop(0, 'rgba(255,248,230,.20)'); gl.addColorStop(1, 'rgba(255,248,230,0)'); ctx.fillStyle = gl; ctx.fillRect(-fw / 2 - bd, -fh / 2 - bd, fw + bd * 2, fh + bd * 2);
+      const cb = ctx.createLinearGradient(0, fh / 2 - 120, 0, fh / 2 + bd); cb.addColorStop(0, 'rgba(0,0,0,0)'); cb.addColorStop(1, 'rgba(0,0,0,.12)'); ctx.fillStyle = cb; ctx.fillRect(-fw / 2 - bd, fh / 2 - 120, fw + bd * 2, 120 + bd);
+      ctx.restore();
+      peca('tachinha', W / 2, H / 2 - 10 - fh / 2 - 6, .55, 0);
+      if ((fr.texto || '').trim()) { const c0 = { id: id }; const sM = M; try { manchetePapel(c0, '', [txt], {}, H - 70, 'tira', 200); } finally { M = sM; } }
+      altosMesa(nf);
+      try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {}
+      const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.4)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+      ctx.restore(); LUZ = 1; return;
     }
     peca(nome, W / 2, 690, 1.04, -1.5 + r * 3, g => {
-      const [ax, ay, aw, ah] = g.area, pad = 80, saveCW = CW; CW = aw - pad * 2;
+      const [ax, ay, aw, ah] = g.area, pad = 130, saveCW = CW; CW = aw - pad * 2;
       try {
         const o = { fam: TIT, w: 400, emIt: true, lh: 1.04, ls: -0.012, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 104, min: 54, gap: .45, maxW: aw - pad * 2 };
         const L = gFit([txt], o, 700); const y = ay + Math.max(150, (ah - L.h) / 2 - 60); gDesenha(L, o, ax + pad, y, 'left');
@@ -2700,21 +2855,85 @@
       } finally { CW = saveCW; }
     });
     peca('tachinha', W / 2 + 10, 110, .55, 0);
+    altosMesa(nf);
+    try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {}
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
     const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
     ctx.restore();
+  }
+  async function videoCapa(c, fmt, base) {
+    const w = base.width, h = base.height, cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d');
+    const V = 'ABCDE'[Math.floor(hashN(c.id, 'lum') * 5)], lado = (LADO_ABAJUR[V] || [0, 1])[1];
+    const lx = fmt === 'reels' ? (lado < 0 ? 900 : 180) : (lado < 0 ? 900 : lado > 0 ? 180 : 540), ly = fmt === 'reels' ? 140 : 110;
+    const tipos = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'], mime = tipos.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+    if (!mime) throw new Error('Este navegador não grava vídeo.');
+    const st = cv.captureStream(30), rec = new MediaRecorder(st, { mimeType: mime, videoBitsPerSecond: 9e6 }), partes = []; rec.ondataavailable = e => e.data.size && partes.push(e.data);
+    const poeira = Array.from({ length: 90 }, (_, k) => ({ x: hashN(c.id, 'px' + k), y: hashN(c.id, 'py' + k), r: .6 + hashN(c.id, 'pr' + k) * 2.2, v: .2 + hashN(c.id, 'pv' + k), f: hashN(c.id, 'pf' + k) * 6.28 }));
+    const grao = graoPattern(); const T = 5000; let t0 = null;
+    const quadro = ts => {
+      if (t0 === null) t0 = ts; const t = Math.min(1, (ts - t0) / T);
+      const z = 1 + .035 * t; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h);
+      g.save(); g.translate(w / 2, h / 2); g.scale(z, z); g.translate(-w / 2, -h / 2); g.drawImage(base, 0, 0); g.restore();
+      // luz do abajur respirando (oscila devagar, com uma tremida leve de filamento)
+      const osc = .16 + .07 * Math.sin(t * Math.PI * 2 * 1.2) + .025 * Math.sin(t * 97);
+      g.save(); g.globalCompositeOperation = 'screen'; const rg = g.createRadialGradient(lx, ly, 20, lx, ly, h * .62); rg.addColorStop(0, `rgba(255,214,150,${osc})`); rg.addColorStop(1, 'rgba(255,214,150,0)'); g.fillStyle = rg; g.fillRect(0, 0, w, h); g.restore();
+      // poeira no feixe (diagonal a partir do abajur)
+      g.save(); g.globalCompositeOperation = 'screen';
+      for (const p of poeira) { const along = (p.y + t * p.v * .25) % 1, x = lx + (w / 2 - lx) * along + (p.x - .5) * 260 * (.3 + along) + Math.sin(t * 6 + p.f) * 6, y = ly + (h * .7) * along;
+        const a = (.25 + .35 * Math.sin(t * 9 + p.f) ** 2) * (1 - along) ; g.fillStyle = `rgba(255,236,200,${a})`; g.beginPath(); g.arc(x, y, p.r, 0, Math.PI * 2); g.fill(); }
+      g.restore();
+      g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = .08; g.translate((t * 977) % 64, (t * 613) % 64); g.fillStyle = grao; g.fillRect(-64, -64, w + 128, h + 128); g.restore();
+      if (t < 1) requestAnimationFrame(quadro); else setTimeout(() => rec.stop(), 120);
+    };
+    const pronto = new Promise(res => rec.onstop = () => res(new Blob(partes, { type: mime.split(';')[0] })));
+    rec.start(200); requestAnimationFrame(quadro);
+    return { blob: await pronto, ext: mime.includes('mp4') ? 'mp4' : 'webm' };
+  }
+  // ─── Stories (1080×1920): só o desenho, com sua foto e o número do caso; você escreve por cima com as fontes do Instagram
+  function storyMesa(c, modelo) {
+    const cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1920; const g2 = cv.getContext('2d'), salva = ctx; ctx = g2; LUZ = 1; TEXTO_RECTS = [];
+    try {
+      const f = PECA('couroR') || PECA('mesa_reels'); if (f) ctx.drawImage(f, 0, 0, 1080, 1920); else { ctx.fillStyle = '#2a170c'; ctx.fillRect(0, 0, 1080, 1920); }
+      const papel = (x, y, w, h, rot, cor, fn) => papelSombra(x, y, w, h, rot, cor, fn);
+      if (modelo === 'texto') { // bloco amarelo pautado
+        papel(90, 300, 900, 1260, -1.5, '#FAE282', () => { ctx.fillStyle = '#3C221A'; ctx.fillRect(0, 0, 900, 70); for (let x = 20; x < 900; x += 40) { ctx.fillStyle = '#1E120C'; ctx.beginPath(); ctx.arc(x + 6, 64, 6, 0, Math.PI * 2); ctx.fill(); }
+          ctx.fillStyle = 'rgba(120,150,190,.45)'; for (let y = 190; y < 1230; y += 58) ctx.fillRect(0, y, 900, 3); ctx.fillStyle = 'rgba(205,90,80,.6)'; ctx.fillRect(110, 70, 2, 1190); ctx.fillRect(120, 70, 2, 1190); });
+        lupaSobre(900, 1600, .6, 1.5);
+      } else if (modelo === 'perguntas') { // ficha de interrogatório
+        papel(70, 380, 940, 1180, 1.2, '#F4EEE0', () => { ctx.fillStyle = 'rgba(196,80,70,.6)'; ctx.fillRect(0, 150, 940, 3); ctx.fillStyle = 'rgba(150,175,205,.22)'; for (let y = 214; y < 1180; y += 64) ctx.fillRect(0, y, 940, 2);
+          ctx.fillStyle = '#3C2E1E'; ctx.font = fontStr(TYP, 40, 700); spaced(3); ctx.fillText('FICHA DE INTERROGATÓRIO', 60, 90); spaced(0); ctx.font = fontStr(TYP, 26, 700); ctx.fillStyle = '#7A6040'; ctx.fillText('CASO ' + casoTxt(c) + '   ·   ' + dataMesa(), 60, 132);
+          ctx.fillStyle = '#1E1814'; for (const [cx, cy, sx, sy] of [[120, 330, 1, 1], [820, 330, -1, 1], [120, 820, 1, -1], [820, 820, -1, -1]]) { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + sx * 70, cy); ctx.lineTo(cx, cy + sy * 70); ctx.closePath(); ctx.fill(); } });
+        carimboMesa(700, 1430, 'PERGUNTA', 'ANÔNIMA · CASO ' + casoTxt(c), -8);
+        peca('tachinha', 540, 380, .6, 0);
+      } else if (modelo === 'enquete') { // duas polaroids A ou B
+        [[300, -4, 'A'], [780, 3, 'B']].forEach(([cx, rot, L]) => { peca('polaroid_v', cx, 860, .64, rot, gg => { const [x, y, w, h] = gg.jan; ctx.fillStyle = '#4A443E'; ctx.fillRect(x, y, w, h); ctx.fillStyle = '#1E1814'; ctx.font = fontStr(TIT, 90, 400); ctx.textAlign = 'center'; ctx.fillText(L, x + w / 2, y + h + 150); ctx.textAlign = 'left'; }); peca('tachinha', cx, 860 - 270, .55, 0); });
+        carimboMesa(540, 1290, 'VOTE', 'CASO ' + casoTxt(c), -6); peca('fita', 540, 520, 1.0, 8);
+      } else if (modelo === 'direct') { // envelope aberto com a folha para o print
+        papel(150, 300, 780, 1080, -2, '#F6F3EC'); peca('envelope', 540, 1400, 1.75, 3, gg => carimboMesa(gg.w - 230, gg.h - 120, 'CHEGOU NO', 'DIRECT · ' + dataMesa(), -6, '#6E1E1A'));
+      } else { // foto ou vídeo seu: mesa livre com a luz do abajur
+        lupaSobre(200, 1660, .62, 1.5); postitMesa('caso ' + casoTxt(c), 'baixo', 880, 1640, 6, .62);
+      }
+      // sua foto (polaroid pequena) e etiqueta do caso
+      if (modelo !== 'foto') peca('polaroid_v', 880, 1700, .3, 7, gg => { const [x, y, w, h] = gg.jan; if (avatarReady()) { ctx.save(); if ('filter' in ctx) ctx.filter = 'grayscale(1) contrast(1.1)'; cover(avatarEl, x, y, w, h); ctx.restore(); } });
+      if (PECA('couroR_alto')) { const im = PECA('couroR_alto'); ctx.save(); ctx.shadowColor = 'rgba(20,8,0,.55)'; ctx.shadowBlur = 42; ctx.shadowOffsetX = 22; ctx.shadowOffsetY = 36; ctx.drawImage(im, 0, 0, 1080, 1920); ctx.restore(); }
+      ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .1; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
+      const vg = ctx.createRadialGradient(540, 900, 600, 540, 960, 1300); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.5)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, 1080, 1920);
+    } finally { ctx = salva; }
+    return cv;
   }
   // capa de Reels 1080×1920 sem o título (para pôr a headline no Edits): foto e objetos dentro da área 3:4 do centro
   function capaReels(c, modo) {
     const cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1920;
     const g2 = cv.getContext('2d'), s = c.slides[0], photo = img(s.image);
-    const fundo = PECA('mesa_reels') || PECA('mesa1');
+    const fundo = PECA('couroR') || PECA('mesa_reels') || PECA('mesa1');
     if (fundo) { const ir = fundo.naturalWidth / fundo.naturalHeight; const h = 1920, w = h * ir; g2.drawImage(fundo, (1080 - w) / 2, 0, w, h); } else { g2.fillStyle = '#1e120a'; g2.fillRect(0, 0, 1080, 1920); }
     const salva = ctx; ctx = g2;
     try {
-      if (modo !== 'teste') { try { ligaFeed(vagaFeed('reels'), 'reels'); } catch (e) {} }
+      if (modo !== 'teste') { try { ligaFeed(vagaFeed('reels'), 'reels', null, 0, 'base'); } catch (e) {} }
       peca('polaroid_v', 540, 800, 1.15, -2, g => { const [x, y, w, h] = g.jan; if (photo) { ctx.save(); if ('filter' in ctx) ctx.filter = s.cor ? 'saturate(.9)' : 'grayscale(1) contrast(1.1) sepia(.12)'; cover(photo, x, y, w, h, s.t); ctx.restore(); } });
       peca('tachinha', 540, 330, .6, 0);
+      if (PECA('couroR_alto')) { const im = PECA('couroR_alto'); ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 34; ctx.shadowOffsetX = 14; ctx.shadowOffsetY = 24; ctx.drawImage(im, 0, 0, 1080, 1920); ctx.restore(); }
+      if (modo !== 'teste') { try { ligaFeed(vagaFeed('reels'), 'reels', null, 0, 'alto'); } catch (e) {} }
       if (modo === 'teste') { // isolada: só a prova iluminada, contraste alto, sem nada que dependa dos vizinhos
         const gr = ctx.createRadialGradient(540, 800, 260, 540, 820, 980); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.72)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, 1080, 1920);
         ctx.save(); ctx.globalCompositeOperation = 'soft-light'; const gl = ctx.createRadialGradient(470, 640, 40, 540, 800, 620); gl.addColorStop(0, 'rgba(255,225,170,.55)'); gl.addColorStop(1, 'rgba(255,225,170,0)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
@@ -2971,6 +3190,14 @@
     const ordem = ['direita', 'meio', 'esquerda']; // o Instagram põe o mais novo à esquerda: posta da direita para a esquerda
     return { dia, k, t, ordem, proxPos: ordem[k], proxTipo: t[ordem[k]] };
   }
+  // dias seguidos com os 3 posts (conta até ontem, e hoje se já fechou os 3)
+  function constancia() {
+    const dia = t => { const d = new Date(t); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }, cont = {};
+    (feed.log || []).forEach(t => { const k = dia(t); cont[k] = (cont[k] || 0) + 1; });
+    const hoje = cont[dia(Date.now())] || 0; let n = hoje >= 3 ? 1 : 0, d = new Date(); d.setHours(12);
+    for (;;) { d.setDate(d.getDate() - 1); if ((cont[dia(d.getTime())] || 0) >= 3) n++; else break; }
+    return { dias: n, hoje };
+  }
   function renderProximo() {
     const p = planoFeed(); if (!$('prox-t')) return;
     $('prox-t').textContent = `Próximo: ${NOME_T[p.proxTipo]} · ${p.proxPos} da fileira do dia ${p.dia + 1}`;
@@ -2979,10 +3206,11 @@
       const idx = p.ordem.indexOf(pos), b = document.createElement('button'); b.type = 'button';
       b.innerHTML = `<small>${pos}</small>${NOME_T[p.t[pos]]}`;
       if (idx < p.k) b.className = 'feito'; else if (idx === p.k) b.className = 'agora';
-      b.onclick = () => { if (idx === p.k) { feed.postados++; salvaFeed(); renderProximo(); toast('Marcado como postado. Próximo atualizado.'); } else if (idx === p.k - 1) { feed.postados--; salvaFeed(); renderProximo(); } };
+      b.onclick = () => { if (idx === p.k) { feed.postados++; (feed.log = feed.log || []).push(Date.now()); salvaFeed(); renderProximo(); toast('Marcado como postado. Próximo atualizado.'); } else if (idx === p.k - 1) { feed.postados--; (feed.log || []).pop(); salvaFeed(); renderProximo(); } };
       box.appendChild(b);
     });
-    $('prox-h').textContent = `Ordem de hoje: ${p.ordem.map(o => NOME_T[p.t[o]].toLowerCase()).join(' → ')}. Espace os 3 ao longo do dia (manhã, tarde e noite). Toque no destacado quando postar.`;
+    const sq = constancia();
+    $('prox-h').textContent = `Ordem de hoje: ${p.ordem.map(o => NOME_T[p.t[o]].toLowerCase()).join(' → ')}. Espace os 3 ao longo do dia (manhã, tarde e noite). Toque no destacado quando postar. ` + (sq.dias ? `Constância: ${sq.dias} ${sq.dias === 1 ? 'dia' : 'dias'} seguidos com os 3 posts${sq.hoje < 3 ? ` (hoje: ${sq.hoje}/3)` : ''}.` : (sq.hoje ? `Hoje: ${sq.hoje}/3. Complete os 3 para começar a sequência.` : 'Sequência zerada: com 3 posts hoje ela recomeça. O feed ligado depende dos 3 por dia.'));
   }
   renderProximo();
   $('ver-perfil').onclick = verPerfil;
@@ -3150,7 +3378,7 @@
     catch (e) { return (e && e.code) || 'error'; }
   }
   async function baixarCapaReels(modo) {
-    const c = active(); const cv = capaReels(c, modo);
+    const c = active(); await carregaPecas(PECAS_STORY); const cv = capaReels(c, modo);
     const b = await new Promise(r => cv.toBlob(r, 'image/png'));
     const r = await saveFile(`${slug(c.title)}-capa-reels-${modo}.png`, b);
     const dica = modo === 'teste' ? 'Capa isolada para Reels de teste (não entra no grid). Se o teste for promovido, troque pela capa "feed".' : 'Capa encaixada na vaga de Reels do feed.';
@@ -3158,6 +3386,27 @@
     const box = $('overlay-imgs'); box.innerHTML = ''; const im = document.createElement('img'); im.src = cv.toDataURL('image/png'); box.append(im); $('overlay').hidden = false; document.body.style.overflow = 'hidden';
   }
   $('reels-capa').onclick = () => baixarCapaReels('feed');
+  async function baixarVideo(fmt) {
+    const c = active(); if (!c) return; const bt = $(fmt === 'reels' ? 'video-reels' : 'video-capa'), txt = bt.textContent; bt.disabled = true; bt.textContent = 'Gravando 5 s…';
+    try {
+      let base; if (fmt === 'reels') { await carregaPecas(PECAS_STORY); base = capaReels(c, 'feed'); } else { go(0); render(); base = document.createElement('canvas'); base.width = W; base.height = H; base.getContext('2d').drawImage(canvas, 0, 0); }
+      const { blob, ext } = await videoCapa(c, fmt, base);
+      const r = await saveFile(`${slug(c.title)}-capa${fmt === 'reels' ? '-reels' : ''}.${ext}`, blob);
+      toast(ext === 'mp4' ? 'Vídeo da capa salvo (MP4).' : 'Vídeo salvo em WebM: se o Instagram recusar, abra no Edits e exporte em MP4.');
+    } catch (e) { toast('Não deu para gravar o vídeo aqui: ' + (e.message || e)); }
+    finally { bt.disabled = false; bt.textContent = txt; }
+  }
+  $('video-capa').onclick = () => baixarVideo('post');
+  $('video-reels').onclick = () => baixarVideo('reels');
+  const pintaEspecial = () => { const c = active(); $('especial').setAttribute('aria-pressed', c && c.especial ? 'true' : 'false'); $('especial').classList.toggle('postado-on', !!(c && c.especial)); };
+  $('especial').onclick = () => { const c = active(); if (!c) return; c.especial = !c.especial; changed(); pintaEspecial(); toast(c.especial ? 'Caso especial: a capa ganha a placa de latão. Use 1 vez por mês.' : 'Capa volta para papel.'); };
+  setInterval(pintaEspecial, 1500);
+  document.querySelectorAll('#stories button').forEach(b => b.onclick = async () => {
+    const c = active(); if (!c) return; await carregaPecas(PECAS_STORY); const cv = storyMesa(c, b.dataset.s), bl = await new Promise(r => cv.toBlob(r, 'image/png'));
+    const r = await saveFile(`${slug(c.title)}-story-${b.dataset.s}.png`, bl);
+    if (r === 'ok' || r === 'declined') { toast('Modelo de story salvo. Escreva por cima com as fontes do Instagram (a de máquina de escrever combina).'); return; }
+    const box = $('overlay-imgs'); box.innerHTML = ''; const im = document.createElement('img'); im.src = cv.toDataURL('image/png'); box.append(im); $('overlay').hidden = false; document.body.style.overflow = 'hidden';
+  });
   $('reels-capa-teste').onclick = () => baixarCapaReels('teste');
   function pintarAjuste() {
     const s = slide(); if (!s || !$('af-t')) return; const a = aj(s);

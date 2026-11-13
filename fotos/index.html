@@ -835,6 +835,9 @@
         cur = '';
         if (two === '**') b = !b; else u = !u;
         i++;
+      } else if (str[i] === '*' && /\S/.test(b ? (str[i - 1] || '') : (str[i + 1] || ''))) { // *palavra* (um asterisco) também vira destaque, em vez de aparecer o asterisco
+        if (cur) out.push({ text: cur, b, u });
+        cur = ''; b = !b;
       } else cur += str[i];
     }
     if (cur) out.push({ text: cur, b, u });

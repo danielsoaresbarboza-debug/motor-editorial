@@ -2375,7 +2375,7 @@
       if (o.camada !== camada || Math.abs(o.k - i) > 1) continue;
       const dx = (o.k - i) * W;
       if (o.tipo === 'postit') postitMesa(o.frase.slice(0, 3).filter(Boolean).join('\n').replace('#N', '#' + casoN(c)), o.frase[3], o.x + dx, o.y, o.rot, .7);
-      if (o.tipo === 'continua') { ctx.save(); ctx.translate(o.x + dx, o.y); ctx.rotate(-.06); sombraTexto(true); ctx.fillStyle = 'rgba(245,236,215,.82)'; ctx.font = fontStr(MAO, 48, 700); ctx.fillText('continua →', 0, 0); ctx.restore(); }
+      if (o.tipo === 'continua') setaCouro(o.x + dx - 30, o.y - 14, 170);
       if (o.tipo === 'pasta') desenhaPasta(c, o, dx);
       if (o.tipo === 'porta') desenhaPorta(c, o, dx);
     }
@@ -2508,6 +2508,27 @@
     // gravado: luz embaixo, tinta escura em cima
     ctx.save(); const o2 = Object.assign({}, o, { color: 'rgba(255,240,200,.55)', em: 'rgba(255,240,200,.55)' }); gDesenha(L, o2, x + w / 2, ty + 2, 'center'); gDesenha(L, o, x + w / 2, ty, 'center'); ctx.restore();
     return y;
+  }
+  // subtexto em tiras de papel branco, letra preta de máquina de escrever (uma tira por linha)
+  const oTira = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TYP, w: 700, emW: 700, lh: 1.6, ls: 0, color: '#17130F', em: '#17130F', maxW: CW - 60, max: 29, min: 22, equilibra: false, gap: .55 }, extra || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
+  function tirasDesk(L, o, x, y) {
+    const lh = Math.round(L.size * o.lh), gap = Math.round(L.size * (o.gap ?? .6)); let cy = y, k = 0;
+    L.blocks.forEach((lines, bi) => {
+      for (const line of lines) {
+        const h = Math.round(L.size * 1.42), w = line.width + 36, rot = k % 2 ? .45 : -.35;
+        papelSombra(x - 18 + (k % 2 ? 6 : 0), cy + (lh - h) / 2, w, h, rot, '#F3EFE7', () => { ctx.textBaseline = 'alphabetic'; let cx = 18; const base = Math.round(h / 2 + L.size * .34); for (const t of line.tokens) { ctx.font = gFonte(o, L.size, t.em); ctx.fillStyle = o.color; ctx.fillText(t.text, cx, base); cx += t.w; } });
+        cy += lh; k++;
+      }
+      if (bi < L.blocks.length - 1) cy += gap;
+    });
+  }
+  // gravado a quente no couro: vinco escuro, borda de cima na sombra e borda de baixo pegando luz
+  function gravadoCouro(desenha) { desenha('rgba(255,218,176,.34)', .8, 2.6); desenha('rgba(4,1,0,.75)', -.6, -2); desenha('rgba(16,6,2,.82)', 0, 0); desenha('rgba(60,26,10,.35)', 0, .8); }
+  function setaCouro(x, y, len) {
+    gravadoCouro((cor, dx, dy) => { ctx.save(); ctx.translate(x + dx, y + dy); ctx.strokeStyle = cor; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len, 0); ctx.moveTo(len - 26, -18); ctx.lineTo(len, 0); ctx.lineTo(len - 26, 18); ctx.stroke(); ctx.restore(); });
+  }
+  function textoCouro(t, x, y, tam, alinha) {
+    gravadoCouro((cor, dx, dy) => { ctx.save(); ctx.font = fontStr(TYP, tam, 700); spaced(4); ctx.textAlign = alinha || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = cor; ctx.fillText(t, x + dx, y + dy); spaced(0); ctx.restore(); });
   }
   function textoDesk(L, o, x, y) { TEXTO_RECTS.push([x - 6, y - 12, CW + 12, L.h + 24]); ctx.save(); sombraTexto(true); gDesenha(L, o, x, y, 'left'); ctx.restore(); }
   function postitMesa(txt, seta, cx, cy, rot, esc) {
@@ -2792,7 +2813,7 @@
       if (!photo && false) {}
       let yB = cta ? ctaMesa(pe) - 40 : pe;
       manchetePapel(c, chap, s.paras.slice(0, 1), s, yB, estiloManchete(c), 300);
-      if (n > 1) { ctx.save(); sombraTexto(true); ctx.font = fontStr(TYP, 18, 700); spaced(4); ctx.fillStyle = 'rgba(240,228,205,.6)'; ctx.textAlign = 'right'; ctx.fillText('ABRA O ARQUIVO  →', W - M, H - 78); spaced(0); ctx.restore(); }
+      if (n > 1) { textoCouro('ABRA O ARQUIVO', W - M - 150, H - 70, 24, 'right'); setaCouro(W - M - 125, H - 79, 125); }
     } else if ((s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') && ps.trat === 'pasta') {
       pin = null; // tachinha já vem com a foto da pasta
       const tit = s.paras.slice(0, 1), resto = s.paras.slice(1).join(' ');
@@ -2827,24 +2848,25 @@
       }
       const tit = s.paras.slice(0, 1), resto = s.paras.slice(1).join(' ');
       const yB = cta ? ctaMesa(pe) - 40 : pe;
-      const oc = oCorpo(s); const Lc = resto ? gFit([resto], oc, 200) : null;
-      const yT = manchetePapel(c, chap, tit, s, yB - (Lc ? Lc.h + 34 : 0), estiloManchete(c) === 'tira' ? 'tira' : 'ficha', 240);
-      if (Lc) textoDesk(Lc, oc, M, yB - Lc.h);
+      const oc = oTira(s); const Lc = resto ? gFit([resto], oc, 220) : null;
+      const yT = manchetePapel(c, chap, tit, s, yB - (Lc ? Lc.h + 40 : 0), estiloManchete(c) === 'tira' ? 'tira' : 'ficha', 240);
+      if (Lc) tirasDesk(Lc, oc, M, yB - Lc.h);
     } else if (s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') {
       const vert = s.tipo === 'foto' && photo && photo.naturalHeight > photo.naturalWidth;
-      const yFoto = s.tipo === 'imagem' ? 560 : 470;
-      pin = fotoPolaroid(W / 2 + (r - .5) * 30, yFoto, s.tipo === 'imagem' ? .98 : (vert ? 1.06 : 1.1), (r - .5) * 6, vert);
+      const yFoto = s.tipo === 'imagem' ? 500 : 470;
+      pin = fotoPolaroid(W / 2 + (r - .5) * 30, yFoto, s.tipo === 'imagem' ? .92 : (vert ? 1.06 : 1.1), (r - .5) * 6, vert);
       if (r > .5) peca('fita', W / 2 + 300, yFoto - 380, .9, 24);
       const tit = s.paras.slice(0, 1), resto = s.paras.slice(1).join(' ');
       if (s.tipo === 'imagem') {
-        chapeuMesa(chap, M, 150 + a.y); const o = oTit(s, { max: 72, min: 46 }); const L = gFit(tit, o, 160); textoDesk(L, o, M, 170 + a.y);
-        if (resto) { const oc = oCorpo(s, { max: 30, min: 24 }); const Lc = gFit(['**Fig. ' + (c.slides.slice(0, i + 1).filter(x => x.tipo === 'imagem').length) + '** — ' + resto], oc, 140); textoDesk(Lc, oc, M, (cta ? ctaMesa(pe) - 30 : pe) - Lc.h); }
+        const yB = cta ? ctaMesa(pe) - 30 : pe; let yF = yB;
+        if (resto) { const oc = oTira(s); const Lc = gFit(['Fig. ' + (c.slides.slice(0, i + 1).filter(x => x.tipo === 'imagem').length) + ' — ' + resto], oc, 150); yF = yB - Lc.h; tirasDesk(Lc, oc, M, yF); }
+        manchetePapel(c, chap, tit, s, yF - 26, 'tira', 210, { max: 60, min: 40 });
       } else {
         if (hashN(c.id, 'lupa') > .4 && photo) lupaSobre(W / 2 + 120, yFoto + 30, .8, 1.8);
         const yB = cta ? ctaMesa(pe) - 40 : pe;
         const o = oTit(s, { max: 76, min: 46 }); const L = gFit(tit, o, 220);
-        const oc = oCorpo(s); const Lc = resto ? gFit([resto], oc, 160) : null;
-        let y = yB - L.h - (Lc ? Lc.h + 26 : 0); if (chap) chapeuMesa(chap, M, y - 26); textoDesk(L, o, M, y); if (Lc) textoDesk(Lc, oc, M, y + L.h + 26);
+        const oc = oTira(s); const Lc = resto ? gFit([resto], oc, 180) : null;
+        let y = yB - L.h - (Lc ? Lc.h + 34 : 0); if (chap) chapeuMesa(chap, M, y - 26); textoDesk(L, o, M, y); if (Lc) tirasDesk(Lc, oc, M, y + L.h + 34);
       }
     } else if (s.tipo === 'lista') {
       const itens = s.paras.slice(1).filter(t => t.trim());
@@ -2911,11 +2933,11 @@
     }
     if (s.carimbo && !(s.tipo === 'capa' && (c.envelope || c.fita || c.status))) { const emPapel = ['texto', 'lista', 'comparar', 'revela'].includes(s.tipo); carimboMesa(s.tipo === 'capa' ? 250 : W - 250, s.tipo === 'capa' ? 150 : emPapel ? H - 260 + a.y * .3 : 235, String(s.carimbo).toUpperCase().slice(0, 14), 'CASO ' + casoTxt(c), -9 + r * 6, '#B3201C', .74); }
     // abajur e livros por cima, só onde o canto não tem texto (capa, fotos, número, fecho)
+    fioMesa(c, i);
+    if (pin) tachMesa(pin);
     if (['capa', 'imagem', 'foto', 'print', 'numero', 'destaque', 'pergunta'].includes(s.tipo) && ps.trat !== 'porta' && !ps.porta && !ps.cheio) altosMesa(nomeFundo(c.id, i));
     cruzMesa(c, i, 'alto');
     if (i === 0 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', null, 0, 'alto'); } catch (e) {} }
-    fioMesa(c, i);
-    if (pin) tachMesa(pin);
     } finally { M = _M; CW = _CW; LUZ = 1; }
     // profundidade de campo: bordas de cima e de baixo levemente fora de foco
     if ('filter' in ctx) { try { const [cv, g2] = off(W, H); g2.drawImage(canvas, 0, 0);

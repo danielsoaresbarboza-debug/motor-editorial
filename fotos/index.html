@@ -2233,7 +2233,7 @@
   const GEO = {
     polaroid_h: { w: 980, h: 900, jan: [90, 100, 800, 620] }, polaroid_v: { w: 740, h: 920, jan: [90, 100, 560, 640] },
     folha: { w: 980, h: 1240, area: [70, 70, 840, 1100] }, ficha: { w: 980, h: 1240, area: [70, 70, 840, 1100] },
-    postit: { w: 480, h: 480, area: [48, 48, 384, 384] }, tachinha: { w: 160, h: 160 }, lupa: { w: 800, h: 800, aro: [400, 400, 150] },
+    postit: { w: 480, h: 480, area: [48, 48, 384, 384] }, tachinha: { w: 240, h: 240 }, lupa: { w: 800, h: 800, aro: [400, 400, 150] },
     lacre: { w: 300, h: 300 }, esquadro: { w: 520, h: 520 }, moedas: { w: 300, h: 300 }, fita: { w: 330, h: 120 },
     ficha_furos: { w: 980, h: 1240, area: [70, 70, 840, 1100] }, folha_dobra: { w: 980, h: 1240, area: [70, 70, 840, 1100] },
     pasta: { w: 1700, h: 1380, area: [40, 110, 1620, 1230] }, regua: { w: 560, h: 100 }, envelope: { w: 580, h: 420 },
@@ -2841,13 +2841,13 @@
   function fioMesa(c, i) {
     const ps = planoMesa(c).slides[i]; if (ps && (ps.trat === 'porta' || ps.porta)) return; // a pasta de couro fica livre do fio
     const pts = [];
-    for (let k = Math.max(0, i - 3); k <= Math.min(c.slides.length - 1, i + 3); k++) { const p = pinMesa(c, k); if (p) pts.push([p[0] + (k - i) * W, p[1]]); }
+    for (let k = Math.max(0, i - 3); k <= Math.min(c.slides.length - 1, i + 3); k++) { if (usaPagina(c, k)) continue; const p = pinMesa(c, k); if (p) pts.push([p[0] + (k - i) * W, p[1]]); }
     if (pts.length < 2) return;
     ctx.save(); ctx.lineCap = 'round';
     for (const pass of [0, 1]) {
       ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
       for (let k = 1; k < pts.length; k++) { const a = pts[k - 1], b = pts[k], sag = 60 + Math.abs(b[0] - a[0]) * .05; ctx.quadraticCurveTo((a[0] + b[0]) / 2, Math.max(a[1], b[1]) + sag, b[0], b[1]); }
-      if (!pass) { ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 3.5; ctx.filter = 'blur(3px)'; ctx.translate(6, 10); }
+      if (!pass) { ctx.strokeStyle = 'rgba(20,6,0,.26)'; ctx.lineWidth = 3; ctx.filter = 'blur(2px)'; ctx.translate(3 * LUZ, 5); }
       else { ctx.filter = 'none'; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.strokeStyle = '#6E1418'; ctx.lineWidth = 2.6; }
       ctx.stroke();
     }
@@ -2858,6 +2858,7 @@
     try { fixaMesa(c.id, vagaCarrossel(c)); } catch (e) {}
     if (usaPagina(c, i)) return drawPagina(c, i);
     const s = c.slides[i], n = c.slides.length, a = aj(s), photo = img(s.image), r = hashN(c.id, i);
+    const antesPagina = i === 1 && usaPagina(c, 2), CX = antesPagina ? 452 : W / 2, EP = antesPagina ? .8 : .88; // no slide 2 o papel abre espaço para a página que chega
     ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left'; lastCover = null;
     fundoMesa(c, i); LUZ = luzDe(c.id, i); TEXTO_RECTS = [];
     const P = planoMesa(c), ps = P.slides[i];
@@ -2977,7 +2978,7 @@
     } else if (s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') {
       const vert = s.tipo === 'foto' && photo && photo.naturalHeight > photo.naturalWidth;
       const yFoto = s.tipo === 'imagem' ? 500 : 470;
-      pin = fotoPolaroid(W / 2 + (r - .5) * 30, yFoto, s.tipo === 'imagem' ? .92 : (vert ? 1.06 : 1.1), (r - .5) * 6, vert);
+      pin = fotoPolaroid(CX + (r - .5) * 30, yFoto, s.tipo === 'imagem' ? .92 : (vert ? 1.06 : 1.1), (r - .5) * 6, vert);
       if (r > .5) peca('fita', W / 2 + 300, yFoto - 380, .9, 24);
       const tit = s.paras.slice(0, 1), resto = s.paras.slice(1).join(' ');
       if (s.tipo === 'imagem') {
@@ -2993,7 +2994,7 @@
       }
     } else if (s.tipo === 'lista') {
       const itens = s.paras.slice(1).filter(t => t.trim());
-      pin = papelTexto('ficha', W / 2, 702, .88, (r - .5) * 3, [{ chap: s.chapeu || 'Tire print deste slide' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 58, min: 40 }), gap: 46, maxH: 220 },
+      pin = papelTexto('ficha', CX, 702, EP, (r - .5) * 3, [{ chap: s.chapeu || 'Tire print deste slide' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 58, min: 40 }), gap: 46, maxH: 220 },
         ...itens.map((t, k) => ({ paras: [String(k + 1).padStart(2, '0') + '  ' + t], o: oTyp(s, { max: 34, min: 28 }), gap: 30, maxH: 220 }))]);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'texto' || s.tipo === 'comparar' || s.tipo === 'revela' || (s.tipo === 'destaque' && s.fundo === 'claro')) {
@@ -3002,12 +3003,12 @@
       if (s.tipo === 'comparar') blocos = [{ chap: s.chapeu || 'Antes e depois' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 54, min: 38 }), gap: 40, maxH: 200 }, { chap: 'O jeito comum' }, { paras: [s.paras[1] || ''], o: oTyp(s), gap: 40, maxH: 220 }, { chap: 'O que funciona' }, { paras: [s.paras[2] || ''], o: oPapel(s, { max: 46, min: 34, mark: '#F6C915' }), maxH: 260 }];
       else if (s.tipo === 'destaque') blocos = [chap ? { chap } : null, { paras: s.paras, o: oPapel(s, { max: 76, min: 50, lh: 1.02 }), maxH: 720 }].filter(Boolean);
       else blocos = [{ chap: chap || (s.tipo === 'revela' ? 'A resposta' : (i === 1 ? 'O caso' : '')) }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: i === 1 ? 66 : 58, min: 40 }), gap: 46, maxH: 520 }, s.paras.length > 1 ? { paras: s.paras.slice(1), o: oTyp(s), maxH: 480 } : null].filter(b => b && (b.paras || b.chap));
-      pin = papelTexto(ficha ? 'ficha' : 'folha', W / 2 + (r - .5) * 30, 702, .88, (r - .5) * 4, blocos);
+      pin = papelTexto(ficha ? 'ficha' : 'folha', CX + (r - .5) * 30, 702, EP, (r - .5) * 4, blocos);
       if (s.tipo === 'destaque') peca(P.maco === 'lacre_tri' && PECA('lacre_tri') ? 'lacre_tri' : 'lacre', W - 230, 1080, .9, r * 90);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'uv') {
       const vis = s.paras.slice(0, 1), ocu = s.paras.slice(1).filter(t => t.trim());
-      pin = papelTexto('folha', W / 2 + (r - .5) * 20, 702, .88, (r - .5) * 3, [{ chap: chap || 'Leia com a luz certa' }, { paras: vis, o: oPapel(s, { max: 56, min: 38 }), gap: 40, maxH: 300 }]);
+      pin = papelTexto('folha', CX + (r - .5) * 20, 702, EP, (r - .5) * 3, [{ chap: chap || 'Leia com a luz certa' }, { paras: vis, o: oPapel(s, { max: 56, min: 38 }), gap: 40, maxH: 300 }]);
       luzUV(W / 2, 905 + a.y * .5, 300, ocu, s);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'armadilha') {

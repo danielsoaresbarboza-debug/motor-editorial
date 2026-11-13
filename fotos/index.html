@@ -2375,7 +2375,7 @@
       if (o.camada !== camada || Math.abs(o.k - i) > 1) continue;
       const dx = (o.k - i) * W;
       if (o.tipo === 'postit') postitMesa(o.frase.slice(0, 3).filter(Boolean).join('\n').replace('#N', '#' + casoN(c)), o.frase[3], o.x + dx, o.y, o.rot, .7);
-      if (o.tipo === 'continua') { if (!usaPagina(c, o.k)) setaCouro(o.x + dx - 30, H - 150, 170); }
+      if (o.tipo === 'continua' && o.k === i && !usaPagina(c, o.k)) segue(H - 140, 'rgba(240,228,205,.8)');
       if (o.tipo === 'pasta') desenhaPasta(c, o, dx);
       if (o.tipo === 'porta') desenhaPorta(c, o, dx);
     }
@@ -2524,7 +2524,13 @@
   }
   // gravado a quente no couro: vinco escuro, borda de cima na sombra e borda de baixo pegando luz
   function gravadoCouro(desenha) { desenha('rgba(255,218,176,.34)', .8, 2.6); desenha('rgba(4,1,0,.75)', -.6, -2); desenha('rgba(16,6,2,.82)', 0, 0); desenha('rgba(60,26,10,.35)', 0, .8); }
+  const PROG = '#D2552E';
+  function barraProg(i, n, y, base) { ctx.save(); ctx.fillStyle = base; ctx.fillRect(96, y, W - 192, 3); ctx.fillStyle = PROG; ctx.fillRect(96, y, (W - 192) * (i + 1) / n, 3); ctx.restore(); }
+  function segue(y, cor) { // "segue" em itálico serifado e um fio fino que atravessa para o próximo slide
+    ctx.save(); ctx.font = fontStr(TIT, 34, 400, true); ctx.fillStyle = cor; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'; const t = 'segue', x = W - 96 - 230; ctx.fillText(t, x, y); const tw = ctx.measureText(t).width;
+    ctx.fillRect(x + tw + 16, y - 10, W - (x + tw + 16), 1.5); ctx.restore(); }
   function setaCouro(x, y, len) {
+    segue(y + 10, 'rgba(240,228,205,.8)'); return;
     ctx.save(); ctx.strokeStyle = 'rgba(240,228,205,.78)'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x + len - 70, y); ctx.lineTo(x + len, y); ctx.moveTo(x + len - 14, y - 12); ctx.lineTo(x + len, y); ctx.lineTo(x + len - 14, y + 12); ctx.stroke(); ctx.restore(); return;
     gravadoCouro((cor, dx, dy) => { ctx.save(); ctx.translate(x + dx, y + dy); ctx.strokeStyle = cor; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len, 0); ctx.moveTo(len - 26, -18); ctx.lineTo(len, 0); ctx.lineTo(len - 26, 18); ctx.stroke(); ctx.restore(); });
   }
@@ -2701,14 +2707,21 @@
   const PG = { bg: '#F3EEE3', ink: '#1C1712', sub: '#4A4036', mute: '#8E806C', red: '#B3201C', card: '#FFFDF8', line: 'rgba(28,23,18,.10)' };
   const PM = 96, PCW = W - PM * 2;
   function usaPagina(c, i) { return !!(c && c.slides.length > 2 && i >= 2 && c.slides[i]); }
-  function fundoPagina() {
+  const SY = 118; // a folha começa abaixo da costura de cima e termina acima da de baixo
+  function fundoPagina(c, i) {
+    const n = c.slides.length, x0 = i === 2 ? -180 : -40, x1 = i === n - 1 ? W - 56 : W + 40;
+    fundoMesa(c, i);
+    ctx.save(); ctx.shadowColor = 'rgba(10,4,0,.6)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 14; ctx.fillStyle = PG.bg; ctx.fillRect(x0, SY, x1 - x0, H - SY * 2); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, SY, x1 - x0, H - SY * 2); ctx.clip();
     ctx.fillStyle = PG.bg; ctx.fillRect(0, 0, W, H);
-    ctx.save(); ctx.strokeStyle = 'rgba(120,100,70,.065)'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(120,100,70,.065)'; ctx.lineWidth = 1.5;
     for (let x = 0; x <= W; x += 54) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, H); ctx.stroke(); }
     for (let y = 0; y <= H; y += 54) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke(); }
     ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .1; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
   }
-  function bordaPagina() { // a página do dossiê aparece na borda direita do slide 2 e ocupa o slide 3
+  function bordaPagina() { const x = W - 180; ctx.save(); ctx.shadowColor = 'rgba(10,4,0,.6)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 14; ctx.fillStyle = PG.bg; ctx.fillRect(x, SY, 400, H - SY * 2); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(x, SY, 180, H - SY * 2); ctx.clip(); ctx.strokeStyle = 'rgba(120,100,70,.065)'; ctx.lineWidth = 1.5; for (let xx = 0; xx <= W; xx += 54) { ctx.beginPath(); ctx.moveTo(xx + .5, 0); ctx.lineTo(xx + .5, H); ctx.stroke(); } for (let y = 0; y <= H; y += 54) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke(); } ctx.restore(); }
+  function bordaPaginaVelha() { // a página do dossiê aparece na borda direita do slide 2 e ocupa o slide 3
     const x = W - 64; ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 30; ctx.shadowOffsetX = -10; ctx.fillStyle = PG.bg; ctx.fillRect(x, -10, 200, H + 20); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(x, 0, 64, H); ctx.clip(); ctx.strokeStyle = 'rgba(120,100,70,.065)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(W - 54 + .5, 0); ctx.lineTo(W - 54 + .5, H); ctx.stroke();
@@ -2733,12 +2746,12 @@
     const s = c.slides[i], n = c.slides.length, ultimo = i === n - 1, photo = img(s.image), a = aj(s);
     ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left'; lastCover = null; LUZ = 1; TEXTO_RECTS = [];
     try {
-      fundoPagina();
+      fundoPagina(c, i);
       // fólio discreto
-      ctx.save(); ctx.font = fontStr(TYP, 20, 700); spaced(4); ctx.fillStyle = PG.mute; ctx.textBaseline = 'alphabetic'; ctx.fillText(NAME.toUpperCase(), PM, 92); ctx.textAlign = 'right'; ctx.fillText(`CASO ${casoTxt(c)} · ${String(i + 1).padStart(2, '0')}/${String(n).padStart(2, '0')}`, W - PM, 92); spaced(0); ctx.restore();
+      ctx.save(); ctx.font = fontStr(TYP, 20, 700); spaced(4); ctx.fillStyle = PG.mute; ctx.textBaseline = 'alphabetic'; ctx.fillText(NAME.toUpperCase(), PM, SY + 62); ctx.textAlign = 'right'; ctx.fillText(`CASO ${casoTxt(c)} · ${String(i + 1).padStart(2, '0')}/${String(n).padStart(2, '0')}`, W - PM, SY + 62); spaced(0); ctx.restore();
       const KICK = { texto: 'O caso', lista: 'Tire print deste slide', comparar: 'Antes e depois', numero: 'O número', revela: 'A resposta', pergunta: 'Responda de cabeça', destaque: 'O que eu acho', fecho: 'Caso encerrado', imagem: 'A prova', foto: 'A prova', print: 'A prova', armadilha: 'Teste de atenção', tweet: 'O caso', uv: 'Leia com a luz certa' };
       const kick = s.chapeu || (s.passo ? 'Passo ' + s.passo.replace('/', ' de ') : KICK[s.tipo] || '');
-      const pe = H - 150; let y = 170; const centra = hh => { y = Math.max(170, Math.round(170 + (pe - 170 - hh) / 2) - 30); };
+      const pe = H - SY - 130; let y = SY + 110; const y0c = y; const centra = hh => { y = Math.max(y0c, Math.round(y0c + (pe - y0c - hh) / 2) - 20); };
       const topo = () => { if (kick) y = tagPg(kick, PM, y) + 36; };
       const t = s.tipo, P0 = s.paras.slice(0, 1), resto = s.paras.slice(1).filter(x => String(x).trim());
       if (t === 'destaque') {
@@ -2749,10 +2762,10 @@
         centra(52 + 40 + L.h + (Lc ? Lc.h + 40 : 0)); topo(); gDesenha(L, o, PM - 6, y, 'left'); y += L.h + 40; if (Lc) gDesenha(Lc, oc, PM, y, 'left');
       } else if (t === 'lista') {
         const oT = oTitPg(s, { max: 84, min: 54 }), L = gFit(P0, oT, 280);
-        const itens = resto.slice(0, 6), oi = oCorpoPg(s, { max: 40, min: 30, maxW: PCW - 150, color: PG.ink }), Ls = itens.map(tx => gFit([tx], oi, 220));
-        const padY = 40, gap = 36, ch = Ls.reduce((h, L) => h + L.h, 0) + gap * (Ls.length - 1) + padY * 2;
+        const itens = resto.slice(0, 6); let oi, Ls, ch, padY = 40, gap = 36, tam = 40;
+        do { oi = oCorpoPg(s, { max: tam, min: tam, maxW: PCW - 150, color: PG.ink }); Ls = itens.map(tx => gLayout([tx], oi, oi.max)); gap = Math.round(tam * .8); ch = Ls.reduce((h, L) => h + L.h, 0) + gap * (Ls.length - 1) + padY * 2; tam -= 2; } while (ch > pe - (y0c + 88 + L.h + 44) && tam >= 24);
         centra(88 + L.h + 44 + ch); topo(); gDesenha(L, oT, PM, y, 'left'); y += L.h + 44;
-        cardPg(PM, y, PCW, Math.min(ch, pe - y)); let yy = y + padY;
+        cardPg(PM, y, PCW, ch); let yy = y + padY;
         Ls.forEach((L, k) => { ctx.save(); ctx.font = fontStr(TYP, 32, 700); ctx.fillStyle = PG.red; ctx.textBaseline = 'alphabetic'; ctx.fillText(String(k + 1).padStart(2, '0'), PM + 36, yy + Math.round(L.size * .9)); ctx.restore(); gDesenha(L, oi, PM + 110, yy, 'left');
           yy += L.h; if (k < Ls.length - 1) { ctx.fillStyle = PG.line; ctx.fillRect(PM + 40, yy + gap / 2, PCW - 80, 2); yy += gap; } });
       } else if (t === 'comparar') {
@@ -2766,7 +2779,7 @@
         if (t === 'armadilha') { const capaS = c.slides.find(x => x.tipo === 'capa'); ims = capaS ? img(capaS.image) : null; sl = capaS || s; esp = true; }
         const L = textoPg(P0, oTitPg(s, { max: 80, min: 52 }), PM, y, 260); y += L.h + 36;
         const oc = oCorpoPg(s, { max: 38, min: 30 }), Lc = resto.length ? gFit(resto, oc, 200) : null, fh = pe - y - (Lc ? Lc.h + 36 : 0);
-        fotoPg(ims, sl, PM, y, PCW, Math.max(320, fh), esp); y += Math.max(320, fh) + 36;
+        fotoPg(ims, sl, PM, y, PCW, Math.max(260, fh), esp); y += Math.max(260, fh) + 36;
         if (Lc) gDesenha(Lc, oc, PM, y, 'left');
       } else if (t === 'pergunta') {
         const oT = oTitPg(s, { max: 84, min: 54 }), L = gFit(P0, oT, 340), oc = oCorpoPg(s, { max: 42, min: 32, maxW: PCW - 150, color: PG.ink });
@@ -2781,34 +2794,28 @@
         ctx.fillStyle = '#2A2238'; ctx.fillRect(PM, y, PCW, bh); fotoPg(null, s, PM - 4, y - 4, PCW + 8, bh + 8); ctx.fillStyle = 'rgba(30,22,44,.55)'; ctx.fillRect(PM, y, PCW, bh);
         luzUV(W / 2, y + bh / 2, Math.min(300, bh / 2 - 30), resto, s); ctx.restore();
       } else if (t === 'fecho') {
-        y = 200; topo(); const L = textoPg(P0, oTitPg(s, { max: 96, min: 58 }), PM, y, 420); y += L.h + 60;
+        topo(); const L = textoPg(P0, oTitPg(s, { max: 92, min: 56 }), PM, y, 400); y += L.h + 56;
         if (s.cta && s.cta.texto) { const oc = oCorpoPg(s, { max: 42, min: 32, color: '#FBF6EC', em: '#FFFFFF', maxW: PCW - 80 }), Lc = gFit([s.cta.texto], oc, 280), h = Lc.h + 130;
           cardPg(PM, y, PCW, h, PG.ink); ctx.save(); ctx.font = fontStr(TYP, 24, 700); spaced(5); ctx.fillStyle = '#F6C915'; ctx.textBaseline = 'alphabetic'; ctx.fillText(CTA_ROT[s.cta.tipo] || 'FAÇA AGORA', PM + 40, y + 60); spaced(0); ctx.restore(); gDesenha(Lc, oc, PM + 40, y + 86, 'left'); y += h; }
         // assinatura: foto, @ e uma linha que puxa para o feed
-        const ay = pe - 120; ctx.save(); ctx.beginPath(); ctx.arc(PM + 56, ay + 56, 56, 0, Math.PI * 2); ctx.clip(); if (avatarReady()) { if ('filter' in ctx) ctx.filter = 'grayscale(1) contrast(1.1)'; cover(avatarEl, PM, ay, 112, 112); } else { ctx.fillStyle = '#CFC6B6'; ctx.fillRect(PM, ay, 112, 112); } ctx.restore();
+        const ay = pe - 112; ctx.save(); ctx.beginPath(); ctx.arc(PM + 56, ay + 56, 56, 0, Math.PI * 2); ctx.clip(); if (avatarReady()) { if ('filter' in ctx) ctx.filter = 'grayscale(1) contrast(1.1)'; cover(avatarEl, PM, ay, 112, 112); } else { ctx.fillStyle = '#CFC6B6'; ctx.fillRect(PM, ay, 112, 112); } ctx.restore();
         ctx.save(); ctx.fillStyle = PG.ink; ctx.font = fontStr(SANS, 38, 600); ctx.textBaseline = 'alphabetic'; ctx.fillText(HANDLE, PM + 140, ay + 48); ctx.font = fontStr(SANS, 32, 400); ctx.fillStyle = PG.sub; ctx.fillText('Toda semana um caso novo no meu feed.', PM + 140, ay + 92); ctx.restore();
       } else { // texto, revela, tweet e outros: título dominante + um apoio menor
         const oT = oTitPg(s), L = gFit(P0, oT, 520), oc = oCorpoPg(s), Lc = resto.length ? gFit(resto, oc, 480) : null;
         centra(88 + L.h + (Lc ? 48 + Lc.h : 0)); topo(); gDesenha(L, oT, PM, y, 'left'); y += L.h + 48; if (Lc) gDesenha(Lc, oc, PM, y, 'left');
         if (s.carimbo) carimboMesa(W - 250, pe - 40, String(s.carimbo).toUpperCase().slice(0, 14), 'CASO ' + casoTxt(c), -8, '#B3201C', .7);
       }
-      if (s.cta && s.cta.texto && t !== 'fecho') { const oc = oCorpoPg(s, { max: 28, min: 24, color: PG.ink, maxW: PCW - 260 }); ctx.save(); ctx.font = fontStr(TYP, 18, 700); spaced(4); ctx.fillStyle = PG.red; ctx.fillText(CTA_ROT[s.cta.tipo] || 'FAÇA AGORA', PM, H - 140); spaced(0); ctx.restore(); textoPg([s.cta.texto], oc, PM, H - 126, 70); }
-      if (!ultimo) setaPg();
+      if (s.cta && s.cta.texto && t !== 'fecho') { const oc = oCorpoPg(s, { max: 28, min: 24, color: PG.ink, maxW: PCW - 260 }); ctx.save(); ctx.font = fontStr(TYP, 18, 700); spaced(4); ctx.fillStyle = PG.red; ctx.fillText(CTA_ROT[s.cta.tipo] || 'FAÇA AGORA', PM, pe + 10); spaced(0); ctx.restore(); textoPg([s.cta.texto], oc, PM, pe + 24, 70); }
+      if (!ultimo) segue(H - SY - 56, 'rgba(28,23,18,.62)');
       // barra de progresso fina
-      if (n > 1) { ctx.fillStyle = 'rgba(28,23,18,.10)'; ctx.fillRect(PM, H - 52, PCW, 3); ctx.fillStyle = PG.red; ctx.fillRect(PM, H - 52, PCW * (i + 1) / n, 3); }
+      if (n > 1) barraProg(i, n, H - 104, 'rgba(240,228,205,.22)');
     } finally { ctx.restore(); }
   }
   function folioMesa(i, n, c) {
     ctx.save(); ctx.font = fontStr(TYP, 17, 700); spaced(4); ctx.fillStyle = 'rgba(240,228,205,.5)'; ctx.textBaseline = 'alphabetic'; sombraTexto(true);
-    ctx.fillText(NAME.toUpperCase(), 96, 124); ctx.textAlign = 'right'; ctx.fillText(`CASO ${casoTxt(c)} · ${String(i + 1).padStart(2, '0')}/${String(n).padStart(2, '0')}`, W - 96, 124);
+    ctx.fillText(NAME.toUpperCase(), 96, 124); ctx.textAlign = 'right'; ctx.fillText(`CASO ${casoTxt(c)} · ${String(i + 1).padStart(2, '0')}/${String(n).padStart(2, '0')}`, i === 1 && usaPagina(c, 2) ? W - 220 : W - 96, 124);
     spaced(0); ctx.restore();
-    // fio de progresso dourado
-    if (n > 1) {
-      ctx.save(); const y = H - 104, x0 = 96, x1 = W - 96;
-      const gr = ctx.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, 'rgba(226,189,108,0)'); gr.addColorStop(.05, 'rgba(226,189,108,.5)'); gr.addColorStop(.95, 'rgba(226,189,108,.5)'); gr.addColorStop(1, 'rgba(226,189,108,0)');
-      ctx.fillStyle = gr; ctx.fillRect(x0, y, x1 - x0, 1.5);
-      const px = x0 + (x1 - x0) * (i / (n - 1)); ctx.shadowColor = 'rgba(255,200,60,.9)'; ctx.shadowBlur = 16; ctx.fillStyle = '#FFD54A'; ctx.beginPath(); ctx.arc(px, y + .75, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-    }
+    if (n > 1) barraProg(i, n, H - 104, 'rgba(240,228,205,.22)');
   }
   // posição da tachinha de cada slide (para o fio contínuo entre os slides)
   function pinMesa(c, k) {
@@ -2851,6 +2858,7 @@
     P.cruz = P.cruz.filter(o => o.tipo !== 'porta');
     P.slides.forEach((x, k) => { if (x.trat === 'porta') P.cruz.push({ k, tipo: 'porta', camada: 'base' }); });
     P.cruz = P.cruz.filter(o => !usaPagina(c, o.k) && !(o.k === 1 && (o.tipo === 'pasta' || o.tipo === 'porta') && usaPagina(c, 2)));
+    if (i === 1 && usaPagina(c, 2)) bordaPagina();
     cruzMesa(c, i, 'base');
     if (c.envelope && i === 1) envelopeAberto(c);
     if (i <= 1 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', i === 1 ? 'dir' : null, i === 1 ? -W : 0, 'base'); } catch (e) {} } // ligação do feed: o que fica por baixo do conteúdo
@@ -2919,7 +2927,7 @@
       if (!photo && false) {}
       let yB = cta ? ctaMesa(pe) - 40 : pe;
       manchetePapel(c, chap, s.paras.slice(0, 1), s, yB, estiloManchete(c), 330, { max: 90, min: 56 });
-      if (n > 1) setaCouro(W - M - 125, H - 150, 125);
+      if (n > 1) segue(H - 140, 'rgba(240,228,205,.8)');
     } else if ((s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') && ps.trat === 'pasta') {
       pin = null; // tachinha já vem com a foto da pasta
       const tit = s.paras.slice(0, 1), resto = s.paras.slice(1).join(' ');
@@ -2976,7 +2984,7 @@
       }
     } else if (s.tipo === 'lista') {
       const itens = s.paras.slice(1).filter(t => t.trim());
-      pin = papelTexto('ficha', W / 2, 700, 1.08, (r - .5) * 3, [{ chap: s.chapeu || 'Tire print deste slide' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 58, min: 40 }), gap: 46, maxH: 220 },
+      pin = papelTexto('ficha', W / 2, 702, .88, (r - .5) * 3, [{ chap: s.chapeu || 'Tire print deste slide' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 58, min: 40 }), gap: 46, maxH: 220 },
         ...itens.map((t, k) => ({ paras: [String(k + 1).padStart(2, '0') + '  ' + t], o: oTyp(s, { max: 34, min: 28 }), gap: 30, maxH: 220 }))]);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'texto' || s.tipo === 'comparar' || s.tipo === 'revela' || (s.tipo === 'destaque' && s.fundo === 'claro')) {
@@ -2985,12 +2993,12 @@
       if (s.tipo === 'comparar') blocos = [{ chap: s.chapeu || 'Antes e depois' }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: 54, min: 38 }), gap: 40, maxH: 200 }, { chap: 'O jeito comum' }, { paras: [s.paras[1] || ''], o: oTyp(s), gap: 40, maxH: 220 }, { chap: 'O que funciona' }, { paras: [s.paras[2] || ''], o: oPapel(s, { max: 46, min: 34, mark: '#F6C915' }), maxH: 260 }];
       else if (s.tipo === 'destaque') blocos = [chap ? { chap } : null, { paras: s.paras, o: oPapel(s, { max: 76, min: 50, lh: 1.02 }), maxH: 720 }].filter(Boolean);
       else blocos = [{ chap: chap || (s.tipo === 'revela' ? 'A resposta' : (i === 1 ? 'O caso' : '')) }, { paras: s.paras.slice(0, 1), o: oPapel(s, { max: i === 1 ? 66 : 58, min: 40 }), gap: 46, maxH: 520 }, s.paras.length > 1 ? { paras: s.paras.slice(1), o: oTyp(s), maxH: 480 } : null].filter(b => b && (b.paras || b.chap));
-      pin = papelTexto(ficha ? 'ficha' : 'folha', W / 2 + (r - .5) * 30, 690, 1.07, (r - .5) * 4, blocos);
+      pin = papelTexto(ficha ? 'ficha' : 'folha', W / 2 + (r - .5) * 30, 702, .88, (r - .5) * 4, blocos);
       if (s.tipo === 'destaque') peca(P.maco === 'lacre_tri' && PECA('lacre_tri') ? 'lacre_tri' : 'lacre', W - 230, 1080, .9, r * 90);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'uv') {
       const vis = s.paras.slice(0, 1), ocu = s.paras.slice(1).filter(t => t.trim());
-      pin = papelTexto('folha', W / 2 + (r - .5) * 20, 690, 1.07, (r - .5) * 3, [{ chap: chap || 'Leia com a luz certa' }, { paras: vis, o: oPapel(s, { max: 56, min: 38 }), gap: 40, maxH: 300 }]);
+      pin = papelTexto('folha', W / 2 + (r - .5) * 20, 702, .88, (r - .5) * 3, [{ chap: chap || 'Leia com a luz certa' }, { paras: vis, o: oPapel(s, { max: 56, min: 38 }), gap: 40, maxH: 300 }]);
       luzUV(W / 2, 905 + a.y * .5, 300, ocu, s);
       if (cta) ctaMesa(pe);
     } else if (s.tipo === 'armadilha') {
@@ -3047,7 +3055,6 @@
     // profundidade de campo: bordas de cima e de baixo levemente fora de foco
     if ('filter' in ctx) { try { const [cv, g2] = off(W, H); g2.drawImage(canvas, 0, 0);
       for (const [y0, y1, b] of [[0, 40, 3], [40, 80, 1.6], [H - 80, H - 40, 1.6], [H - 40, H, 3]]) { ctx.save(); ctx.beginPath(); ctx.rect(0, y0, W, y1 - y0); ctx.clip(); ctx.filter = `blur(${b}px)`; ctx.drawImage(cv, 0, 0); ctx.restore(); } } catch (e) {} }
-    if (i === 1 && usaPagina(c, 2)) bordaPagina();
     folioMesa(i, n, c);
     // grão de filme e vinheta
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();

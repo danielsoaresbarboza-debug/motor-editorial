@@ -2398,7 +2398,7 @@
   function luzDe(id, i) { const m = mesaDe(id), V = m.V, k = (i + m.f) % 3, L = LADO_ABAJUR[V]; return L && L[0] === k && L[1] < 0 ? -1 : 1; }
   function peca(nome, cx, cy, esc, rot, fn) {
     const im = PECA(nome), g = GEO[nome];
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate((rot || 0) * Math.PI / 180); ctx.scale(esc, esc); ctx.translate(-g.w / 2, -g.h / 2);
+    ctx.save(); if (nome === 'tachinha') { ctx.shadowColor = 'rgba(10,3,0,.5)'; ctx.shadowBlur = 7; ctx.shadowOffsetX = 5 * LUZ; ctx.shadowOffsetY = 8; } ctx.translate(cx, cy); ctx.rotate((rot || 0) * Math.PI / 180); ctx.scale(esc, esc); ctx.translate(-g.w / 2, -g.h / 2);
     if (im && LUZ < 0 && !SEM_ESPELHO.includes(nome)) { ctx.save(); ctx.translate(g.w, 0); ctx.scale(-1, 1); ctx.drawImage(im, 0, 0, g.w, g.h); ctx.restore(); }
     else if (im) ctx.drawImage(im, 0, 0, g.w, g.h);
     else { ctx.fillStyle = 'rgba(240,234,222,.92)'; const a = g.area || g.jan || [0, 0, g.w, g.h]; ctx.fillRect(a[0], a[1], a[2], a[3]); }
@@ -2715,18 +2715,22 @@
   // Regras dos modelos: texto à esquerda, 1 ponto focal, título dominante + 1 apoio menor, blocos curtos, respiro, 1 cor de destaque.
   const PG = { bg: '#F3EEE3', ink: '#1C1712', sub: '#4A4036', mute: '#8E806C', red: '#B3201C', card: '#FFFDF8', line: 'rgba(28,23,18,.10)' };
   const PM = 96, PCW = W - PM * 2;
-  function usaPagina(c, i) { return !!(c && c.slides.length > 2 && i >= 2 && c.slides[i]); }
+  const TIPOS_PAGINA = ['texto', 'lista', 'comparar', 'pergunta', 'revela', 'fecho', 'tweet'];
+  function usaPagina(c, i) { return !!(c && c.slides.length > 2 && i >= 2 && c.slides[i] && TIPOS_PAGINA.includes(c.slides[i].tipo)); }
   const SY = 118; // a folha começa abaixo da costura de cima e termina acima da de baixo
-  function fundoPagina(c, i) {
-    const n = c.slides.length, x0 = i === 2 ? -180 : -40, x1 = i === n - 1 ? W - 56 : W + 40;
-    fundoMesa(c, i);
-    ctx.save(); ctx.shadowColor = 'rgba(10,4,0,.6)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 14; ctx.fillStyle = PG.bg; ctx.fillRect(x0, SY, x1 - x0, H - SY * 2); ctx.restore();
-    ctx.save(); ctx.beginPath(); ctx.rect(x0, SY, x1 - x0, H - SY * 2); ctx.clip();
-    ctx.fillStyle = PG.bg; ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(120,100,70,.065)'; ctx.lineWidth = 1.5;
-    for (let x = 0; x <= W; x += 54) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, H); ctx.stroke(); }
-    for (let y = 0; y <= H; y += 54) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke(); }
-    ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .1; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
+  function fundoPagina(c, i) { // uma folha grande sobre o couro: sombra de contato + sombra ambiente, luz do abajur no papel
+    fundoMesa(c, i); LUZ = luzDe(c.id, i);
+    const r = hashN(c.id, i + 'fp'), rot = (r - .5) * 1.2 * Math.PI / 180, x = 54, y = SY, w = W - 108, h = H - SY * 2;
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(rot); ctx.translate(-W / 2, -H / 2);
+    ctx.save(); ctx.shadowColor = 'rgba(8,3,0,.38)'; ctx.shadowBlur = 46; ctx.shadowOffsetX = 14 * LUZ; ctx.shadowOffsetY = 26; ctx.fillStyle = PG.bg; ctx.fillRect(x, y, w, h); ctx.restore();
+    ctx.save(); ctx.shadowColor = 'rgba(8,3,0,.55)'; ctx.shadowBlur = 5; ctx.shadowOffsetX = 1.5 * LUZ; ctx.shadowOffsetY = 2.5; ctx.fillStyle = PG.bg; ctx.fillRect(x, y, w, h); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.strokeStyle = 'rgba(120,100,70,.06)'; ctx.lineWidth = 1.5;
+    for (let xx = x + 42; xx <= x + w; xx += 54) { ctx.beginPath(); ctx.moveTo(xx + .5, y); ctx.lineTo(xx + .5, y + h); ctx.stroke(); }
+    for (let yy = y + 40; yy <= y + h; yy += 54) { ctx.beginPath(); ctx.moveTo(x, yy + .5); ctx.lineTo(x + w, yy + .5); ctx.stroke(); }
+    const lx = LUZ < 0 ? x + w : x, gl = ctx.createRadialGradient(lx, y, 40, lx, y, h * 1.1); gl.addColorStop(0, 'rgba(255,246,225,.30)'); gl.addColorStop(1, 'rgba(60,40,20,.10)'); ctx.fillStyle = gl; ctx.fillRect(x, y, w, h);
+    ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(x, y, w, h);
+    ctx.restore(); ctx.restore();
   }
   function bordaPagina() { const x = W - 180; ctx.save(); ctx.shadowColor = 'rgba(10,4,0,.6)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 14; ctx.fillStyle = PG.bg; ctx.fillRect(x, SY, 400, H - SY * 2); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(x, SY, 180, H - SY * 2); ctx.clip(); ctx.strokeStyle = 'rgba(120,100,70,.065)'; ctx.lineWidth = 1.5; for (let xx = 0; xx <= W; xx += 54) { ctx.beginPath(); ctx.moveTo(xx + .5, 0); ctx.lineTo(xx + .5, H); ctx.stroke(); } for (let y = 0; y <= H; y += 54) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke(); } ctx.restore(); }
@@ -2737,9 +2741,9 @@
     for (let y = 0; y <= H; y += 54) { ctx.beginPath(); ctx.moveTo(x, y + .5); ctx.lineTo(W, y + .5); ctx.stroke(); }
     ctx.restore();
   }
-  const oTitPg = (s, ex) => { const a = aj(s); const o = Object.assign({ fam: TIT, w: 400, emIt: true, lh: 1.04, ls: -0.015, color: PG.ink, em: PG.ink, mark: '#F6C915', max: 104, min: 62, gap: .4, maxW: PCW }, ex || {}); o.max = Math.round(o.max * a.t); o.min = Math.round(o.min * a.t); return o; };
-  const oCorpoPg = (s, ex) => { const a = aj(s); const o = Object.assign({ fam: SANS, w: 400, emW: 600, lh: 1.42, ls: 0, color: PG.sub, em: PG.ink, mark: null, max: 44, min: 34, gap: .7, maxW: PCW, equilibra: false }, ex || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
-  function tagPg(t, x, y, cor, tc) { ctx.save(); ctx.font = fontStr(TYP, 25, 700); spaced(5); const T = String(t).toUpperCase(), w = ctx.measureText(T).width + 40; ctx.fillStyle = cor || PG.red; ctx.fillRect(x, y, w, 52); ctx.fillStyle = tc || '#FBF6EC'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillText(T, x + 20, y + 27); spaced(0); ctx.restore(); return y + 52; }
+  const oTitPg = (s, ex) => { const a = aj(s); const o = Object.assign({ fam: TIT, w: 400, emIt: true, lh: 1.04, ls: -0.015, color: PG.ink, em: PG.ink, mark: '#F6C915', max: 76, min: 48, gap: .4, maxW: PCW }, ex || {}); o.max = Math.round(o.max * a.t); o.min = Math.round(o.min * a.t); return o; };
+  const oCorpoPg = (s, ex) => { const a = aj(s); const o = Object.assign({ fam: TYP, w: 400, emW: 700, lh: 1.62, ls: 0, color: '#3A3128', em: '#1C1712', mark: null, max: 33, min: 26, gap: .7, maxW: PCW, equilibra: false }, ex || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
+  function tagPg(t, x, y, cor, tc) { if (!cor) { ctx.save(); ctx.font = fontStr(TYP, 22, 700); spaced(5); ctx.fillStyle = '#7A6040'; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'; ctx.fillText(String(t).toUpperCase(), x, y + 26); spaced(0); ctx.restore(); return y + 30; } ctx.save(); ctx.font = fontStr(TYP, 25, 700); spaced(5); const T = String(t).toUpperCase(), w = ctx.measureText(T).width + 40; ctx.fillStyle = cor || PG.red; ctx.fillRect(x, y, w, 52); ctx.fillStyle = tc || '#FBF6EC'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillText(T, x + 20, y + 27); spaced(0); ctx.restore(); return y + 52; }
   function cardPg(x, y, w, h, cor) { ctx.save(); ctx.shadowColor = 'rgba(70,45,20,.14)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 12; ctx.fillStyle = cor || PG.card; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 20) : ctx.rect(x, y, w, h); ctx.fill(); ctx.restore();
     if (!cor) { ctx.save(); ctx.strokeStyle = PG.line; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 20) : ctx.rect(x, y, w, h); ctx.stroke(); ctx.restore(); } }
   function textoPg(paras, o, x, y, maxH, alinha) { const L = gFit(paras.filter(t => String(t).trim()), o, maxH); gDesenha(L, o, x, y, alinha || 'left'); return L; }
@@ -2757,10 +2761,10 @@
     try {
       fundoPagina(c, i);
       // fólio discreto
-      ctx.save(); ctx.font = fontStr(TYP, 20, 700); spaced(4); ctx.fillStyle = PG.mute; ctx.textBaseline = 'alphabetic'; ctx.fillText(NAME.toUpperCase(), PM, SY + 62); ctx.textAlign = 'right'; ctx.fillText(`CASO ${casoTxt(c)} · ${String(i + 1).padStart(2, '0')}/${String(n).padStart(2, '0')}`, W - PM, SY + 62); spaced(0); ctx.restore();
+      ctx.save(); ctx.font = fontStr(TYP, 20, 700); spaced(4); ctx.fillStyle = PG.mute; ctx.textBaseline = 'alphabetic'; ctx.fillText(NAME.toUpperCase(), PM, SY + 112); ctx.textAlign = 'right'; ctx.fillText(`CASO ${casoTxt(c)} · ${String(i + 1).padStart(2, '0')}/${String(n).padStart(2, '0')}`, W - PM, SY + 112); spaced(0); ctx.restore();
       const KICK = { texto: 'O caso', lista: 'Tire print deste slide', comparar: 'Antes e depois', numero: 'O número', revela: 'A resposta', pergunta: 'Responda de cabeça', destaque: 'O que eu acho', fecho: 'Caso encerrado', imagem: 'A prova', foto: 'A prova', print: 'A prova', armadilha: 'Teste de atenção', tweet: 'O caso', uv: 'Leia com a luz certa' };
       const kick = s.chapeu || (s.passo ? 'Passo ' + s.passo.replace('/', ' de ') : KICK[s.tipo] || '');
-      const pe = H - SY - 130; let y = SY + 110; const y0c = y; const centra = hh => { y = Math.max(y0c, Math.round(y0c + (pe - y0c - hh) / 2) - 20); };
+      const pe = H - SY - 130; let y = SY + 160; const y0c = y; const centra = hh => { y = Math.max(y0c, Math.round(y0c + (pe - y0c - hh) / 2) - 20); };
       const topo = () => { if (kick) y = tagPg(kick, PM, y) + 36; };
       const t = s.tipo, P0 = s.paras.slice(0, 1), resto = s.paras.slice(1).filter(x => String(x).trim());
       if (t === 'destaque') {
@@ -2770,16 +2774,16 @@
         const o = oTitPg(s, { max: 320, min: 140, lh: .95, emIt: false }), L = gFit(P0, o, 340), oc = oCorpoPg(s, { max: 52, min: 38, color: PG.sub }), Lc = resto.length ? gFit(resto, oc, 420) : null;
         centra(52 + 40 + L.h + (Lc ? Lc.h + 40 : 0)); topo(); gDesenha(L, o, PM - 6, y, 'left'); y += L.h + 40; if (Lc) gDesenha(Lc, oc, PM, y, 'left');
       } else if (t === 'lista') {
-        const oT = oTitPg(s, { max: 84, min: 54 }), L = gFit(P0, oT, 280);
-        const itens = resto.slice(0, 6); let oi, Ls, ch, padY = 40, gap = 36, tam = 40;
+        const oT = oTitPg(s, { max: 64, min: 44 }), L = gFit(P0, oT, 240);
+        const itens = resto.slice(0, 6); let oi, Ls, ch, padY = 40, gap = 36, tam = 32;
         do { oi = oCorpoPg(s, { max: tam, min: tam, maxW: PCW - 150, color: PG.ink }); Ls = itens.map(tx => gLayout([tx], oi, oi.max)); gap = Math.round(tam * .8); ch = Ls.reduce((h, L) => h + L.h, 0) + gap * (Ls.length - 1) + padY * 2; tam -= 2; } while (ch > pe - (y0c + 88 + L.h + 44) && tam >= 24);
         centra(88 + L.h + 44 + ch); topo(); gDesenha(L, oT, PM, y, 'left'); y += L.h + 44;
         cardPg(PM, y, PCW, ch); let yy = y + padY;
         Ls.forEach((L, k) => { ctx.save(); ctx.font = fontStr(TYP, 32, 700); ctx.fillStyle = PG.red; ctx.textBaseline = 'alphabetic'; ctx.fillText(String(k + 1).padStart(2, '0'), PM + 36, yy + Math.round(L.size * .9)); ctx.restore(); gDesenha(L, oi, PM + 110, yy, 'left');
           yy += L.h; if (k < Ls.length - 1) { ctx.fillStyle = PG.line; ctx.fillRect(PM + 40, yy + gap / 2, PCW - 80, 2); yy += gap; } });
       } else if (t === 'comparar') {
-        const oT = oTitPg(s, { max: 84, min: 54 }), L = gFit(P0, oT, 280);
-        const cw = (PCW - 24) / 2, oc = oCorpoPg(s, { max: 38, min: 28, maxW: cw - 64, color: PG.ink });
+        const oT = oTitPg(s, { max: 64, min: 44 }), L = gFit(P0, oT, 240);
+        const cw = (PCW - 24) / 2, oc = oCorpoPg(s, { max: 30, min: 24, maxW: cw - 64, color: PG.ink });
         const A = gFit([s.paras[1] || ''], oc, 560), B = gFit([s.paras[2] || ''], oc, 560), ch = Math.max(A.h, B.h) + 160;
         centra(88 + L.h + 48 + ch); topo(); gDesenha(L, oT, PM, y, 'left'); y += L.h + 48;
         [[A, 'O jeito comum', '#5A5048', PM], [B, 'O que funciona', PG.red, PM + cw + 24]].forEach(([Lx, rot, cor, x]) => { cardPg(x, y, cw, ch); tagPg(rot, x + 30, y + 32, cor); gDesenha(Lx, oc, x + 32, y + 112, 'left'); });
@@ -2791,7 +2795,7 @@
         fotoPg(ims, sl, PM, y, PCW, Math.max(260, fh), esp); y += Math.max(260, fh) + 36;
         if (Lc) gDesenha(Lc, oc, PM, y, 'left');
       } else if (t === 'pergunta') {
-        const oT = oTitPg(s, { max: 84, min: 54 }), L = gFit(P0, oT, 340), oc = oCorpoPg(s, { max: 42, min: 32, maxW: PCW - 150, color: PG.ink });
+        const oT = oTitPg(s, { max: 66, min: 44 }), L = gFit(P0, oT, 300), oc = oCorpoPg(s, { max: 32, min: 26, maxW: PCW - 150, color: PG.ink });
         const ops = resto.slice(0, 3).map(tx => gFit([tx], oc, 180)), hs = ops.map(Lx => Math.max(130, Lx.h + 64));
         centra(88 + L.h + 48 + hs.reduce((a2, b2) => a2 + b2 + 22, 0) + 60); topo(); gDesenha(L, oT, PM, y, 'left'); y += L.h + 48;
         resto.slice(0, 3).forEach((tx, k) => { const Lx = ops[k], h = hs[k]; cardPg(PM, y, PCW, h);
@@ -2803,8 +2807,8 @@
         ctx.fillStyle = '#2A2238'; ctx.fillRect(PM, y, PCW, bh); fotoPg(null, s, PM - 4, y - 4, PCW + 8, bh + 8); ctx.fillStyle = 'rgba(30,22,44,.55)'; ctx.fillRect(PM, y, PCW, bh);
         luzUV(W / 2, y + bh / 2, Math.min(300, bh / 2 - 30), resto, s); ctx.restore();
       } else if (t === 'fecho') {
-        topo(); const L = textoPg(P0, oTitPg(s, { max: 92, min: 56 }), PM, y, 400); y += L.h + 56;
-        if (s.cta && s.cta.texto) { const oc = oCorpoPg(s, { max: 42, min: 32, color: '#FBF6EC', em: '#FFFFFF', maxW: PCW - 80 }), Lc = gFit([s.cta.texto], oc, 280), h = Lc.h + 130;
+        topo(); const L = textoPg(P0, oTitPg(s, { max: 70, min: 46 }), PM, y, 360); y += L.h + 50;
+        if (s.cta && s.cta.texto) { const oc = oCorpoPg(s, { max: 32, min: 26, color: '#FBF6EC', em: '#FFFFFF', maxW: PCW - 80 }), Lc = gFit([s.cta.texto], oc, 280), h = Lc.h + 130;
           cardPg(PM, y, PCW, h, PG.ink); ctx.save(); ctx.font = fontStr(TYP, 24, 700); spaced(5); ctx.fillStyle = '#F6C915'; ctx.textBaseline = 'alphabetic'; ctx.fillText(CTA_ROT[s.cta.tipo] || 'FAÇA AGORA', PM + 40, y + 60); spaced(0); ctx.restore(); gDesenha(Lc, oc, PM + 40, y + 86, 'left'); y += h; }
         // assinatura: foto, @ e uma linha que puxa para o feed
         const ay = pe - 112; ctx.save(); ctx.beginPath(); ctx.arc(PM + 56, ay + 56, 56, 0, Math.PI * 2); ctx.clip(); if (avatarReady()) { if ('filter' in ctx) ctx.filter = 'saturate(.95) contrast(1.04)'; cover(avatarEl, PM, ay, 112, 112); } else { ctx.fillStyle = '#CFC6B6'; ctx.fillRect(PM, ay, 112, 112); } ctx.restore();
@@ -2815,6 +2819,7 @@
         if (s.carimbo) carimboMesa(W - 250, pe - 40, String(s.carimbo).toUpperCase().slice(0, 14), 'CASO ' + casoTxt(c), -8, '#B3201C', .7);
       }
       if (s.cta && s.cta.texto && t !== 'fecho') { const oc = oCorpoPg(s, { max: 28, min: 24, color: PG.ink, maxW: PCW - 260 }); ctx.save(); ctx.font = fontStr(TYP, 18, 700); spaced(4); ctx.fillStyle = PG.red; ctx.fillText(CTA_ROT[s.cta.tipo] || 'FAÇA AGORA', PM, pe + 10); spaced(0); ctx.restore(); textoPg([s.cta.texto], oc, PM, pe + 24, 70); }
+      fioMesa(c, i); { const pp = pinMesa(c, i); if (pp) tachMesa(pp); }
       if (!ultimo) segue(H - SY - 56, 'rgba(28,23,18,.62)');
       // barra de progresso fina
       if (n > 1) barraProg(i, n, H - 104, 'rgba(240,228,205,.22)');
@@ -2822,7 +2827,7 @@
   }
   function folioMesa(i, n, c) {
     ctx.save(); ctx.font = fontStr(TYP, 17, 700); spaced(4); ctx.fillStyle = 'rgba(240,228,205,.5)'; ctx.textBaseline = 'alphabetic'; sombraTexto(true);
-    ctx.fillText(NAME.toUpperCase(), 96, 124); ctx.textAlign = 'right'; ctx.fillText(`CASO ${casoTxt(c)} · ${String(i + 1).padStart(2, '0')}/${String(n).padStart(2, '0')}`, i === 1 && usaPagina(c, 2) ? W - 220 : W - 96, 124);
+    ctx.fillText(NAME.toUpperCase(), 96, 124); ctx.textAlign = 'right'; ctx.fillText(`CASO ${casoTxt(c)} · ${String(i + 1).padStart(2, '0')}/${String(n).padStart(2, '0')}`, W - 96, 124);
     spaced(0); ctx.restore();
     if (n > 1) barraProg(i, n, H - 104, 'rgba(240,228,205,.22)');
   }
@@ -2834,22 +2839,23 @@
     if (ps && ps.trat === "pasta") return [W / 2 + 40, 89];
     if (ps && (ps.trat === 'porta' || ps.porta)) return null;
     if (ps && ps.trat === 'topo') return null;
-    if (s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') return [W / 2, 170 + r * 30];
-    if (s.tipo === 'texto' || s.tipo === 'lista' || s.tipo === 'comparar' || (s.tipo === 'destaque' && s.fundo === 'claro')) return [W / 2 + (r - .5) * 40, 112];
+    if (usaPagina(c, k)) return [W / 2 + (r - .5) * 60, SY + 26];
+    if (s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') return [W / 2 + (r - .5) * 30, 150 + r * 20];
+    if (s.tipo === 'texto' || s.tipo === 'lista' || s.tipo === 'comparar' || s.tipo === 'revela' || s.tipo === 'uv' || (s.tipo === 'destaque' && s.fundo === 'claro')) return [W / 2 + (r - .5) * 30, 184];
     if (s.tipo === 'fecho') return [W - 260, 200];
     return null;
   }
   function fioMesa(c, i) {
     const ps = planoMesa(c).slides[i]; if (ps && (ps.trat === 'porta' || ps.porta)) return; // a pasta de couro fica livre do fio
     const pts = [];
-    for (let k = Math.max(0, i - 3); k <= Math.min(c.slides.length - 1, i + 3); k++) { if (usaPagina(c, k)) continue; const p = pinMesa(c, k); if (p) pts.push([p[0] + (k - i) * W, p[1]]); }
+    for (let k = Math.max(0, i - 3); k <= Math.min(c.slides.length - 1, i + 3); k++) { const p = pinMesa(c, k); if (!p) { if (k < i) { pts.length = 0; continue; } break; } pts.push([p[0] + (k - i) * W, p[1]]); } // o fio só liga tachinhas vizinhas; slide sem tachinha interrompe
     if (pts.length < 2) return;
     ctx.save(); ctx.lineCap = 'round';
     for (const pass of [0, 1]) {
       ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let k = 1; k < pts.length; k++) { const a = pts[k - 1], b = pts[k], sag = 60 + Math.abs(b[0] - a[0]) * .05; ctx.quadraticCurveTo((a[0] + b[0]) / 2, Math.max(a[1], b[1]) + sag, b[0], b[1]); }
+      for (let k = 1; k < pts.length; k++) { const a = pts[k - 1], b = pts[k], sag = 22 + Math.abs(b[0] - a[0]) * .02; ctx.quadraticCurveTo((a[0] + b[0]) / 2, Math.max(a[1], b[1]) + sag, b[0], b[1]); }
       if (!pass) { ctx.strokeStyle = 'rgba(20,6,0,.26)'; ctx.lineWidth = 3; ctx.filter = 'blur(2px)'; ctx.translate(3 * LUZ, 5); }
-      else { ctx.filter = 'none'; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.strokeStyle = '#6E1418'; ctx.lineWidth = 2.6; }
+      else { ctx.filter = 'none'; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.strokeStyle = '#E3B53C'; ctx.lineWidth = 2.8; }
       ctx.stroke();
     }
     ctx.restore();
@@ -2859,7 +2865,7 @@
     try { fixaMesa(c.id, vagaCarrossel(c)); } catch (e) {}
     if (usaPagina(c, i)) return drawPagina(c, i);
     const s = c.slides[i], n = c.slides.length, a = aj(s), photo = img(s.image), r = hashN(c.id, i);
-    const antesPagina = i === 1 && usaPagina(c, 2), CX = antesPagina ? 452 : W / 2, EP = antesPagina ? .8 : .88; // no slide 2 o papel abre espaço para a página que chega
+    const antesPagina = false, CX = antesPagina ? 452 : W / 2, EP = antesPagina ? .8 : .88; // no slide 2 o papel abre espaço para a página que chega
     ctx.save(); ctx.clearRect(0, 0, W, H); ctx.textAlign = 'left'; lastCover = null;
     fundoMesa(c, i); LUZ = luzDe(c.id, i); TEXTO_RECTS = [];
     const P = planoMesa(c), ps = P.slides[i];
@@ -2868,8 +2874,7 @@
     P.slides.forEach((x, k) => { if (x.trat === 'pasta') P.cruz.push({ k, tipo: 'pasta', camada: 'base', cx: W / 2, cy: 690, esc: .86, rot: -1 + hashN(c.id, k + 'pr') * 2, fy: 520, frot: -2 + hashN(c.id, k + 'fr') * 2.5 }); });
     P.cruz = P.cruz.filter(o => o.tipo !== 'porta');
     P.slides.forEach((x, k) => { if (x.trat === 'porta') P.cruz.push({ k, tipo: 'porta', camada: 'base' }); });
-    P.cruz = P.cruz.filter(o => !usaPagina(c, o.k) && !(o.k === 1 && (o.tipo === 'pasta' || o.tipo === 'porta') && usaPagina(c, 2)));
-    if (i === 1 && usaPagina(c, 2)) bordaPagina();
+    P.cruz = P.cruz.filter(o => !usaPagina(c, o.k) && !((o.tipo === 'pasta' || o.tipo === 'porta') && (usaPagina(c, o.k - 1) || usaPagina(c, o.k + 1))));
     cruzMesa(c, i, 'base');
     if (c.envelope && i === 1) envelopeAberto(c);
     if (i <= 1 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', i === 1 ? 'dir' : null, i === 1 ? -W : 0, 'base'); } catch (e) {} } // ligação do feed: o que fica por baixo do conteúdo
@@ -3058,7 +3063,7 @@
     if (s.carimbo && !(s.tipo === 'capa' && (c.envelope || c.fita || c.status))) { const emPapel = ['texto', 'lista', 'comparar', 'revela'].includes(s.tipo); carimboMesa(s.tipo === 'capa' ? 250 : W - 250, s.tipo === 'capa' ? 150 : emPapel ? H - 260 + a.y * .3 : 235, String(s.carimbo).toUpperCase().slice(0, 14), 'CASO ' + casoTxt(c), -9 + r * 6, '#B3201C', .74); }
     // abajur e livros por cima, só onde o canto não tem texto (capa, fotos, número, fecho)
     fioMesa(c, i);
-    if (pin) tachMesa(pin);
+    { const pp = pinMesa(c, i); if (pp) tachMesa(pp); else if (pin) tachMesa(pin); }
     if (['capa', 'imagem', 'foto', 'print'].includes(s.tipo) && ps.trat !== 'pasta' && ps.trat !== 'porta' && !ps.porta && !ps.cheio) altosMesa(nomeFundo(c.id, i));
     cruzMesa(c, i, 'alto');
     if (i === 0 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', null, 0, 'alto'); } catch (e) {} }

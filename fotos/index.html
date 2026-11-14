@@ -3149,6 +3149,7 @@
       peca('tachinha', W / 2, H / 2 - 10 - fh / 2 - 6, .55, 0);
       if ((fr.texto || '').trim()) { const c0 = { id: id }; const sM = M; try { manchetePapel(c0, '', [txt], {}, H - 70, 'tira', 200); } finally { M = sM; } }
       if (ligaU) ligaFraseManual(ligaU); else if (!FR_LIGA) { try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {} }
+      luzSlide({ id }, 0);
       const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.4)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
       ctx.restore(); LUZ = 1; return;
     }
@@ -3163,11 +3164,11 @@
       const bloco = L.h + (Lp ? 56 + Lp.h : 0), y = ay + 200 + Math.max(0, (ah - 470 - bloco) / 2);
       gDesenha(L, o, ax + pad, y, 'left');
       if (Lp) { ctx.save(); ctx.fillStyle = '#B3201C'; ctx.fillRect(ax + pad, y + L.h + 30, 54, 3); ctx.restore(); gDesenha(Lp, op, ax + pad, y + L.h + 56, 'left'); }
-      maoMesa('D.B.', ax + aw - pad - 120, ay + ah - 120, 76, INK_AZUL, -4);
-      if (r > .3) carimboMesa(ax + pad + 150, ay + ah - 150, 'ANOTADO', dataMesa(), -7);
+      if (r > .3) carimboMesa(ax + aw - pad - 150, ay + ah - 150, 'ANOTADO', dataMesa(), -7);
     });
     tachMesa([W / 2 + 10, 700 - 558 + 92]);
     if (ligaU) ligaFraseManual(ligaU); else if (!FR_LIGA) { try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {} }
+    luzSlide({ id }, 0);
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
     const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
     ctx.restore(); LUZ = 1;

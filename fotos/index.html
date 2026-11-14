@@ -3128,18 +3128,21 @@
       const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.4)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
       ctx.restore(); LUZ = 1; return;
     }
-    peca(nome, W / 2, 690, 1.04, -1.5 + r * 3, g => {
-      const [ax, ay, aw, ah] = g.area, pad = 130, saveCW = CW; CW = aw - pad * 2;
-      try {
-        const o = { fam: TIT, w: 400, emIt: true, lh: 1.04, ls: -0.012, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 104, min: 54, gap: .45, maxW: aw - pad * 2 };
-        const L = gFit([txt], o, 700); const y = ay + Math.max(150, (ah - L.h) / 2 - 60); gDesenha(L, o, ax + pad, y, 'left');
-        TEXTO_RECTS.push([120, 690 - 620 + y - 40, 840, L.h + 200]);
-        { const t = '— ' + (para || 'D.B.'); let tam = 54; ctx.font = fontStr(MAO, tam, 700); while (ctx.measureText(t).width > aw - pad * 2 && tam > 30) { tam -= 2; ctx.font = fontStr(MAO, tam, 700); } maoMesa(t, ax + pad, y + L.h + 90, tam, INK_AZUL, -2); }
-        if (r > .3) carimboMesa(ax + aw - 200, ay + ah - 130, 'ANOTADO', dataMesa(), -7);
-      } finally { CW = saveCW; }
+    TEXTO_RECTS.push([W / 2 - 384, 700 - 500, 768, 1000]); // a folha inteira fica livre de objetos por cima (eles passam por baixo)
+    peca(nome, W / 2, 700, .9, -1.2 + r * 2.4, g => {
+      const [ax, ay, aw, ah] = g.area, pad = 120, cw = aw - pad * 2;
+      // rótulo, frase (título serifado médio), para quem (máquina de escrever), assinatura e carimbo: a mesma hierarquia do slide 2
+      ctx.save(); ctx.font = fontStr(TYP, 26, 700); spaced(5); ctx.fillStyle = '#7A6040'; ctx.textBaseline = 'alphabetic'; ctx.fillText('ANOTAÇÃO · ' + dataMesa(), ax + pad, ay + 150); spaced(0); ctx.restore();
+      const o = { fam: TIT, w: 400, emIt: true, lh: 1.06, ls: -0.012, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 92, min: 56, gap: .45, maxW: cw };
+      const op = { fam: TYP, w: 400, emW: 700, lh: 1.55, ls: 0, color: '#3A3128', em: '#1C1712', mark: null, max: 34, min: 26, gap: .4, maxW: cw, equilibra: false };
+      const Lp = para ? gFit([para], op, 200) : null, L = gFit([txt], o, ah - 520 - (Lp ? Lp.h + 50 : 0));
+      const bloco = L.h + (Lp ? 56 + Lp.h : 0), y = ay + 200 + Math.max(0, (ah - 470 - bloco) / 2);
+      gDesenha(L, o, ax + pad, y, 'left');
+      if (Lp) { ctx.save(); ctx.fillStyle = '#B3201C'; ctx.fillRect(ax + pad, y + L.h + 30, 54, 3); ctx.restore(); gDesenha(Lp, op, ax + pad, y + L.h + 56, 'left'); }
+      maoMesa('D.B.', ax + aw - pad - 120, ay + ah - 120, 76, INK_AZUL, -4);
+      if (r > .3) carimboMesa(ax + pad + 150, ay + ah - 150, 'ANOTADO', dataMesa(), -7);
     });
-    peca('tachinha', W / 2 + 10, 110, .55, 0);
-    altosMesa(nf);
+    tachMesa([W / 2 + 10, 700 - 558 + 92]);
     try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {}
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
     const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);

@@ -368,7 +368,10 @@
         <p class="status" id="fr-st"></p>
         <div class="fr-lista" id="fr-lista"></div>
         <div class="row"><button class="btn" id="fr-liga" type="button" aria-pressed="true">Ligar ao último post publicado</button></div>
-        <p class="hint">Ligado: a borda direita da frase completa o objeto da borda esquerda do último carrossel marcado como postado (o post novo entra do lado dele).</p>
+        <div class="row" id="fr-borda-row"><span class="label">Na borda do post ao lado</span>
+          <div class="seg" id="fr-borda" role="group" aria-label="Objeto na borda esquerda do post ao lado"><button type="button" data-o="auto">Automático</button><button type="button" data-o="regua">Régua</button><button type="button" data-o="fita">Fita</button><button type="button" data-o="fio">Fio</button><button type="button" data-o="lupa">Lupa</button><button type="button" data-o="lacre">Lacre</button></div></div>
+        <div class="row" id="fr-altura-row"><span class="label">Altura</span><button class="btn" id="fr-alt-menos" type="button">↑ Subir</button><span class="af-v" id="fr-alt-v">50%</span><button class="btn" id="fr-alt-mais" type="button">↓ Descer</button></div>
+        <p class="hint">A frase entra à esquerda do último post. Olhe no seu perfil qual objeto está cortado na borda esquerda dele e em que altura, escolha aqui e confira na prévia: a metade que falta aparece na borda direita da frase.</p>
         <div class="row"><button class="btn primary" id="fr-baixar">Baixar os 2 posts</button><button class="btn" id="fr-baixar-story">Baixar os 2 Stories</button></div>
       </div>
       <div class="so-fotos fotos" id="fotos" hidden>
@@ -2320,6 +2323,7 @@
   // então a borda direita da frase completa o objeto que o último carrossel deixou na borda esquerda dele.
   let LIGA_REG = null;
   let FR_LIGA = true; try { FR_LIGA = (ls.get('dan_fr_liga_v1') || '1') === '1'; } catch (e) {}
+  let FR_BORDA = {}; try { FR_BORDA = JSON.parse(ls.get('dan_fr_borda_v1') || '{}') || {}; } catch (e) {}
   function ultimoPostado() { return state.list.filter(x => x.postadoEm && !x.isExample && x.slides && x.slides.length > 2).sort((a, b) => b.postadoEm - a.postadoEm)[0] || null; }
   function bordaEsquerdaDe(c) {
     if (!c) return null; let vaga = c.vagaFeed || null;
@@ -3130,7 +3134,7 @@
     const fundo = PECA(nf); if (fundo) ctx.drawImage(fundo, 0, 0, W, H); else { ctx.fillStyle = '#2a170c'; ctx.fillRect(0, 0, W, H); }
     const r = hashN(id, 'r'), nome = r > .5 && PECA('folha_dobra') ? 'folha_dobra' : 'folha';
     const fp = fr.foto ? img(fr.foto) : null;
-    const ligaU = FR_LIGA ? bordaEsquerdaDe(ultimoPostado()) : null;
+    const ligaU = FR_LIGA ? (FR_BORDA.nome ? { nome: FR_BORDA.nome, v: FR_BORDA.v ?? .5, rot: FR_BORDA.rot || 0 } : bordaEsquerdaDe(ultimoPostado())) : null;
     if (!FR_LIGA) { try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'base'); } catch (e) {} }
     if (fr.foto) { // foto pessoal: impressão grande em papel fotográfico, quase o quadro todo; título opcional numa tira por cima da borda
       const fw = 880, fh = 1100, bd = 22, rot = (-1.6 + r * 1.2) * Math.PI / 180;
@@ -3737,7 +3741,7 @@
     });
   };
   $('overlay-close').onclick = () => { $('overlay').hidden = true; document.body.style.overflow = ''; };
-  $('finalizar').onclick = async () => {
+  $('finalizar').onclick = async () => { try { const c0 = active(); if (c0 && !c0.vagaFeed && !c0.postadoEm) { const v0 = vagaCarrossel(c0); if (v0) { c0.vagaFeed = v0; persist(); } } } catch (e) {} 
     const c = active();
     if (c.legenda) { const ok = await copyText(c.legenda); toast(ok ? 'Legenda copiada. Agora salve as imagens.' : 'Salve as imagens. Copie a legenda depois.'); }
     openOverlay();
@@ -3786,6 +3790,12 @@
   const pintaFrLiga = () => { $('fr-liga').setAttribute('aria-pressed', FR_LIGA ? 'true' : 'false'); $('fr-liga').classList.toggle('postado-on', FR_LIGA); const u = ultimoPostado(); $('fr-liga').textContent = FR_LIGA ? ('✓ Ligada a: ' + (u ? u.title : 'nenhum post marcado como postado')) : 'Ligar ao último post publicado'; };
   $('fr-liga').onclick = () => { FR_LIGA = !FR_LIGA; try { ls.set('dan_fr_liga_v1', FR_LIGA ? '1' : '0'); } catch (e) {} pintaFrLiga(); try { frChave = ''; renderFrases(); } catch (e) {} render(); };
   pintaFrLiga(); setInterval(pintaFrLiga, 2000);
+  const pintaBorda = () => { document.querySelectorAll('#fr-borda button').forEach(b => b.setAttribute('aria-pressed', (FR_BORDA.nome || 'auto') === b.dataset.o ? 'true' : 'false')); $('fr-alt-v').textContent = Math.round((FR_BORDA.v ?? .5) * 100) + '%'; $('fr-altura-row').hidden = !FR_BORDA.nome; };
+  const mudaBorda = () => { try { ls.set('dan_fr_borda_v1', JSON.stringify(FR_BORDA)); } catch (e) {} pintaBorda(); try { frChave = ''; renderFrases(); } catch (e) {} };
+  document.querySelectorAll('#fr-borda button').forEach(b => b.onclick = () => { FR_BORDA = b.dataset.o === 'auto' ? {} : { nome: b.dataset.o, v: FR_BORDA.v ?? .5, rot: 0 }; mudaBorda(); });
+  $('fr-alt-menos').onclick = () => { FR_BORDA.v = Math.max(.1, (FR_BORDA.v ?? .5) - .02); mudaBorda(); };
+  $('fr-alt-mais').onclick = () => { FR_BORDA.v = Math.min(.9, (FR_BORDA.v ?? .5) + .02); mudaBorda(); };
+  pintaBorda();
   const pintaEnv = () => { const c = active(); $('capa-envelope').setAttribute('aria-pressed', c && c.envelope ? 'true' : 'false'); $('capa-envelope').classList.toggle('postado-on', !!(c && c.envelope)); document.querySelectorAll('#status-caso button').forEach(b => b.setAttribute('aria-pressed', ((c && c.status) || '') === b.dataset.v ? 'true' : 'false')); };
   $('capa-envelope').onclick = () => { const c = active(); if (!c) return; c.envelope = !c.envelope; if (c.envelope) { c.fita = false; c.status = ''; } changed(); pintaEnv(); toast(c.envelope ? 'Capa envelope: a foto sai do envelope lacrado e o slide 2 mostra o envelope aberto.' : 'Capa volta para a polaroid.'); };
   document.querySelectorAll('#status-caso button').forEach(b => b.onclick = () => { const c = active(); if (!c) return; c.status = b.dataset.v; if (c.status) { c.fita = false; c.envelope = false; } changed(); pintaEnv(); });
@@ -3817,7 +3827,7 @@
     const fim = () => { if (y0 === null) return; y0 = null; changed(); };
     cv.addEventListener('pointerup', fim); cv.addEventListener('pointercancel', fim);
   })();
-  $('png').onclick = async () => {
+  $('png').onclick = async () => { try { const c0 = active(); if (c0 && !c0.vagaFeed && !c0.postadoEm) { const v0 = vagaCarrossel(c0); if (v0) { c0.vagaFeed = v0; persist(); } } } catch (e) {} 
     const c = active();
     drawSlide(c, state.cur); const b = await blobOf(); render();
     const r = await saveFile(`${slug(c.title)}-${String(state.cur + 1).padStart(2, '0')}.png`, b);
@@ -4773,7 +4783,7 @@ Responda só com JSON válido, sem texto antes ou depois, neste formato:
   }
   const temShare = !!(navigator.share && navigator.canShare);
   if (!temShare) { $('enviar-ig').hidden = true; $('enviar-hint').hidden = true; $('finalizar').classList.add('primary'); }
-  $('enviar-ig').onclick = () => {
+  $('enviar-ig').onclick = () => { try { const c0 = active(); if (c0 && !c0.vagaFeed && !c0.postadoEm) { const v0 = vagaCarrossel(c0); if (v0) { c0.vagaFeed = v0; persist(); } } } catch (e) {} 
     const c = active();
     if (ajustando) setAjuste(false);
     const files = envio || prepararEnvio();

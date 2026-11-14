@@ -2472,8 +2472,8 @@
   const aj = s => Object.assign({}, AJ0, s.aj || {});
   const oTit = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TIT, w: 400, emIt: true, lh: 1.0, ls: -0.012, color: '#F4ECDD', em: OURO, mark: null, maxW: CW, max: 92, min: 54, gap: .5 }, extra || {}); o.max = Math.round(o.max * a.t); o.min = Math.round(o.min * a.t); return o; };
   const oCorpo = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: SANS, w: 400, emW: 600, lh: 1.42, ls: 0, color: 'rgba(244,236,221,.82)', em: '#F4ECDD', maxW: CW, max: 36, min: 28, equilibra: false }, extra || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
-  const oPapel = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TIT, w: 400, emIt: true, lh: 1.08, ls: -0.01, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 68, min: 42, gap: .5 }, extra || {}); o.max = Math.round(o.max * a.t); o.min = Math.round(o.min * a.t); return o; };
-  const oTyp = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TYP, w: 400, emW: 700, lh: 1.55, ls: 0, color: '#3A3128', em: '#1C1712', mark: '#F6C915', max: 34, min: 28, equilibra: false }, extra || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
+  const oPapel = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TIT, w: 400, emIt: true, lh: 1.08, ls: -0.01, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 68, min: 42, gap: .5, maxW: CW }, extra || {}); o.max = Math.round(o.max * a.t); o.min = Math.round(o.min * a.t); return o; };
+  const oTyp = (s, extra) => { const a = aj(s); const o = Object.assign({ fam: TYP, w: 400, emW: 700, lh: 1.55, ls: 0, color: '#3A3128', em: '#1C1712', mark: '#F6C915', max: 34, min: 28, equilibra: false, maxW: CW }, extra || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
   function sombraTexto(on) { ctx.shadowColor = on ? 'rgba(0,0,0,.85)' : 'transparent'; ctx.shadowBlur = on ? 24 : 0; ctx.shadowOffsetY = on ? 4 : 0; }
   function chapeuMesa(txt, x, y, cor) {
     if (!txt) return 0;
@@ -2522,6 +2522,7 @@
     const gl = ctx.createLinearGradient(0, 0, w, h); gl.addColorStop(0, 'rgba(255,255,255,.10)'); gl.addColorStop(1, 'rgba(0,0,0,.06)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, w, h);
     if (fn) fn(); ctx.restore();
   }
+  function larguraLinha(ln, o, size) { ctx.save(); if ('letterSpacing' in ctx) ctx.letterSpacing = (o.ls ? o.ls * size : 0) + 'px'; let w = 0; for (const t of ln.tokens) { ctx.font = gFonte(o, size, t.em); w += ctx.measureText(/^\s+$/.test(t.text) ? ' ' : t.text).width; } ctx.restore(); return Math.max(w, ln.width || 0); }
   function manchetePapel(c, chap, paras, s, yBase, estilo, maxH, op) {
     op = op || {}; const r = k => hashN(c.id, 'tit' + k);
     if (estilo === 'placa') return placaLatao(c, chap, paras, s, yBase, maxH);
@@ -2533,15 +2534,17 @@
       if (chap) { ctx.save(); ctx.font = fontStr(TYP, 20, 700); spaced(4); const t = String(chap).toUpperCase(), tw = ctx.measureText(t).width; spaced(0); ctx.restore();
         papelSombra(M, y, tw + 44, 40, -1 + r('c') * 2, '#EFE7D4', () => { ctx.font = fontStr(TYP, 20, 700); spaced(4); ctx.fillStyle = '#5A4630'; ctx.textBaseline = 'alphabetic'; ctx.fillText(String(chap).toUpperCase(), 22, 28); spaced(0); }); y += 54; }
       ls.forEach((ln, k) => {
-        const w = ln.width + 56, x = M - 8 + (k % 2 ? 14 : 0) * r('x' + k);
+        const w = larguraLinha(ln, o, L.size) + 56, x = M - 8 + (k % 2 ? 14 : 0) * r('x' + k);
         papelSombra(x, y, w, hL, -1.4 + r('r' + k) * 2.8, '#F6F3EC', () => gDesenha({ blocks: [[ln]], h: L.lh, lh: L.lh, gap: 0, size: L.size }, o, 28, Math.round((hL - L.size * 1.02) / 2), 'left'));
         y += hL + gapL;
       });
       return yBase - tot;
     }
     // ficha de arquivo: pauta azul bem clara, só nas entrelinhas
-    const o = oManchete(s, Object.assign({ max: Math.min(op.max || 70, 92), min: Math.min(op.min || 44, 58), lh: 1.1, maxW: op.maxW || Math.min(CW - 60, 780) }, op.fam ? { fam: op.fam, w: 400, emW: 600, emIt: false, lh: 1.4, ls: 0, equilibra: false } : {})); const L = gFit(paras, o, maxH || 300);
-    const w = op.fam ? Math.min(W - M * 2 + 30, (op.maxW || 700) + 100) : Math.min(W - M * 2 + 30, Math.max(560, L.maxLine + 100)), topo = 92, h = topo + L.h + 64, x = M - 10;
+    const livre = Math.min(W - (M - 10) - 70, M > 200 ? 660 : 2000); // largura que cabe entre a margem e a borda direita
+    const o = oManchete(s, Object.assign({ max: Math.min(op.max || 70, 92), min: Math.min(op.min || 44, 58), lh: 1.1, maxW: Math.min(op.maxW || Math.min(CW - 60, 780), livre - 112) }, op.fam ? { fam: op.fam, w: 400, emW: 600, emIt: false, lh: 1.4, ls: 0, equilibra: false } : {})); const L = gFit(paras, o, maxH || 300);
+    const largura = Math.max(...linhasDe(L).map(ln => larguraLinha(ln, o, L.size)), 0);
+    const w = Math.min(livre, Math.max(op.fam ? 0 : 560, largura + 112)), topo = 92, h = topo + L.h + 64, x = M - 10;
     if (op.yTop != null) yBase = op.yTop + h;
     const y = yBase - h;
     papelSombra(x, y, w, h, -1.2 + r('f') * 2.4, '#F4EEE0', () => {
@@ -2602,7 +2605,7 @@
     const lh = Math.round(L.size * o.lh), gap = Math.round(L.size * (o.gap ?? .6)); let cy = y, k = 0;
     L.blocks.forEach((lines, bi) => {
       for (const line of lines) {
-        const h = Math.round(L.size * 1.42), w = line.width + 36, rot = k % 2 ? .45 : -.35;
+        const h = Math.round(L.size * 1.42), w = larguraLinha(line, o, L.size) + 36, rot = k % 2 ? .45 : -.35;
         papelSombra(x - 18 + (k % 2 ? 6 : 0), cy + (lh - h) / 2, w, h, rot, '#F3EFE7', () => { ctx.textBaseline = 'alphabetic'; let cx = 18; const base = Math.round(h / 2 + L.size * .34); for (const t of line.tokens) { ctx.font = gFonte(o, L.size, t.em); ctx.fillStyle = o.color; ctx.fillText(t.text, cx, base); cx += t.w; } });
         cy += lh; k++;
       }
@@ -3032,8 +3035,8 @@
       // texto datilografado sobre a pasta, embaixo da foto
       ctx.save(); ctx.globalCompositeOperation = 'multiply';
       let y = 1010 + a.y; if (chap) { ctx.font = fontStr(TYP, 22, 700); spaced(4); ctx.fillStyle = '#6E4C14'; ctx.fillText(String(chap).toUpperCase(), M, y); spaced(0); y += 26; }
-      const o = oPapel(s, { max: 76, min: 46, color: '#22180A', em: '#22180A', mark: null }); const L = gFit(tit, o, 150); gDesenha(L, o, M, y, 'left'); y += L.h + 14;
-      if (resto) { const oc = oTyp(s, { max: 30, min: 24, color: '#3A2A12' }); const Lc = gFit([resto], oc, H - 60 - y); gDesenha(Lc, oc, M, y, 'left'); }
+      const o = oPapel(s, { max: 62, min: 40, color: '#22180A', em: '#22180A', mark: null, maxW: W - M - 120 }); const L = gFit(tit, o, 150); gDesenha(L, o, M, y, 'left'); y += L.h + 14;
+      if (resto) { const oc = oTyp(s, { max: 30, min: 22, color: '#3A2A12', maxW: W - M - 260 }); const Lc = gFit([resto], oc, H - 170 - y); gDesenha(Lc, oc, M, y, 'left'); }
       ctx.restore();
       carimboMesa(W - 190, H - 120, 'PROVA ' + String.fromCharCode(65 + (i % 26)), 'CASO ' + casoTxt(c), 7, '#78281A');
       if (cta) ctaMesa(pe);
@@ -3048,7 +3051,7 @@
       const s2 = CW; CW = w - 60; try { gDesenha(L, Object.assign({}, o, { maxW: w - 60 }), 30, ty, 'left'); } finally { CW = s2; }
       ctx.restore();
       if (cta) ctaMesa(pe);
-    } else if ((s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') && ps.trat === 'topo') {
+    } else if ((s.tipo === 'imagem' || s.tipo === 'foto' || s.tipo === 'print') && ps.trat === 'topo' && photo) {
       // foto que encosta no topo e some em degradê na mesa
       const fh = Math.round(H * .66);
       if (photo) {
@@ -3142,7 +3145,7 @@
     } else {
       const o = oTit(s); const L = gFit(s.paras.length ? s.paras : [' '], o, 600); chapeuMesa(chap, M, 300 + a.y); textoDesk(L, o, M, 330 + a.y);
     }
-    if (s.carimbo && !(s.tipo === 'capa' && (c.envelope || c.fita || c.status))) { const emPapel = ['texto', 'lista', 'comparar', 'revela'].includes(s.tipo); carimboMesa(s.tipo === 'capa' ? 250 : W - 250, s.tipo === 'capa' ? 150 : emPapel ? H - 260 + a.y * .3 : 235, String(s.carimbo).toUpperCase().slice(0, 14), 'CASO ' + casoTxt(c), -9 + r * 6, '#B3201C', .74); }
+    if (s.carimbo && ps.trat !== 'pasta' && !(s.tipo === 'capa' && (c.envelope || c.fita || c.status))) { const emPapel = ['texto', 'lista', 'comparar', 'revela'].includes(s.tipo); carimboMesa(s.tipo === 'capa' ? 250 : W - 250, s.tipo === 'capa' ? 150 : emPapel ? H - 260 + a.y * .3 : 235, String(s.carimbo).toUpperCase().slice(0, 14), 'CASO ' + casoTxt(c), -9 + r * 6, '#B3201C', .74); }
     // abajur e livros por cima, só onde o canto não tem texto (capa, fotos, número, fecho)
     fioMesa(c, i);
     { const pp = pinMesa(c, i); if (pp) tachMesa(pp); else if (pin) tachMesa(pin); }
@@ -3332,7 +3335,7 @@
       // frase: tiras de papel, palavra-chave em itálico com marca-texto
       const o = { fam: TIT, w: 400, emIt: true, lh: 1.02, ls: -0.01, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: M.max || 84, min: 50, gap: .3, maxW: 860 };
       const L = gFit([op.titulo || ''], o, 360), lhp = Math.round(L.size * o.lh), y0 = M.tit; let yy = y0, k = 0;
-      L.blocks.forEach(lines => lines.forEach(line => { const w = line.width + 56, h = Math.round(L.size * 1.18), x = 540 - w / 2 + (k % 2 ? 8 : -6);
+      L.blocks.forEach(lines => lines.forEach(line => { const w = larguraLinha(line, o, L.size) + 56, h = Math.round(L.size * 1.18), x = 540 - w / 2 + (k % 2 ? 8 : -6);
         papelSombra(x, yy, w, h, k % 2 ? .6 : -.5, '#F4EFE5', () => { ctx.textBaseline = 'alphabetic'; let cx = 28; const base = Math.round(h / 2 + L.size * .3); for (const t of line.tokens) { ctx.font = gFonte(o, L.size, t.em); if (t.em) { ctx.fillStyle = 'rgba(246,201,21,.85)'; ctx.fillRect(cx - 2, base - L.size * .32, t.w + 4, L.size * .36); } ctx.fillStyle = o.color; ctx.fillText(t.text, cx, base); cx += t.w; } });
         yy += h + 6; k++; }));
       // apoio + fio amarelo descendo até a legenda

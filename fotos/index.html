@@ -367,6 +367,8 @@
         <p class="hint">Duas imagens soltas do mesmo tema: uma frase em que a pessoa se reconhece e manda para alguém. Use <code>**palavra**</code> para destacar.</p>
         <p class="status" id="fr-st"></p>
         <div class="fr-lista" id="fr-lista"></div>
+        <div class="row"><button class="btn" id="fr-liga" type="button" aria-pressed="true">Ligar ao último post publicado</button></div>
+        <p class="hint">Ligado: a borda direita da frase completa o objeto da borda esquerda do último carrossel marcado como postado (o post novo entra do lado dele).</p>
         <div class="row"><button class="btn primary" id="fr-baixar">Baixar os 2 posts</button><button class="btn" id="fr-baixar-story">Baixar os 2 Stories</button></div>
       </div>
       <div class="so-fotos fotos" id="fotos" hidden>
@@ -2314,6 +2316,23 @@
     try { const t = trioDoDia(dia), par = f === 'em' ? [t.esquerda, t.meio] : [t.meio, t.direita]; lista = par.includes('frase') ? ['fita', 'fio', 'regua'] : ['lupa', 'fita', 'fio', 'lacre']; } catch (e) {}
     return { nome: lista[Math.floor(h('o') * lista.length)], v: .36 + h('v') * .16, rot: -18 + h('r') * 36 };
   }
+  // ─── Post de frase ligado ao último post publicado (v59c): o post novo entra à esquerda do anterior,
+  // então a borda direita da frase completa o objeto que o último carrossel deixou na borda esquerda dele.
+  let LIGA_REG = null;
+  let FR_LIGA = true; try { FR_LIGA = (ls.get('dan_fr_liga_v1') || '1') === '1'; } catch (e) {}
+  function ultimoPostado() { return state.list.filter(x => x.postadoEm && !x.isExample && x.slides && x.slides.length > 2).sort((a, b) => b.postadoEm - a.postadoEm)[0] || null; }
+  function bordaEsquerdaDe(c) {
+    if (!c) return null; let vaga = c.vagaFeed || null;
+    if (!vaga) { const t = c.postadoEm; c.postadoEm = 0; try { vaga = vagaCarrossel(c); } catch (e) {} c.postadoEm = t; }
+    if (!vaga) return null;
+    LIGA_REG = []; const salva = ctx; ctx = document.createElement('canvas').getContext('2d');
+    try { ligaFeed(vaga, 'post', null, 0, 'alto'); } catch (e) {} finally { ctx = salva; }
+    const r = LIGA_REG; LIGA_REG = null; const l = r.find(x => x.u === 0); return l ? l.o : null;
+  }
+  function ligaFraseManual(o) { // desenha na borda direita, por baixo da folha (clip nos papéis)
+    ctx.save(); if (TEXTO_RECTS.length) { ctx.beginPath(); ctx.rect(-50, -50, 1200, 2100); for (const [x, y, ww, hh] of TEXTO_RECTS) { ctx.moveTo(x - 10, y - 10); ctx.lineTo(x - 10, y + hh + 10); ctx.lineTo(x + ww + 10, y + hh + 10); ctx.lineTo(x + ww + 10, y - 10); ctx.closePath(); } ctx.clip('evenodd'); }
+    try { desenhaLiga(o, 34 + 1012, o.v * 1350, 1); } finally { ctx.restore(); }
+  }
   function desenhaLiga(o, x, y, e) {
     if (o.nome === 'lupa' && PECA('lupa')) lupaSobre(x, y, .5 * e, 1.6);
     else if (o.nome === 'fio' && PECA('tachinha')) {
@@ -2335,7 +2354,7 @@
     ctx.save();
     if (camada === 'alto' && TEXTO_RECTS.length) { ctx.beginPath(); ctx.rect(-50, -50, 1200, 2100); for (const [x, y, ww, hh] of TEXTO_RECTS) { ctx.moveTo(x - 10, y - 10); ctx.lineTo(x - 10, y + hh + 10); ctx.lineTo(x + ww + 10, y + hh + 10); ctx.lineTo(x + ww + 10, y - 10); ctx.closePath(); } ctx.clip('evenodd'); }
     try {
-    if (camada === 'alto' || so === 'dir') for (const l of lados) { const o = ligaObj(vaga.dia, l.f), [x, y] = map(l.u, o.v); desenhaLiga(o, x + (dx || 0), y, e); }
+    if (camada === 'alto' || so === 'dir') for (const l of lados) { const o = ligaObj(vaga.dia, l.f), [x, y] = map(l.u, o.v); if (LIGA_REG) { LIGA_REG.push({ u: l.u, o }); continue; } desenhaLiga(o, x + (dx || 0), y, e); }
     if (so === 'dir') return;
     // ligações verticais: cada dia é uma fileira inteira, então o post de hoje encosta, embaixo, no post de ontem da mesma coluna.
     // Borda de baixo: completa o objeto que o post de ontem deixou. Borda de cima: deixa meio objeto para o post de amanhã.
@@ -3111,7 +3130,8 @@
     const fundo = PECA(nf); if (fundo) ctx.drawImage(fundo, 0, 0, W, H); else { ctx.fillStyle = '#2a170c'; ctx.fillRect(0, 0, W, H); }
     const r = hashN(id, 'r'), nome = r > .5 && PECA('folha_dobra') ? 'folha_dobra' : 'folha';
     const fp = fr.foto ? img(fr.foto) : null;
-    try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'base'); } catch (e) {}
+    const ligaU = FR_LIGA ? bordaEsquerdaDe(ultimoPostado()) : null;
+    if (!FR_LIGA) { try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'base'); } catch (e) {} }
     if (fr.foto) { // foto pessoal: impressão grande em papel fotográfico, quase o quadro todo; título opcional numa tira por cima da borda
       const fw = 880, fh = 1100, bd = 22, rot = (-1.6 + r * 1.2) * Math.PI / 180;
       ctx.save(); ctx.translate(W / 2, H / 2 - 10); ctx.rotate(rot);
@@ -3124,7 +3144,7 @@
       ctx.restore();
       peca('tachinha', W / 2, H / 2 - 10 - fh / 2 - 6, .55, 0);
       if ((fr.texto || '').trim()) { const c0 = { id: id }; const sM = M; try { manchetePapel(c0, '', [txt], {}, H - 70, 'tira', 200); } finally { M = sM; } }
-      try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {}
+      if (ligaU) ligaFraseManual(ligaU); else if (!FR_LIGA) { try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {} }
       const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.4)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
       ctx.restore(); LUZ = 1; return;
     }
@@ -3143,7 +3163,7 @@
       if (r > .3) carimboMesa(ax + pad + 150, ay + ah - 150, 'ANOTADO', dataMesa(), -7);
     });
     tachMesa([W / 2 + 10, 700 - 558 + 92]);
-    try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {}
+    if (ligaU) ligaFraseManual(ligaU); else if (!FR_LIGA) { try { ligaFeed(vagaFeed('frase'), 'post', null, 0, 'alto'); } catch (e) {} }
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
     const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
     ctx.restore(); LUZ = 1;
@@ -3763,6 +3783,9 @@
     const box = $('overlay-imgs'); box.innerHTML = ''; const im = document.createElement('img'); im.src = cv.toDataURL('image/png'); box.append(im); $('overlay').hidden = false; document.body.style.overflow = 'hidden';
   });
   $('reels-capa-teste').onclick = () => baixarCapaReels('teste');
+  const pintaFrLiga = () => { $('fr-liga').setAttribute('aria-pressed', FR_LIGA ? 'true' : 'false'); $('fr-liga').classList.toggle('postado-on', FR_LIGA); const u = ultimoPostado(); $('fr-liga').textContent = FR_LIGA ? ('✓ Ligada a: ' + (u ? u.title : 'nenhum post marcado como postado')) : 'Ligar ao último post publicado'; };
+  $('fr-liga').onclick = () => { FR_LIGA = !FR_LIGA; try { ls.set('dan_fr_liga_v1', FR_LIGA ? '1' : '0'); } catch (e) {} pintaFrLiga(); try { frChave = ''; renderFrases(); } catch (e) {} render(); };
+  pintaFrLiga(); setInterval(pintaFrLiga, 2000);
   const pintaEnv = () => { const c = active(); $('capa-envelope').setAttribute('aria-pressed', c && c.envelope ? 'true' : 'false'); $('capa-envelope').classList.toggle('postado-on', !!(c && c.envelope)); document.querySelectorAll('#status-caso button').forEach(b => b.setAttribute('aria-pressed', ((c && c.status) || '') === b.dataset.v ? 'true' : 'false')); };
   $('capa-envelope').onclick = () => { const c = active(); if (!c) return; c.envelope = !c.envelope; if (c.envelope) { c.fita = false; c.status = ''; } changed(); pintaEnv(); toast(c.envelope ? 'Capa envelope: a foto sai do envelope lacrado e o slide 2 mostra o envelope aberto.' : 'Capa volta para a polaroid.'); };
   document.querySelectorAll('#status-caso button').forEach(b => b.onclick = () => { const c = active(); if (!c) return; c.status = b.dataset.v; if (c.status) { c.fita = false; c.envelope = false; } changed(); pintaEnv(); });

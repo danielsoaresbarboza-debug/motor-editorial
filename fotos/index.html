@@ -794,7 +794,7 @@
     const tryJSON = (t) => {
       try {
         const v = JSON.parse(t);
-        const arr = Array.isArray(v) ? v : (v && Array.isArray(v.carousels) ? v.carousels : [v]);
+        const arr = Array.isArray(v) ? v : (v && Array.isArray(v.carousels) ? v.carousels : v && Array.isArray(v.carrosseis) ? v.carrosseis : [v]);
         return arr.map(normCarousel).filter(Boolean);
       } catch (e) { return []; }
     };

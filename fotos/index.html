@@ -378,6 +378,7 @@
         <div class="row" id="fr-borda-row"><span class="label">Na borda do post ao lado</span>
           <div class="seg" id="fr-borda" role="group" aria-label="Objeto na borda esquerda do post ao lado"><button type="button" data-o="auto">Automático</button><button type="button" data-o="regua">Régua</button><button type="button" data-o="fita">Fita</button><button type="button" data-o="fio">Fio</button><button type="button" data-o="lupa">Lupa</button><button type="button" data-o="lacre">Lacre</button></div></div>
         <div class="row" id="fr-altura-row"><span class="label">Altura</span><button class="btn" id="fr-alt-menos" type="button">↑ Subir</button><span class="af-v" id="fr-alt-v">50%</span><button class="btn" id="fr-alt-mais" type="button">↓ Descer</button></div>
+        <div class="row" id="fr-rot-row"><span class="label">Inclinação</span><button class="btn" id="fr-rot-menos" type="button">↺</button><span class="af-v" id="fr-rot-v">0°</span><button class="btn" id="fr-rot-mais" type="button">↻</button></div>
         <p class="hint">A frase entra à esquerda do último post. Olhe no seu perfil qual objeto está cortado na borda esquerda dele e em que altura, escolha aqui e confira na prévia: a metade que falta aparece na borda direita da frase.</p>
         <div class="row"><button class="btn primary" id="fr-baixar">Baixar os 2 posts</button><button class="btn" id="fr-baixar-story">Baixar os 2 Stories</button></div>
       </div>
@@ -764,6 +765,7 @@
       grupo: o.grupo || '', versao: o.versao || '', fonte: o.fonte || '',
       reservaPara: o.reservaPara || 0, agora: !!o.agora, postadoEm: o.postadoEm || 0,
       capas: Array.isArray(o.capas) ? o.capas.map(String).filter(x => x.trim()).slice(0, 4) : [],
+      ligaBorda: o.ligaBorda && o.ligaBorda.nome ? { nome: String(o.ligaBorda.nome), v: +o.ligaBorda.v || .5, rot: +o.ligaBorda.rot || 0 } : (o.ligaBorda === null ? null : undefined),
       vagaFeed: o.vagaFeed && o.vagaFeed.pos ? { dia: +o.vagaFeed.dia || 0, pos: String(o.vagaFeed.pos) } : null,
       fita: !!o.fita, especial: !!o.especial, envelope: !!(o.envelope || o.capaEnvelope), status: ['aberto', 'encerrado'].includes(o.status) ? o.status : '',
       formato: o.formato === 'curto' || (o.formato !== 'twitter' && o.formato !== 'editorial' && Array.isArray(o.slides) && o.slides.length === 2 && o.slides[1] && o.slides[1].cta) ? 'curto' : o.formato === 'twitter' || (Array.isArray(o.slides) && o.slides.length && o.slides.every(x => x && x.tipo === 'tweet')) ? 'twitter' : 'editorial',
@@ -2341,7 +2343,7 @@
   let FR_BORDA = {}; try { FR_BORDA = JSON.parse(ls.get('dan_fr_borda_v1') || '{}') || {}; } catch (e) {}
   function ultimoPostado() { return state.list.filter(x => x.postadoEm && !x.isExample && x.slides && x.slides.length > 2).sort((a, b) => b.postadoEm - a.postadoEm)[0] || null; }
   function bordaEsquerdaDe(c) {
-    if (!c) return null; let vaga = c.vagaFeed || null;
+    if (!c) return null; if (c.ligaBorda !== undefined) return c.ligaBorda; let vaga = c.vagaFeed || null;
     if (!vaga) { const t = c.postadoEm; c.postadoEm = 0; try { vaga = vagaCarrossel(c); } catch (e) {} c.postadoEm = t; }
     if (!vaga) return null;
     LIGA_REG = []; const salva = ctx; ctx = document.createElement('canvas').getContext('2d');
@@ -2357,7 +2359,7 @@
     else if (o.nome === 'fio' && PECA('tachinha')) {
       const L = 250 * e; ctx.save(); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(x - L, y); ctx.quadraticCurveTo(x, y + 70 * e, x + L, y - 20 * e); ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 3.5; if ('filter' in ctx) ctx.filter = 'blur(3px)'; ctx.translate(6, 10); ctx.stroke();
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = 'none'; ctx.beginPath(); ctx.moveTo(x - L, y); ctx.quadraticCurveTo(x, y + 70 * e, x + L, y - 20 * e); ctx.strokeStyle = '#6E1418'; ctx.lineWidth = 2.6; ctx.stroke(); ctx.restore();
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = 'none'; ctx.beginPath(); ctx.moveTo(x - L, y); ctx.quadraticCurveTo(x, y + 70 * e, x + L, y - 20 * e); ctx.strokeStyle = '#E3B53C'; ctx.lineWidth = 2.8; ctx.stroke(); ctx.restore();
       peca('tachinha', x - L, y, .55 * e, 0); peca('tachinha', x + L, y - 20 * e, .55 * e, 0);
     }
     else if (PECA(o.nome)) peca(o.nome, x, y, ({ fita: 1.5, moedas: 1.15, regua: 1.05, lacre: .95 })[o.nome] * e, o.nome === 'regua' ? o.rot * .4 : o.rot);
@@ -3129,7 +3131,7 @@
     { const pp = pinMesa(c, i); if (pp) tachMesa(pp); else if (pin) tachMesa(pin); }
     if (['capa', 'imagem', 'foto', 'print'].includes(s.tipo) && ps.trat !== 'pasta' && ps.trat !== 'porta' && !ps.porta && !ps.cheio) altosMesa(nomeFundo(c.id, i));
     cruzMesa(c, i, 'alto');
-    if (i === 0 && n > 1) { try { ligaFeed(vagaCarrossel(c), 'post', null, 0, 'alto'); } catch (e) {} }
+    if (i === 0 && n > 1) { try { const v0 = vagaCarrossel(c); ligaFeed(v0, 'post', null, 0, 'alto'); if (!c.postadoEm) { LIGA_REG = []; ligaFeed(v0, 'post', null, 0, 'alto'); const l = LIGA_REG.find(x => x.u === 0); c.ligaBorda = l ? l.o : null; } } catch (e) {} finally { LIGA_REG = null; } } // guarda o objeto da borda esquerda da capa como foi desenhado
     } finally { M = _M; CW = _CW; LUZ = 1; }
     // profundidade de campo: bordas de cima e de baixo levemente fora de foco
     if ('filter' in ctx) { try { const [cv, g2] = off(W, H); g2.drawImage(canvas, 0, 0);
@@ -3853,10 +3855,12 @@
   const pintaFrLiga = () => { $('fr-liga').setAttribute('aria-pressed', FR_LIGA ? 'true' : 'false'); $('fr-liga').classList.toggle('postado-on', FR_LIGA); const u = ultimoPostado(); $('fr-liga').textContent = FR_LIGA ? ('✓ Ligada a: ' + (u ? u.title : 'nenhum post marcado como postado')) : 'Ligar ao último post publicado'; };
   $('fr-liga').onclick = () => { FR_LIGA = !FR_LIGA; try { ls.set('dan_fr_liga_v1', FR_LIGA ? '1' : '0'); } catch (e) {} pintaFrLiga(); try { frChave = ''; renderFrases(); } catch (e) {} render(); };
   pintaFrLiga(); setInterval(pintaFrLiga, 2000);
-  const pintaBorda = () => { document.querySelectorAll('#fr-borda button').forEach(b => b.setAttribute('aria-pressed', (FR_BORDA.nome || 'auto') === b.dataset.o ? 'true' : 'false')); $('fr-alt-v').textContent = Math.round((FR_BORDA.v ?? .5) * 100) + '%'; $('fr-altura-row').hidden = !FR_BORDA.nome; };
+  const pintaBorda = () => { document.querySelectorAll('#fr-borda button').forEach(b => b.setAttribute('aria-pressed', (FR_BORDA.nome || 'auto') === b.dataset.o ? 'true' : 'false')); $('fr-alt-v').textContent = Math.round((FR_BORDA.v ?? .5) * 100) + '%'; $('fr-altura-row').hidden = !FR_BORDA.nome; $('fr-rot-row').hidden = !FR_BORDA.nome; $('fr-rot-v').textContent = Math.round((FR_BORDA.rot || 0) * (FR_BORDA.nome === 'regua' ? .4 : 1)) + '°'; };
   const mudaBorda = () => { try { ls.set('dan_fr_borda_v1', JSON.stringify(FR_BORDA)); } catch (e) {} pintaBorda(); try { frChave = ''; renderFrases(); } catch (e) {} };
   document.querySelectorAll('#fr-borda button').forEach(b => b.onclick = () => { FR_BORDA = b.dataset.o === 'auto' ? {} : { nome: b.dataset.o, v: FR_BORDA.v ?? .5, rot: 0 }; mudaBorda(); });
   $('fr-alt-menos').onclick = () => { FR_BORDA.v = Math.max(.1, (FR_BORDA.v ?? .5) - .02); mudaBorda(); };
+  $('fr-rot-menos').onclick = () => { FR_BORDA.rot = (FR_BORDA.rot || 0) - (FR_BORDA.nome === 'regua' ? 5 : 2); mudaBorda(); };
+  $('fr-rot-mais').onclick = () => { FR_BORDA.rot = (FR_BORDA.rot || 0) + (FR_BORDA.nome === 'regua' ? 5 : 2); mudaBorda(); };
   $('fr-alt-mais').onclick = () => { FR_BORDA.v = Math.min(.9, (FR_BORDA.v ?? .5) + .02); mudaBorda(); };
   pintaBorda();
   const pintaEnv = () => { const c = active(); $('capa-envelope').setAttribute('aria-pressed', c && c.envelope ? 'true' : 'false'); $('capa-envelope').classList.toggle('postado-on', !!(c && c.envelope)); document.querySelectorAll('#status-caso button').forEach(b => b.setAttribute('aria-pressed', ((c && c.status) || '') === b.dataset.v ? 'true' : 'false')); };

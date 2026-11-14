@@ -2435,12 +2435,33 @@
   const oManchete = (s, extra) => oTit(s, Object.assign({ color: '#14110E', em: '#14110E', mark: null, maxW: CW - 70 }, extra || {}));
   function linhasDe(L) { const r = []; L.blocks.forEach(b => b.forEach(l => r.push(l))); return r; }
   let TEXTO_RECTS = []; // áreas de texto do slide: os objetos altos não passam por cima delas
+  // ─── Acabamento (v59): sombra em duas camadas, fibra de papel, luz do abajur sobre tudo ───
+  function sombra2(desenha, forca) { const f = forca || 1;
+    ctx.save(); ctx.shadowColor = `rgba(8,3,0,${.30 * f})`; ctx.shadowBlur = 38; ctx.shadowOffsetX = 13 * LUZ; ctx.shadowOffsetY = 22; desenha(); ctx.restore(); // ambiente: longa e macia
+    ctx.save(); ctx.shadowColor = `rgba(8,3,0,${.50 * f})`; ctx.shadowBlur = 4; ctx.shadowOffsetX = 1.5 * LUZ; ctx.shadowOffsetY = 2.5; desenha(); ctx.restore(); } // contato: curta e escura
+  let _fibra = null;
+  function fibraPattern() { // papel: grão fino + fibras curtas claras e escuras
+    if (_fibra) return _fibra; const S = 256, cv = document.createElement('canvas'); cv.width = cv.height = S; const g = cv.getContext('2d');
+    const d = g.createImageData(S, S); for (let k = 0; k < d.data.length; k += 4) { const v = 236 + (Math.random() - .5) * 26; d.data[k] = v; d.data[k + 1] = v - 2; d.data[k + 2] = v - 6; d.data[k + 3] = 255; } g.putImageData(d, 0, 0);
+    g.lineCap = 'round'; for (let k = 0; k < 220; k++) { const x = Math.random() * S, y = Math.random() * S, a = Math.random() * Math.PI, l = 4 + Math.random() * 14;
+      g.strokeStyle = Math.random() > .5 ? 'rgba(255,255,255,.35)' : 'rgba(120,100,70,.18)'; g.lineWidth = .6 + Math.random() * .8; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * l / 2 + 2, y + Math.sin(a) * l / 2 - 2, x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+    _fibra = ctx.createPattern(cv, 'repeat'); return _fibra; }
+  function texturaPapel(x, y, w, h) { ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .55; ctx.fillStyle = fibraPattern(); ctx.fillRect(x, y, w, h); ctx.restore(); }
+  function luzSlide(c, i) { // a luz do abajur cai sobre tudo que foi desenhado (papéis e cartões também), mais forte perto da lâmpada
+    const m = mesaDe(c.id), k = (i + m.f) % 3, L = LADO_ABAJUR[m.V] || [0, 1];
+    const lx = L[0] === k ? (L[1] < 0 ? W - 170 : L[1] > 0 ? 170 : W / 2) : (L[0] < k ? -420 : W + 420), ly = 90;
+    ctx.save(); ctx.globalCompositeOperation = 'multiply'; const sh = ctx.createRadialGradient(lx, ly, 120, lx, ly, H * 1.25); sh.addColorStop(0, 'rgba(255,255,255,1)'); sh.addColorStop(.6, 'rgba(246,240,230,1)'); sh.addColorStop(1, 'rgba(196,180,160,1)'); ctx.fillStyle = sh; ctx.fillRect(0, 0, W, H); ctx.restore();
+    if (L[0] === k) { ctx.save(); ctx.globalCompositeOperation = 'soft-light'; const gl = ctx.createRadialGradient(lx, ly + 60, 10, lx, ly + 60, 620); gl.addColorStop(0, 'rgba(255,214,150,.55)'); gl.addColorStop(1, 'rgba(255,214,150,0)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    // gradação: realces levemente quentes, sombras levemente frias (filme)
+    ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = 'rgba(255,190,120,.10)'; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = 'rgba(232,236,245,1)'; ctx.globalAlpha = .1; ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
   function papelSombra(x, y, w, h, rot, cor, fn) {
     TEXTO_RECTS.push([x, y, w, h]);
     ctx.save(); ctx.translate(x, y); ctx.rotate(rot * Math.PI / 180);
-    ctx.save(); ctx.shadowColor = 'rgba(14,6,0,.55)'; ctx.shadowBlur = 24; ctx.shadowOffsetX = 9 * LUZ; ctx.shadowOffsetY = 18;
-    ctx.beginPath(); ctx.moveTo(0, 1.5); ctx.lineTo(w, 0); ctx.lineTo(w - 2, h); ctx.lineTo(1.5, h - 1.5); ctx.closePath(); ctx.fillStyle = cor; ctx.fill(); ctx.restore();
-    ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .18; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, w, h); ctx.restore();
+    const forma = () => { ctx.beginPath(); ctx.moveTo(0, 1.5); ctx.lineTo(w, 0); ctx.lineTo(w - 2, h); ctx.lineTo(1.5, h - 1.5); ctx.closePath(); ctx.fillStyle = cor; ctx.fill(); };
+    sombra2(forma, .9);
+    ctx.save(); forma(); ctx.clip(); texturaPapel(0, 0, w, h); ctx.restore();
+    ctx.save(); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(0, 0, w, 1.2); ctx.restore(); // fio de luz na borda de cima (espessura do papel)
     const gl = ctx.createLinearGradient(0, 0, w, h); gl.addColorStop(0, 'rgba(255,255,255,.10)'); gl.addColorStop(1, 'rgba(0,0,0,.06)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, w, h);
     if (fn) fn(); ctx.restore();
   }
@@ -2729,8 +2750,7 @@
     for (let xx = x + 42; xx <= x + w; xx += 54) { ctx.beginPath(); ctx.moveTo(xx + .5, y); ctx.lineTo(xx + .5, y + h); ctx.stroke(); }
     for (let yy = y + 40; yy <= y + h; yy += 54) { ctx.beginPath(); ctx.moveTo(x, yy + .5); ctx.lineTo(x + w, yy + .5); ctx.stroke(); }
     const lx = LUZ < 0 ? x + w : x, gl = ctx.createRadialGradient(lx, y, 40, lx, y, h * 1.1); gl.addColorStop(0, 'rgba(255,246,225,.30)'); gl.addColorStop(1, 'rgba(60,40,20,.10)'); ctx.fillStyle = gl; ctx.fillRect(x, y, w, h);
-    ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(x, y, w, h);
-    ctx.restore(); ctx.restore();
+    ctx.restore(); ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); texturaPapel(x, y, w, h); ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(x, y, w, 1.5); ctx.restore(); ctx.restore();
   }
   function bordaPagina() { const x = W - 180; ctx.save(); ctx.shadowColor = 'rgba(10,4,0,.6)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 14; ctx.fillStyle = PG.bg; ctx.fillRect(x, SY, 400, H - SY * 2); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(x, SY, 180, H - SY * 2); ctx.clip(); ctx.strokeStyle = 'rgba(120,100,70,.065)'; ctx.lineWidth = 1.5; for (let xx = 0; xx <= W; xx += 54) { ctx.beginPath(); ctx.moveTo(xx + .5, 0); ctx.lineTo(xx + .5, H); ctx.stroke(); } for (let y = 0; y <= H; y += 54) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke(); } ctx.restore(); }
@@ -2744,7 +2764,9 @@
   const oTitPg = (s, ex) => { const a = aj(s); const o = Object.assign({ fam: TIT, w: 400, emIt: true, lh: 1.04, ls: -0.015, color: PG.ink, em: PG.ink, mark: '#F6C915', max: 76, min: 48, gap: .4, maxW: PCW }, ex || {}); o.max = Math.round(o.max * a.t); o.min = Math.round(o.min * a.t); return o; };
   const oCorpoPg = (s, ex) => { const a = aj(s); const o = Object.assign({ fam: TYP, w: 400, emW: 700, lh: 1.62, ls: 0, color: '#3A3128', em: '#1C1712', mark: null, max: 33, min: 26, gap: .7, maxW: PCW, equilibra: false }, ex || {}); o.max = Math.round(o.max * a.c); o.min = Math.round(o.min * a.c); return o; };
   function tagPg(t, x, y, cor, tc) { if (!cor) { ctx.save(); ctx.font = fontStr(TYP, 22, 700); spaced(5); ctx.fillStyle = '#7A6040'; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'; ctx.fillText(String(t).toUpperCase(), x, y + 26); spaced(0); ctx.restore(); return y + 30; } ctx.save(); ctx.font = fontStr(TYP, 25, 700); spaced(5); const T = String(t).toUpperCase(), w = ctx.measureText(T).width + 40; ctx.fillStyle = cor || PG.red; ctx.fillRect(x, y, w, 52); ctx.fillStyle = tc || '#FBF6EC'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillText(T, x + 20, y + 27); spaced(0); ctx.restore(); return y + 52; }
-  function cardPg(x, y, w, h, cor) { ctx.save(); ctx.shadowColor = 'rgba(70,45,20,.14)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 12; ctx.fillStyle = cor || PG.card; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 20) : ctx.rect(x, y, w, h); ctx.fill(); ctx.restore();
+  function cardPg(x, y, w, h, cor) { const forma = () => { ctx.fillStyle = cor || PG.card; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 18) : ctx.rect(x, y, w, h); ctx.fill(); };
+    ctx.save(); ctx.shadowColor = 'rgba(60,40,20,.16)'; ctx.shadowBlur = 26; ctx.shadowOffsetX = 6 * LUZ; ctx.shadowOffsetY = 12; forma(); ctx.restore(); ctx.save(); ctx.shadowColor = 'rgba(60,40,20,.22)'; ctx.shadowBlur = 3; ctx.shadowOffsetY = 1.5; forma(); ctx.restore();
+    if (!cor) { ctx.save(); ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 18) : ctx.rect(x, y, w, h); ctx.clip(); ctx.globalAlpha = .6; texturaPapel(x, y, w, h); ctx.restore(); }
     if (!cor) { ctx.save(); ctx.strokeStyle = PG.line; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 20) : ctx.rect(x, y, w, h); ctx.stroke(); ctx.restore(); } }
   function textoPg(paras, o, x, y, maxH, alinha) { const L = gFit(paras.filter(t => String(t).trim()), o, maxH); gDesenha(L, o, x, y, alinha || 'left'); return L; }
   function setaPg() { ctx.save(); ctx.strokeStyle = PG.ink; ctx.globalAlpha = .55; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; const x = W - PM, y = H - 92; ctx.beginPath(); ctx.moveTo(x - 64, y); ctx.lineTo(x, y); ctx.moveTo(x - 14, y - 12); ctx.lineTo(x, y); ctx.lineTo(x - 14, y + 12); ctx.stroke(); ctx.restore(); }
@@ -2823,6 +2845,9 @@
       if (!ultimo) segue(H - SY - 56, 'rgba(28,23,18,.62)');
       // barra de progresso fina
       if (n > 1) barraProg(i, n, H - 104, 'rgba(240,228,205,.22)');
+      luzSlide(c, i);
+      ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .1; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
+      const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.42)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
     } finally { ctx.restore(); }
   }
   function folioMesa(i, n, c) {
@@ -3072,6 +3097,7 @@
     if ('filter' in ctx) { try { const [cv, g2] = off(W, H); g2.drawImage(canvas, 0, 0);
       for (const [y0, y1, b] of [[0, 40, 3], [40, 80, 1.6], [H - 80, H - 40, 1.6], [H - 40, H, 3]]) { ctx.save(); ctx.beginPath(); ctx.rect(0, y0, W, y1 - y0); ctx.clip(); ctx.filter = `blur(${b}px)`; ctx.drawImage(cv, 0, 0); ctx.restore(); } } catch (e) {} }
     folioMesa(i, n, c);
+    luzSlide(c, i);
     // grão de filme e vinheta
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .12; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, W, H); ctx.restore();
     const vg = ctx.createRadialGradient(W / 2, H * .45, H * .3, W / 2, H * .5, H * .85); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.5)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);

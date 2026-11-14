@@ -565,6 +565,18 @@
         <p class="legend" id="legend"></p>
       </section>
 
+      <section class="card" id="reels-card">
+        <p class="label">Molde para o Edits</p>
+        <div class="seg" id="rm-modelo" role="group" aria-label="Modelo"><button type="button" data-m="caso">Caso (vídeo deitado)</button><button type="button" data-m="fala">Fala (vídeo em pé)</button><button type="button" data-m="tela">Tela (quadrado)</button></div>
+        <input type="text" id="rm-cat" placeholder="Categoria: Análise de caso" maxlength="28" aria-label="Categoria">
+        <textarea id="rm-tit" rows="2" placeholder="Frase grande. Use **palavra** para o marca-texto." aria-label="Frase do Reels"></textarea>
+        <input type="text" id="rm-apoio" value="Explicação na legenda" maxlength="40" aria-label="Linha de apoio">
+        <canvas id="rm-prev" width="1080" height="1920" style="width:100%;max-width:300px;align-self:center;border-radius:14px;background:repeating-conic-gradient(#3a3a3a 0 25%,#2a2a2a 0 50%) 0 0/24px 24px"></canvas>
+        <div class="row"><button class="btn primary" id="rm-png" type="button">Baixar moldura (PNG transparente)</button><button class="btn" id="rm-capa" type="button">Baixar capa (com a foto do slide 1)</button></div>
+        <p class="hint">No Edits: abra o vídeo, toque em <strong>Sobreposição</strong>, escolha a moldura e deixe ela em tela cheia. Depois aumente ou diminua o vídeo até encaixar na janela (a parte xadrez é transparente). A capa vai em <strong>Capa → Da galeria</strong>.</p>
+        <p class="label" style="margin-top:6px">Capas na mesa (do carrossel aberto)</p>
+      </section>
+
       <section class="card" id="feed-card">
         <p class="label">Como o seu perfil vai ficar</p>
         <div class="feed-g" id="feed-g" aria-label="Os 9 primeiros quadrados do perfil"></div>
@@ -2333,7 +2345,7 @@
   }
   function ligaObj(dia, f) {
     const h = t => hashN('feed' + dia, f + t); let lista = LIGA_OBJ;
-    try { const t = trioDoDia(dia), par = f === 'em' ? [t.esquerda, t.meio] : [t.meio, t.direita]; lista = par.includes('frase') ? ['fita', 'fio', 'regua'] : ['lupa', 'fita', 'fio', 'lacre']; } catch (e) {}
+    try { const t = trioDoDia(dia), par = f === 'em' ? [t.esquerda, t.meio] : f === 'md' ? [t.meio, t.direita] : [t.esquerda, trioDoDia(dia + 1).direita]; lista = par.includes('frase') ? ['fita', 'fio', 'regua'] : ['lupa', 'fita', 'fio', 'lacre']; } catch (e) {}
     return { nome: lista[Math.floor(h('o') * lista.length)], v: .36 + h('v') * .16, rot: -18 + h('r') * 36 };
   }
   // ─── Post de frase ligado ao último post publicado (v59c): o post novo entra à esquerda do anterior,
@@ -2370,12 +2382,17 @@
     if (!vaga) return; camada = camada || 'alto';
     const map = fmt === 'reels' ? (u, v) => [u * 1080, 240 + v * 1440] : (u, v) => [34 + u * 1012, v * 1350], e = fmt === 'reels' ? 1080 / 1012 : 1;
     const lados = [];
-    if (vaga.pos !== 'direita') lados.push({ f: vaga.pos === 'esquerda' ? 'em' : 'md', u: 1 });
-    if (vaga.pos !== 'esquerda' && so !== 'dir') lados.push({ f: vaga.pos === 'direita' ? 'md' : 'em', u: 0 });
+    // posts fixados empurram tudo: a coluna real de cada post = (fixados + 2 - ordem no dia) % 3
+    let fix = 0; try { fix = (feed && feed.fixados) || 0; } catch (e) {}
+    const qd = { direita: 0, meio: 1, esquerda: 2 }[vaga.pos], col = (fix + 2 - qd) % 3;
+    const parDe = q => q % 3 === 0 ? { dia: Math.floor(q / 3), f: 'md' } : q % 3 === 1 ? { dia: Math.floor(q / 3), f: 'em' } : { dia: Math.floor(q / 3), f: 'x' }; // par entre o post q e o seguinte (q+1)
+    const q = vaga.dia * 3 + qd;
+    if (col !== 2 && q > 0) { const pr = parDe(q - 1); lados.push({ dia: pr.dia, f: pr.f, u: 1 }); }
+    if (col !== 0 && so !== 'dir') { const pr = parDe(q); lados.push({ dia: pr.dia, f: pr.f, u: 0 }); }
     ctx.save();
     if (camada === 'alto' && TEXTO_RECTS.length) { ctx.beginPath(); ctx.rect(-50, -50, 1200, 2100); for (const [x, y, ww, hh] of TEXTO_RECTS) { ctx.moveTo(x - 10, y - 10); ctx.lineTo(x - 10, y + hh + 10); ctx.lineTo(x + ww + 10, y + hh + 10); ctx.lineTo(x + ww + 10, y - 10); ctx.closePath(); } ctx.clip('evenodd'); }
     try {
-    if (camada === 'alto' || so === 'dir') for (const l of lados) { const o = ligaObj(vaga.dia, l.f), [x, y] = map(l.u, o.v); if (LIGA_REG) { LIGA_REG.push({ u: l.u, o }); continue; } desenhaLiga(o, x + (dx || 0), y, e); }
+    if (camada === 'alto' || so === 'dir') for (const l of lados) { const o = ligaObj(l.dia, l.f), [x, y] = map(l.u, o.v); if (LIGA_REG) { LIGA_REG.push({ u: l.u, o }); continue; } desenhaLiga(o, x + (dx || 0), y, e); }
     if (so === 'dir') return;
     // ligações verticais: cada dia é uma fileira inteira, então o post de hoje encosta, embaixo, no post de ontem da mesma coluna.
     // Borda de baixo: completa o objeto que o post de ontem deixou. Borda de cima: deixa meio objeto para o post de amanhã.
@@ -3282,6 +3299,53 @@
     return { blob, ext: mime.includes('mp4') ? 'mp4' : 'webm' };
   }
   // ─── Stories (1080×1920): só o desenho, com sua foto e o número do caso; você escreve por cima com as fontes do Instagram
+
+  // ─── Moldes de Reels (v61): moldura 1080×1920 com janela transparente para o vídeo, no estilo da mesa.
+  // Mesma ordem do modelo antigo do Daniel: perfil no topo, categoria, janela do vídeo, frase grande, "explicação na legenda" com fio para baixo.
+  const MOLDES = {
+    caso: { nome: 'Análise de caso', jan: [90, 420, 900, 640], tit: 1150 },   // vídeo horizontal (entrevista, palco, comercial)
+    fala: { nome: 'Opinião', jan: [200, 390, 680, 840], tit: 1310, max: 70 },          // vídeo vertical cortado (alguém falando, você falando)
+    tela: { nome: 'Bastidor', jan: [140, 400, 800, 800], tit: 1290 }          // gravação de tela, print, quadrado
+  };
+  function reelsMolde(op) {
+    const M = MOLDES[op.modelo] || MOLDES.caso, [jx, jy, jw, jh] = M.jan;
+    const cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1920; const g2 = cv.getContext('2d'), salva = ctx, sW = W, sH = H;
+    ctx = g2; LUZ = 1; TEXTO_RECTS = [];
+    try {
+      const f = PECA('couroR'); if (f) ctx.drawImage(f, 0, 0, 1080, 1920); else { ctx.fillStyle = '#24140a'; ctx.fillRect(0, 0, 1080, 1920); }
+      // luz do abajur vinda de cima à esquerda, escurecendo para baixo
+      ctx.save(); ctx.globalCompositeOperation = 'multiply'; const sh = ctx.createRadialGradient(220, 120, 100, 220, 120, 2100); sh.addColorStop(0, '#fff'); sh.addColorStop(.6, '#e6ddd0'); sh.addColorStop(1, '#8a7a68'); ctx.fillStyle = sh; ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
+      // perfil
+      const ay = 205; ctx.save(); ctx.beginPath(); ctx.arc(392, ay, 38, 0, Math.PI * 2); ctx.clip(); if (avatarReady()) cover(avatarEl, 354, ay - 38, 76, 76); else { ctx.fillStyle = '#5a4a3a'; ctx.fillRect(354, ay - 38, 76, 76); } ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(240,228,205,.7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(392, ay, 39, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      ctx.save(); ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#F3EBDD'; ctx.font = fontStr(SANS, 30, 600); ctx.fillText(NAME, 448, ay - 4); ctx.fillStyle = 'rgba(243,235,221,.7)'; ctx.font = fontStr(SANS, 25, 400); ctx.fillText(HANDLE, 448, ay + 30); ctx.restore();
+      // categoria: etiqueta de papel datilografada
+      const cat = String(op.cat || M.nome).toUpperCase() + (op.num ? '  ·  Nº ' + op.num : '');
+      ctx.save(); ctx.font = fontStr(TYP, 30, 700); spaced(6); const cw = ctx.measureText(cat).width + 64; spaced(0); ctx.restore();
+      papelSombra(540 - cw / 2, jy - 108, cw, 66, -1.2, '#F3EFE7', () => { ctx.font = fontStr(TYP, 30, 700); spaced(6); ctx.fillStyle = '#7A1E18'; ctx.textBaseline = 'middle'; ctx.fillText(cat, 32, 35); spaced(0); });
+      // janela do vídeo: moldura de foto branca com sombra em camadas
+      const b = 18, moldura = () => { ctx.fillStyle = '#F4F0E6'; ctx.beginPath(); ctx.roundRect(jx - b, jy - b, jw + b * 2, jh + b * 2, 10); ctx.fill(); };
+      sombra2(moldura, 1.1); ctx.save(); ctx.beginPath(); ctx.roundRect(jx - b, jy - b, jw + b * 2, jh + b * 2, 10); ctx.clip(); texturaPapel(jx - b, jy - b, jw + b * 2, jh + b * 2); ctx.restore();
+      if (op.foto) { ctx.save(); ctx.beginPath(); ctx.roundRect(jx, jy, jw, jh, 6); ctx.clip(); cover(op.foto, jx, jy, jw, jh); ctx.restore(); }
+      else { ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.roundRect(jx, jy, jw, jh, 6); ctx.fill(); ctx.restore(); }
+      peca('tachinha', 540, jy - b + 6, .7, 0);
+      // frase: tiras de papel, palavra-chave em itálico com marca-texto
+      const o = { fam: TIT, w: 400, emIt: true, lh: 1.02, ls: -0.01, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: M.max || 84, min: 50, gap: .3, maxW: 860 };
+      const L = gFit([op.titulo || ''], o, 360), lhp = Math.round(L.size * o.lh), y0 = M.tit; let yy = y0, k = 0;
+      L.blocks.forEach(lines => lines.forEach(line => { const w = line.width + 56, h = Math.round(L.size * 1.18), x = 540 - w / 2 + (k % 2 ? 8 : -6);
+        papelSombra(x, yy, w, h, k % 2 ? .6 : -.5, '#F4EFE5', () => { ctx.textBaseline = 'alphabetic'; let cx = 28; const base = Math.round(h / 2 + L.size * .3); for (const t of line.tokens) { ctx.font = gFonte(o, L.size, t.em); if (t.em) { ctx.fillStyle = 'rgba(246,201,21,.85)'; ctx.fillRect(cx - 2, base - L.size * .32, t.w + 4, L.size * .36); } ctx.fillStyle = o.color; ctx.fillText(t.text, cx, base); cx += t.w; } });
+        yy += h + 6; k++; }));
+      // apoio + fio amarelo descendo até a legenda
+      const ap = op.apoio === undefined ? 'Explicação na legenda' : op.apoio;
+      if (ap) { const ya = yy + 62; ctx.save(); ctx.font = fontStr(TYP, 30, 700); spaced(4); ctx.fillStyle = 'rgba(243,235,221,.92)'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 10; ctx.fillText(ap.toUpperCase(), 540, ya); spaced(0); ctx.restore();
+        ctx.save(); ctx.strokeStyle = '#E3B53C'; ctx.lineWidth = 3; ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 3; ctx.beginPath(); ctx.moveTo(540, ya + 30); ctx.lineTo(540, 1900); ctx.stroke(); ctx.restore();
+        peca('tachinha', 540, ya + 34, .55, 0); }
+      // acabamento
+      ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .1; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
+      if (!op.foto) { ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.roundRect(jx, jy, jw, jh, 6); ctx.fill(); ctx.restore(); }
+    } finally { ctx = salva; }
+    return cv;
+  }
   function storyMesa(c, modelo) {
     const cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1920; const g2 = cv.getContext('2d'), salva = ctx; ctx = g2; LUZ = 1; TEXTO_RECTS = [];
     try {
@@ -3650,6 +3714,18 @@
     $('feed-h').textContent = `Hoje faltam: ${falta.join(', depois ')}. Poste o que está em amarelo e toque em "Postei". Para carrossel, abra antes o carrossel certo em Salvos; para imagem única e Reels, o Motor usa o carrossel aberto.`;
     document.querySelectorAll('#feed-fix button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === fix)));
   }
+
+  // ─── Aba Reels (v61): moldes com janela transparente e capas ───
+  const RM = (() => { try { return JSON.parse(ls.get('dan_rm_v1') || '{}'); } catch (e) { return {}; } })();
+  function rmOp(comFoto) { const c = active(); return { modelo: RM.modelo || 'caso', cat: $('rm-cat').value.trim(), titulo: $('rm-tit').value.trim() || (c && c.slides[0] ? (c.slides[0].paras[0] || '') : ''), apoio: $('rm-apoio').value.trim(), num: c ? casoTxt(c) : '', foto: comFoto && c ? img((c.slides.find(x => x.tipo === 'capa') || c.slides[0]).image) : null }; }
+  async function rmPrev() { await carregaPecas(['couroR', 'tachinha']); const cv = reelsMolde(rmOp(false)), g = $('rm-prev').getContext('2d'); g.clearRect(0, 0, 1080, 1920); g.drawImage(cv, 0, 0); document.querySelectorAll('#rm-modelo button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === (RM.modelo || 'caso')))); }
+  const rmSalva = () => { RM.cat = $('rm-cat').value; RM.apoio = $('rm-apoio').value; try { ls.set('dan_rm_v1', JSON.stringify(RM)); } catch (e) {} };
+  $('rm-cat').value = RM.cat || ''; if (RM.apoio !== undefined) $('rm-apoio').value = RM.apoio;
+  document.querySelectorAll('#rm-modelo button').forEach(b => b.onclick = () => { RM.modelo = b.dataset.m; rmSalva(); rmPrev(); });
+  ['rm-cat', 'rm-tit', 'rm-apoio'].forEach(id => $(id).addEventListener('input', () => { rmSalva(); clearTimeout(rmPrev.t); rmPrev.t = setTimeout(rmPrev, 250); }));
+  $('rm-png').onclick = async () => { await carregaPecas(['couroR', 'tachinha']); const cv = reelsMolde(rmOp(false)); const blob = await new Promise(r => cv.toBlob(r, 'image/png')); await saveFile('molde-reels-' + (RM.modelo || 'caso') + '.png', blob); toast('Moldura salva. No Edits, use em Sobreposição, em tela cheia.'); };
+  $('rm-capa').onclick = async () => { await carregaPecas(['couroR', 'tachinha']); const cv = reelsMolde(rmOp(true)); const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', .92)); const c = active(); await saveFile((c ? slug(c.title) : 'reels') + '-capa-reels.jpg', blob); toast('Capa salva.'); };
+  setTimeout(rmPrev, 600); setInterval(() => { if (document.body.dataset.aba === 'reels' && !$('rm-tit').value) rmPrev(); }, 4000);
   $('feed-postei').onclick = postei;
   $('feed-desfaz').onclick = desfazPost;
   document.querySelectorAll('#feed-fix button').forEach(b => b.onclick = () => { feed.fixados = +b.dataset.n; salvaFeed(); renderFeedG(); });
@@ -5602,8 +5678,9 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
   const ABAS = fotos
     ? [['slides', 'Slides', 'Confira cada slide e ajuste a foto do slide aberto.'], ['fotos', 'Fotos', 'Uma foto por slide. As automáticas já vêm escolhidas.'], ['frases', 'Frases', 'Os 2 posts de imagem única do mesmo tema.'], ['postar', 'Postar', 'Legenda, imagens e envio.'], ['salvos', 'Salvos', 'Carrosséis guardados neste aparelho.']]
     : [['criar', 'Criar', 'Comece por um vídeo, uma ideia ou um JSON do chat.'], ['slides', 'Slides', 'Confira e edite cada slide.'], ['frases', 'Frases', 'Os 2 posts de imagem única do mesmo tema.'], ['legenda', 'Legenda', 'Confira a legenda antes de mandar para o vermelho.'], ['salvos', 'Salvos', 'Carrosséis guardados neste aparelho.']];
-  const NOMES = { criar: 'Criar', slides: 'Slides', fotos: 'Fotos', frases: 'Frases', legenda: 'Legenda', postar: 'Postar', salvos: 'Salvos', feed: 'Feed' };
-  ABAS.splice(ABAS.length - 1, 0, ['feed', 'Feed', 'O que postar agora e como o perfil vai ficar.']);
+  ic.reels = '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="m10.5 9.5 4 2.5-4 2.5Z"/>';
+  const NOMES = { reels: 'Reels', criar: 'Criar', slides: 'Slides', fotos: 'Fotos', frases: 'Frases', legenda: 'Legenda', postar: 'Postar', salvos: 'Salvos', feed: 'Feed' };
+  ABAS.splice(ABAS.length - 1, 0, ['reels', 'Reels', 'Moldes e capas para os seus Reels.'], ['feed', 'Feed', 'O que postar agora e como o perfil vai ficar.']);
 
   const grid = document.querySelector('.grid'); const stage = document.querySelector('.stage');
   const direita = grid.children[1];
@@ -5650,6 +5727,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
     mover(P.frases, $('frases'));
     mover(P.legenda, $('legend').closest('section'));
     mover(P.salvos, $('hist').closest('section'), $('avatar-btn').closest('section'));
+    { const rr = document.createElement('div'); rr.className = 'row'; mover(rr, $('reels-capa'), $('reels-capa-teste'), $('video-reels')); mover($('reels-card'), rr); mover(P.reels, $('reels-card')); }
     mover(P.feed, $('feed-card'), $('proximo'));
     mover(acaoRow, $('abrir-fora'), $('copiar-fora'));
     mover(acao, $('envio-dica'));
@@ -5668,6 +5746,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
     mover(pr, $('finalizar'), $('zip'), $('png'));
     mover(P.postar, $('nofoto-hint'), $('legend').closest('section'), pr, $('enviar-hint'));
     mover(P.salvos, $('hist').closest('section'), $('avatar-btn').closest('section'));
+    { const rr = document.createElement('div'); rr.className = 'row'; mover(rr, $('reels-capa'), $('reels-capa-teste'), $('video-reels')); mover($('reels-card'), rr); mover(P.reels, $('reels-card')); }
     mover(P.feed, $('feed-card'), $('proximo'));
     mover(acaoRow, $('enviar-ig'));
     if ($('enviar-ig').hidden) mover(acaoRow, $('finalizar')); // aparelho sem compartilhar: a ação principal vira salvar as imagens

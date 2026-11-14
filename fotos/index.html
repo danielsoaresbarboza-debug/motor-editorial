@@ -256,6 +256,13 @@
   .perfil-bar { display: flex; justify-content: space-between; align-items: center; padding: 0 16px 8px; font: 600 16px var(--font-body); }
   .perfil-bar .btn { background: #1b1b1d; color: #F5F3EE; border-color: #2a2a2c; }
   .perfil-h { margin: 0 16px 12px; font-size: 12.5px; color: #9a968f; }
+  .feed-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; background: #000; border-radius: 12px; overflow: hidden; }
+  .feed-g > div { position: relative; aspect-ratio: 3 / 4; background: #1b1b1d center / cover no-repeat; display: grid; place-items: center; text-align: center; color: #cfc6b4; font: 600 12.5px var(--font-body); padding: 6px; }
+  .feed-g > div.vaga { background: #141416; border: 2px dashed #3a3a40; color: #9a968f; }
+  .feed-g > div.vaga.prox { border-color: #FFD400; color: #FFD400; background: rgba(255,212,0,.08); }
+  .feed-g > div.vaga b { display: block; font-size: 15px; margin-top: 2px; }
+  .feed-g > div.fix { background: #232326; color: #8a867f; }
+  .feed-g > div small { position: absolute; left: 6px; bottom: 5px; font: 600 10px var(--font-mono); color: #fff; text-shadow: 0 1px 3px #000; letter-spacing: .04em; }
   .perfil-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; max-width: 560px; margin: 0 auto; }
   .perfil-g div { position: relative; aspect-ratio: 3 / 4; background: #1b1b1d center / cover no-repeat; }
   .perfil-g div.novo { outline: 2px solid #FFD400; outline-offset: -2px; }
@@ -555,6 +562,14 @@
           <div class="row"><span class="count" id="count">0 / 2200</span><button class="btn" id="copy">Copiar legenda</button></div>
         </div>
         <p class="legend" id="legend"></p>
+      </section>
+
+      <section class="card" id="feed-card">
+        <p class="label">Como o seu perfil vai ficar</p>
+        <div class="feed-g" id="feed-g" aria-label="Os 9 primeiros quadrados do perfil"></div>
+        <div class="row" style="margin-top:4px"><button class="btn primary" id="feed-postei" type="button">Postei</button><button class="btn ghost" id="feed-desfaz" type="button">Desfazer o último</button></div>
+        <p class="hint" id="feed-h"></p>
+        <div class="row"><span class="label">Posts fixados no perfil</span><div class="seg" id="feed-fix" role="group" aria-label="Quantos posts fixados"><button type="button" data-n="0">0</button><button type="button" data-n="1">1</button><button type="button" data-n="2">2</button><button type="button" data-n="3">3</button></div></div>
       </section>
 
       <section class="card">
@@ -2474,7 +2489,7 @@
     const m = mesaDe(c.id), k = (i + m.f) % 3, L = LADO_ABAJUR[m.V] || [0, 1];
     const lx = L[0] === k ? (L[1] < 0 ? W - 170 : L[1] > 0 ? 170 : W / 2) : (L[0] < k ? -420 : W + 420), ly = 90;
     ctx.save(); ctx.globalCompositeOperation = 'multiply'; const sh = ctx.createRadialGradient(lx, ly, 120, lx, ly, H * 1.25); sh.addColorStop(0, 'rgba(255,255,255,1)'); sh.addColorStop(.6, 'rgba(246,240,230,1)'); sh.addColorStop(1, 'rgba(196,180,160,1)'); ctx.fillStyle = sh; ctx.fillRect(0, 0, W, H); ctx.restore();
-    if (L[0] === k) { ctx.save(); ctx.globalCompositeOperation = 'soft-light'; const gl = ctx.createRadialGradient(lx, ly + 60, 10, lx, ly + 60, 620); gl.addColorStop(0, 'rgba(255,214,150,.55)'); gl.addColorStop(1, 'rgba(255,214,150,0)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    { const dentro = L[0] === k, viz = Math.abs(L[0] - k) === 1; if (dentro || viz) { ctx.save(); ctx.globalCompositeOperation = 'soft-light'; const R = dentro ? 620 : 980, gl = ctx.createRadialGradient(lx, ly + 60, 10, lx, ly + 60, R); gl.addColorStop(0, `rgba(255,214,150,${dentro ? .55 : .5})`); gl.addColorStop(1, 'rgba(255,214,150,0)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H); ctx.restore(); } } // o vizinho do abajur recebe a luz que vaza pela borda
     // gradação: realces levemente quentes, sombras levemente frias (filme)
     ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = 'rgba(255,190,120,.10)'; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = 'rgba(232,236,245,1)'; ctx.globalAlpha = .1; ctx.fillRect(0, 0, W, H); ctx.restore();
   }
@@ -3583,13 +3598,60 @@
       const idx = p.ordem.indexOf(pos), b = document.createElement('button'); b.type = 'button';
       b.innerHTML = `<small>${pos}</small>${NOME_T[p.t[pos]]}`;
       if (idx < p.k) b.className = 'feito'; else if (idx === p.k) b.className = 'agora';
-      b.onclick = () => { if (idx === p.k) { feed.postados++; (feed.log = feed.log || []).push(Date.now()); salvaFeed(); renderProximo(); toast('Marcado como postado. Próximo atualizado.'); } else if (idx === p.k - 1) { feed.postados--; (feed.log || []).pop(); salvaFeed(); renderProximo(); } };
+      b.onclick = () => { if (idx === p.k) postei(); else if (idx === p.k - 1) desfazPost(); };
       box.appendChild(b);
     });
     const sq = constancia();
     $('prox-h').textContent = `Ordem de hoje: ${p.ordem.map(o => NOME_T[p.t[o]].toLowerCase()).join(' → ')}. Espace os 3 ao longo do dia (manhã, tarde e noite). Toque no destacado quando postar. ` + (sq.dias ? `Constância: ${sq.dias} ${sq.dias === 1 ? 'dia' : 'dias'} seguidos com os 3 posts${sq.hoje < 3 ? ` (hoje: ${sq.hoje}/3)` : ''}.` : (sq.hoje ? `Hoje: ${sq.hoje}/3. Complete os 3 para começar a sequência.` : 'Sequência zerada: com 3 posts hoje ela recomeça. O feed ligado depende dos 3 por dia.'));
   }
   renderProximo();
+  // ─── Aba Feed (v60): os 9 primeiros quadrados do perfil; "Postei" guarda a miniatura do que foi postado ───
+  const NOME_FEED = { carrossel: 'Carrossel', frase: 'Imagem única (frase)', reels: 'Reels' };
+  function miniDe(cv, recorte) { const t = document.createElement('canvas'); t.width = 270; t.height = 360; const [x, y, w, h] = recorte; t.getContext('2d').drawImage(cv, x, y, w, h, 0, 0, 270, 360); return t.toDataURL('image/jpeg', .78); }
+  async function capturaPost(tipo) {
+    const c = active(); if (!c) return { tipo };
+    try {
+      if (tipo === 'carrossel') { const k = Math.max(0, c.slides.findIndex(x => x.tipo === 'capa')); drawSlide(c, k); const img = miniDe(canvas, [34, 0, 1012, 1350]); render(); return { tipo, titulo: c.title, img, cid: c.id }; }
+      if (tipo === 'frase') { const fs = c.frases || []; if (!fs.length) return { tipo }; const k = (c.frasesPostadas || 0) % fs.length; drawFrase(fs[k]); const img = miniDe(canvas, [34, 0, 1012, 1350]); render(); c.frasesPostadas = (c.frasesPostadas || 0) + 1; return { tipo, titulo: (fs[k].texto || '').replace(/[*_]/g, '').slice(0, 40), img }; }
+      if (tipo === 'reels') { await carregaPecas(PECAS_STORY); const cv = capaReels(c, 'feed'); return { tipo, titulo: c.title, img: miniDe(cv, [0, 240, 1080, 1440]) }; }
+    } catch (e) {}
+    return { tipo };
+  }
+  async function postei() {
+    const p = planoFeed(), tipo = p.proxTipo, c = active();
+    const item = await capturaPost(tipo); item.t = Date.now();
+    if (tipo === 'carrossel' && c && !c.postadoEm) { try { if (!c.vagaFeed) { const v = vagaCarrossel(c); if (v) c.vagaFeed = v; } } catch (e) {} c.postadoEm = Date.now(); persist(); try { renderHist(); } catch (e) {} }
+    (feed.posts = feed.posts || []).unshift(item); feed.posts = feed.posts.slice(0, 30);
+    feed.postados++; (feed.log = feed.log || []).push(Date.now()); salvaFeed(); renderProximo(); renderFeedG();
+    toast(NOME_FEED[tipo] + ' marcado como postado. Próximo: ' + NOME_FEED[planoFeed().proxTipo] + '.');
+  }
+  function desfazPost() {
+    if (!feed.postados) return; const it = (feed.posts || []).shift();
+    if (it && it.cid) { const c = state.list.find(x => x.id === it.cid); if (c) { c.postadoEm = 0; persist(); try { renderHist(); } catch (e) {} } }
+    feed.postados--; (feed.log || []).pop(); salvaFeed(); renderProximo(); renderFeedG(); toast('Último post desfeito.');
+  }
+  function renderFeedG() {
+    const g = $('feed-g'); if (!g) return; g.innerHTML = '';
+    const p = planoFeed(), posts = feed.posts || [], fix = feed.fixados || 0, cel = [];
+    for (let k = 0; k < fix; k++) cel.push({ fix: true });
+    ['esquerda', 'meio', 'direita'].forEach(pos => { const idx = p.ordem.indexOf(pos); if (idx < p.k) cel.push(posts[p.k - 1 - idx] || { tipo: p.t[pos] }); else cel.push({ vaga: true, tipo: p.t[pos], prox: idx === p.k, ordem: idx - p.k + 1 }); });
+    posts.slice(p.k).forEach(x => cel.push(x));
+    cel.slice(0, 9).forEach(x => { const d = document.createElement('div');
+      if (x.fix) { d.className = 'fix'; d.textContent = '📌 Fixado'; }
+      else if (x.vaga) { d.className = 'vaga' + (x.prox ? ' prox' : ''); d.innerHTML = `<span>${x.prox ? 'Agora' : x.ordem + 'º a postar'}<b>${NOME_FEED[x.tipo]}</b></span>`; }
+      else { if (x.img) d.style.backgroundImage = `url("${x.img}")`; else d.textContent = NOME_FEED[x.tipo] || ''; if (x.img) { const sm = document.createElement('small'); sm.textContent = ({ carrossel: 'CARROSSEL', frase: 'FRASE', reels: 'REELS' })[x.tipo] || ''; d.append(sm); } }
+      g.append(d); });
+    for (let k = g.children.length; k < 9; k++) { const d = document.createElement('div'); d.className = 'fix'; g.append(d); }
+    $('feed-postei').textContent = 'Postei: ' + NOME_FEED[p.proxTipo];
+    $('feed-desfaz').hidden = !feed.postados;
+    const falta = p.ordem.slice(p.k).map(o => NOME_FEED[p.t[o]].toLowerCase());
+    $('feed-h').textContent = `Hoje faltam: ${falta.join(', depois ')}. Poste o que está em amarelo e toque em "Postei". Para carrossel, abra antes o carrossel certo em Salvos; para imagem única e Reels, o Motor usa o carrossel aberto.`;
+    document.querySelectorAll('#feed-fix button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === fix)));
+  }
+  $('feed-postei').onclick = postei;
+  $('feed-desfaz').onclick = desfazPost;
+  document.querySelectorAll('#feed-fix button').forEach(b => b.onclick = () => { feed.fixados = +b.dataset.n; salvaFeed(); renderFeedG(); });
+  renderFeedG();
   $('ver-perfil').onclick = verPerfil;
   $('perfil-x').onclick = () => { $('perfil').hidden = true; };
   $('save-text').onclick = () => {
@@ -5530,12 +5592,14 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
     frases: '<path d="M4 9c0-2.5 1.8-3.5 4-3.5v3c-1.2 0-2 .6-2 2h2v4H4Z"/><path d="M13 9c0-2.5 1.8-3.5 4-3.5v3c-1.2 0-2 .6-2 2h2v4h-4Z"/><path d="M4 19h16"/>',
     legenda: '<path d="M4 6h16"/><path d="M4 11h16"/><path d="M4 16h10"/>',
     postar: '<path d="M21.5 2.5 11 13"/><path d="M21.5 2.5 15 21.5l-4-8.5-8.5-4Z"/>',
-    salvos: '<path d="M18 21.5 12 17.5 6 21.5V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2Z"/>'
+    salvos: '<path d="M18 21.5 12 17.5 6 21.5V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2Z"/>',
+    feed: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'
   };
   const ABAS = fotos
     ? [['slides', 'Slides', 'Confira cada slide e ajuste a foto do slide aberto.'], ['fotos', 'Fotos', 'Uma foto por slide. As automáticas já vêm escolhidas.'], ['frases', 'Frases', 'Os 2 posts de imagem única do mesmo tema.'], ['postar', 'Postar', 'Legenda, imagens e envio.'], ['salvos', 'Salvos', 'Carrosséis guardados neste aparelho.']]
     : [['criar', 'Criar', 'Comece por um vídeo, uma ideia ou um JSON do chat.'], ['slides', 'Slides', 'Confira e edite cada slide.'], ['frases', 'Frases', 'Os 2 posts de imagem única do mesmo tema.'], ['legenda', 'Legenda', 'Confira a legenda antes de mandar para o vermelho.'], ['salvos', 'Salvos', 'Carrosséis guardados neste aparelho.']];
-  const NOMES = { criar: 'Criar', slides: 'Slides', fotos: 'Fotos', frases: 'Frases', legenda: 'Legenda', postar: 'Postar', salvos: 'Salvos' };
+  const NOMES = { criar: 'Criar', slides: 'Slides', fotos: 'Fotos', frases: 'Frases', legenda: 'Legenda', postar: 'Postar', salvos: 'Salvos', feed: 'Feed' };
+  ABAS.splice(ABAS.length - 1, 0, ['feed', 'Feed', 'O que postar agora e como o perfil vai ficar.']);
 
   const grid = document.querySelector('.grid'); const stage = document.querySelector('.stage');
   const direita = grid.children[1];
@@ -5582,6 +5646,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
     mover(P.frases, $('frases'));
     mover(P.legenda, $('legend').closest('section'));
     mover(P.salvos, $('hist').closest('section'), $('avatar-btn').closest('section'));
+    mover(P.feed, $('feed-card'), $('proximo'));
     mover(acaoRow, $('abrir-fora'), $('copiar-fora'));
     mover(acao, $('envio-dica'));
   } else {
@@ -5599,6 +5664,7 @@ Responda só com JSON válido: {"sugestoes":[{"slide":1,"ideia":"...","busca":".
     mover(pr, $('finalizar'), $('zip'), $('png'));
     mover(P.postar, $('nofoto-hint'), $('legend').closest('section'), pr, $('enviar-hint'));
     mover(P.salvos, $('hist').closest('section'), $('avatar-btn').closest('section'));
+    mover(P.feed, $('feed-card'), $('proximo'));
     mover(acaoRow, $('enviar-ig'));
     if ($('enviar-ig').hidden) mover(acaoRow, $('finalizar')); // aparelho sem compartilhar: a ação principal vira salvar as imagens
   }

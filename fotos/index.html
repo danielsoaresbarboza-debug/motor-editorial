@@ -3327,33 +3327,77 @@
     return yy;
   }
   function alturaTiras(texto, max, min, maxW, maxH) { const o = { fam: TIT, w: 400, emIt: true, lh: 1.02, ls: -0.01, max, min, gap: .3, maxW }; const L = gFit([texto], o, maxH); return linhasDe(L).length * (Math.round(L.size * 1.18) + 8); }
+  // objetos soltos na mesa, sorteados por capa (nunca em cima do texto)
+  const OBJ_REELS = ['lupa', 'envelope', 'regua', 'esquadro', 'postit', 'fita', 'lacre', 'cafe'];
+  function objReels(nome, x, y, r) {
+    const rot = (r - .5) * 50;
+    if (nome === 'lupa') peca('lupa', x, y, .82, 15 + r * 50);
+    else if (nome === 'envelope') { peca('envelope', x, y, 1.05, rot * .5); if (PECA('lacre')) peca('lacre', x + 6, y + 10, .55, r * 90); }
+    else if (nome === 'regua') peca('regua', x, y, 1.15, rot * .6);
+    else if (nome === 'esquadro') peca('esquadro', x, y, .95, rot);
+    else if (nome === 'postit') peca('postit', x, y, .7, rot * .4, g => { const [ax, ay, aw] = g.area; ctx.save(); ctx.font = fontStr(MAO, 70, 700); ctx.fillStyle = '#2B2A4A'; ctx.textAlign = 'center'; ctx.fillText(['olha isso', 'caso nº ' + (1 + Math.floor(r * 40)), 'repara', 'pista', 'anotado'][Math.floor(r * 5)], ax + aw / 2, ay + 200); ctx.restore(); });
+    else if (nome === 'fita') peca('fita', x, y, 1.2, rot * .8);
+    else if (nome === 'polaroid') peca('polaroid_h', x, y, .55, rot * .5, g => { const [px, py, pw, ph] = g.jan; ctx.fillStyle = '#3a3029'; ctx.fillRect(px, py, pw, ph); });
+    else if (nome === 'lacre') peca('lacre', x, y, .8, r * 90);
+    else if (nome === 'cafe') cafeMesa(x, y, 120 + r * 40);
+  }
   function capaReelsLote(op) {
     const cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1920; const g2 = cv.getContext('2d'), salva = ctx; ctx = g2; LUZ = 1; TEXTO_RECTS = [];
-    const r = hashN(op.titulo || '', 'rl');
+    const sd = (op.titulo || '') + '|' + (op.k || 0), R = t => hashN(sd, t), lay = op.foto ? 'foto' : ['centro', 'ficha', 'baixo'][((op.k || 0) + Math.floor(R('L') * 3)) % 3];
     try {
-      const f = PECA('couroR'); if (f) ctx.drawImage(f, 0, 0, 1080, 1920); else { ctx.fillStyle = '#24140a'; ctx.fillRect(0, 0, 1080, 1920); }
-      ctx.save(); ctx.globalCompositeOperation = 'multiply'; const sh = ctx.createRadialGradient(300, 260, 120, 300, 260, 2000); sh.addColorStop(0, '#fff'); sh.addColorStop(.55, '#e2d8ca'); sh.addColorStop(1, '#7a6a58'); ctx.fillStyle = sh; ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
+      // mesa: espelhada em metade das capas para o abajur mudar de lado
+      // mesa sem abajur no quadro: corte de couro sem lâmpada, ampliado; a luz entra por um canto sorteado
+      const MESAS = ['couroA2', 'couroA3', 'couroC1', 'couroC2', 'couroE1', 'couroE2'].filter(n => PECA(n)), esp = R('esp') > .5;
+      const f = MESAS.length ? PECA(MESAS[Math.floor(R('m') * MESAS.length)]) : PECA('couroR');
+      ctx.save(); if (esp) { ctx.translate(1080, 0); ctx.scale(-1, 1); }
+      if (f) { const sc = 1920 / f.naturalHeight * 1.06, w = f.naturalWidth * sc; ctx.drawImage(f, (1080 - w) / 2 - R('dx') * 80, -60, w, f.naturalHeight * sc); } else { ctx.fillStyle = '#24140a'; ctx.fillRect(0, 0, 1080, 1920); }
+      ctx.restore();
+      ctx.save(); ctx.globalCompositeOperation = 'multiply'; const lx = esp ? 900 : 180, sh = ctx.createRadialGradient(lx, 80, 120, lx, 80, 2100); sh.addColorStop(0, '#fff'); sh.addColorStop(.55, '#ddd2c3'); sh.addColorStop(1, '#6e5e4c'); ctx.fillStyle = sh; ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
+      ctx.save(); ctx.globalCompositeOperation = 'soft-light'; const gl = ctx.createRadialGradient(lx, 60, 20, lx, 60, 900); gl.addColorStop(0, 'rgba(255,214,150,.6)'); gl.addColorStop(1, 'rgba(255,214,150,0)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
       const titulo = op.titulo || '', cat = String(op.cat || '').toUpperCase();
-      if (op.foto) {
-        peca('polaroid_v', 540, 760, .96, -2 + r * 4, g => { const [x, y, w, h] = g.jan; ctx.save(); cover(op.foto, x, y, w, h); ctx.restore(); });
-        peca('tachinha', 540 + (r - .5) * 20, 330, .7, 0);
-        const hT = alturaTiras(titulo, 92, 58, 940, 380), y0 = 1600 - hT;
-        if (cat) { tagReels(cat, y0 - 70); }
-        tirasCentro(titulo, y0, 92, 58, 940, 380);
-      } else {
-        const hT = alturaTiras(titulo, 118, 70, 960, 760), y0 = Math.round(960 - hT / 2);
-        if (cat) tagReels(cat, y0 - 80);
-        tirasCentro(titulo, y0, 118, 70, 960, 760);
-        peca('tachinha', 540 + (r - .5) * 30, y0 - (cat ? 92 : 14), .7, 0);
-        if (PECA('lupa')) peca('lupa', 820, Math.min(1560, y0 + hT + 170), .9, 20 + r * 30);
+      // dois objetos diferentes, um em cima e um embaixo do texto
+      const pool = OBJ_REELS.slice(), pega = t => pool.splice(Math.floor(R(t) * pool.length), 1)[0];
+      const o1 = pega('o1'), o2 = pega('o2');
+      if (lay === 'foto') {
+        objReels(o2, R('x2') > .5 ? 860 : 220, 1700, R('r2'));
+        peca('polaroid_v', 540 + (R('px') - .5) * 40, 740, .94, -3 + R('pr') * 6, g => { const [x, y, w, h] = g.jan; ctx.save(); cover(op.foto, x, y, w, h); ctx.restore(); });
+        peca('tachinha', 540 + (R('tx') - .5) * 20, 318, .7, 0);
+        const hT = alturaTiras(titulo, 96, 60, 940, 380), y0 = 1590 - hT;
+        if (cat) tagReels(cat, y0 - 74, 540);
+        tirasCentro(titulo, y0, 96, 60, 940, 380);
+      } else if (lay === 'centro') {
+        objReels(o1, R('x1') > .5 ? 790 : 290, 470, R('r1')); objReels(o2, R('x2') > .5 ? 820 : 260, 1560, R('r2'));
+        const hT = alturaTiras(titulo, 124, 76, 980, 700), y0 = Math.round(980 - hT / 2);
+        if (cat) tagReels(cat, y0 - 84, 540);
+        tirasCentro(titulo, y0, 124, 76, 980, 700);
+      } else if (lay === 'ficha') {
+        objReels(o1, R('x1') > .5 ? 860 : 220, 420, R('r1')); objReels(o2, R('x2') > .5 ? 840 : 240, 1610, R('r2'));
+        const o = { fam: TIT, w: 400, emIt: true, lh: 1.04, ls: -0.012, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 112, min: 66, gap: .3, maxW: 760, equilibra: false };
+        const L = gFit([titulo], o, 640), w = 880, h = L.h + (cat ? 250 : 190), x = 100, y = Math.round(990 - h / 2), rot = (R('fr') - .5) * 3;
+        papelSombra(x, y, w, h, rot, '#F4EEE0', () => {
+          ctx.fillStyle = 'rgba(196,80,70,.32)'; ctx.fillRect(0, cat ? 112 : 70, w, 2);
+          if (cat) { ctx.font = fontStr(TYP, 28, 700); spaced(6); ctx.fillStyle = '#7A1E18'; ctx.textBaseline = 'alphabetic'; ctx.fillText(cat, 60, 78); spaced(0); }
+          gDesenha(L, o, 60, cat ? 150 : 108, 'left');
+        });
+        peca('tachinha', 540 + (R('tx') - .5) * 40, y + 14, .7, 0);
+        if (R('cb') > .5) carimboMesa(x + w - 170, y + h - 40, ['ANOTADO', 'PROVA', 'CASO ABERTO', 'ARQUIVO'][Math.floor(R('cn') * 4)], dataMesa(), -8, '#A8221E', .7);
+      } else { // baixo: objeto grande em cima, título alinhado à esquerda embaixo
+        objReels(o1, 540 + (R('x1') - .5) * 200, 640, R('r1'));
+        if (R('o3') > .4) objReels(o2, R('x2') > .5 ? 880 : 200, 380, R('r2'));
+        const o = { fam: TIT, w: 400, emIt: true, lh: 1.02, ls: -0.01, color: '#1C1712', em: '#1C1712', mark: '#F6C915', max: 116, min: 70, gap: .3, maxW: 900 };
+        const L = gFit([titulo], o, 620), hL = Math.round(L.size * 1.18), ls = linhasDe(L), tot = ls.length * (hL + 10);
+        let yy = 1600 - tot; if (cat) tagReels(cat, yy - 76, 0);
+        ls.forEach((ln, k) => { const w = larguraLinha(ln, o, L.size) + 60, x = 70 + (k % 2 ? 16 : 0);
+          papelSombra(x, yy, w, hL, k % 2 ? .6 : -.5, '#F4EFE5', () => { ctx.textBaseline = 'alphabetic'; let cx = 30; const base = Math.round(hL / 2 + L.size * .3); for (const t of ln.tokens) { ctx.font = gFonte(o, L.size, t.em); if (t.em) { ctx.fillStyle = 'rgba(246,201,21,.85)'; ctx.fillRect(cx - 2, base - L.size * .32, t.w + 4, L.size * .36); } ctx.fillStyle = o.color; ctx.fillText(t.text, cx, base); cx += t.w; } });
+          yy += hL + 10; });
       }
       ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .1; ctx.fillStyle = graoPattern(); ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
-      const vg = ctx.createRadialGradient(540, 960, 600, 540, 960, 1250); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, 1080, 1920);
+      const vg = ctx.createRadialGradient(540, 960, 620, 540, 960, 1260); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.5)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, 1080, 1920);
     } finally { ctx = salva; }
     return cv;
   }
-  function tagReels(t, y) { ctx.save(); ctx.font = fontStr(TYP, 30, 700); spaced(6); const w = ctx.measureText(t).width + 64; spaced(0); ctx.restore();
-    papelSombra(540 - w / 2, y, w, 62, -1, '#F3EFE7', () => { ctx.font = fontStr(TYP, 30, 700); spaced(6); ctx.fillStyle = '#7A1E18'; ctx.textBaseline = 'middle'; ctx.fillText(t, 32, 33); spaced(0); }); }
+  function tagReels(t, y, cx) { ctx.save(); ctx.font = fontStr(TYP, 30, 700); spaced(6); const w = ctx.measureText(t).width + 64; spaced(0); ctx.restore();
+    papelSombra(cx === 0 ? 70 : 540 - w / 2, y, w, 62, -1, '#F3EFE7', () => { ctx.font = fontStr(TYP, 30, 700); spaced(6); ctx.fillStyle = '#7A1E18'; ctx.textBaseline = 'middle'; ctx.fillText(t, 32, 33); spaced(0); }); }
   // ─── Moldes de Reels (v61): moldura 1080×1920 com janela transparente para o vídeo, no estilo da mesa.
   // Mesma ordem do modelo antigo do Daniel: perfil no topo, categoria, janela do vídeo, frase grande, "explicação na legenda" com fio para baixo.
   const MOLDES = {
@@ -3796,8 +3840,8 @@
     const p = rlParse($('rl-txt').value); rlTit = p.titulos.slice(0, 12); if (p.cat && !$('rl-cat').value) $('rl-cat').value = p.cat;
     const g = $('rl-grade'); g.innerHTML = ''; $('rl-baixar').disabled = !rlTit.length; $('rl-baixar').textContent = rlTit.length ? `Baixar as ${rlTit.length} capas` : 'Baixar as capas';
     if (!rlTit.length) return;
-    try { await carregaPecas(['couroR', 'polaroid_v', 'tachinha', 'lupa']); } catch (e) {}
-    rlTit.forEach((t, k) => { try { const cv = capaReelsLote({ titulo: t, cat: $('rl-cat').value.trim(), foto: rlFoto }); const m = document.createElement('canvas'); m.width = 180; m.height = 320; m.getContext('2d').drawImage(cv, 0, 0, 180, 320); m.style.width = '100%'; m.style.borderRadius = '8px'; m.title = t; g.append(m); } catch (e) { $('rl-st').textContent = 'Erro ao desenhar: ' + (e.message || e); } });
+    try { await carregaPecas(['couroR', 'couroA2', 'couroA3', 'couroC1', 'couroC2', 'couroE1', 'couroE2', 'polaroid_v', 'polaroid_h', 'tachinha', 'lupa', 'envelope', 'lacre', 'regua', 'esquadro', 'postit', 'fita']); } catch (e) {}
+    rlTit.forEach((t, k) => { try { const cv = capaReelsLote({ titulo: t, cat: $('rl-cat').value.trim(), foto: rlFoto, k }); const m = document.createElement('canvas'); m.width = 180; m.height = 320; m.getContext('2d').drawImage(cv, 0, 0, 180, 320); m.style.width = '100%'; m.style.borderRadius = '8px'; m.title = t; g.append(m); } catch (e) { $('rl-st').textContent = 'Erro ao desenhar: ' + (e.message || e); } });
   }
   ['rl-txt', 'rl-cat'].forEach(id => $(id).addEventListener('input', () => { clearTimeout(rlRender.t); rlRender.t = setTimeout(rlRender, 400); }));
   $('rl-foto-btn').onclick = () => $('rl-foto').click();
@@ -3806,7 +3850,7 @@
   $('rl-baixar').onclick = async () => {
     if (!rlTit.length) return; $('rl-st').textContent = 'Preparando…';
     const files = [];
-    for (let k = 0; k < rlTit.length; k++) { const cv = capaReelsLote({ titulo: rlTit[k], cat: $('rl-cat').value.trim(), foto: rlFoto }); const b = await new Promise(r => cv.toBlob(r, 'image/jpeg', .9)); files.push(new File([b], `capa-reels-${String(k + 1).padStart(2, '0')}.jpg`, { type: 'image/jpeg' })); }
+    for (let k = 0; k < rlTit.length; k++) { const cv = capaReelsLote({ titulo: rlTit[k], cat: $('rl-cat').value.trim(), foto: rlFoto, k }); const b = await new Promise(r => cv.toBlob(r, 'image/jpeg', .9)); files.push(new File([b], `capa-reels-${String(k + 1).padStart(2, '0')}.jpg`, { type: 'image/jpeg' })); }
     if (typeof canShareFiles === 'function' && canShareFiles(files)) { try { await navigator.share({ files }); $('rl-st').textContent = 'Pronto. Escolha "Salvar imagens" ou a Galeria.'; return; } catch (e) { if (e && e.name === 'AbortError') { $('rl-st').textContent = ''; return; } } }
     let ok = 0; for (const f of files) { const r = await saveFile(f.name, f); if (r === 'ok') ok++; await new Promise(r => setTimeout(r, 350)); }
     if (ok) { $('rl-st').textContent = `${ok} capas baixadas.`; return; }

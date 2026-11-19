@@ -3684,6 +3684,9 @@
     const trx = parseTranscricoes(raw);
     if (trx) { importarTr(trx); $('paste').value = ''; st.textContent = 'Eram transcrições: foram para o bloco Transcrições.'; st.className = 'status ok'; return; }
     const arr = parseInput(raw);
+    if (!arr.length && /"(reels_teste|reels)"\s*:/.test(raw)) { // bloco de capas de Reels colado aqui: manda para a aba Reels
+      $('rl-txt').value = raw; $('paste').value = ''; try { rlRender(); } catch (e) {} const bt = document.querySelector('nav.nav-abas [data-aba="reels"]'); if (bt) bt.click();
+      st.textContent = 'Esse bloco é de capas de Reels: abri a aba Reels com as capas.'; st.className = 'status ok'; return; }
     if (!arr.length) { st.textContent = 'Não reconheci um carrossel nesse texto. Copie o bloco JSON inteiro, do { até o }.'; st.className = 'status err'; return; }
     addCarousels(arr);
     $('paste').value = '';

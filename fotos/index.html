@@ -570,9 +570,9 @@
         <p class="hint">Cole o JSON do chat de headlines (ou um título por linha). Sai uma capa para cada título, no mesmo visual da capa do carrossel. Use <code>**palavra**</code> para o marca-texto.</p>
         <textarea id="rl-txt" rows="5" placeholder='{"reels_teste": {"categoria": "Análise de caso", "capas": ["Título 1", "Título 2"]}}' aria-label="Títulos das capas"></textarea>
         <input type="text" id="rl-cat" placeholder="Etiqueta em cima do título (opcional)" maxlength="30" aria-label="Etiqueta">
-        <div class="row"><button class="btn" id="rl-foto-btn" type="button">Foto para todas (opcional)</button><button class="btn ghost" id="rl-foto-tira" type="button" hidden>Tirar foto</button><input type="file" id="rl-foto" accept="image/*" hidden></div>
+        <div class="row"><button class="btn" id="rl-foto-btn" type="button">📷 Pôr uma foto (polaroid em todas as capas)</button><button class="btn ghost" id="rl-foto-tira" type="button" hidden>Tirar foto</button><input type="file" id="rl-foto" accept="image/*" hidden></div>
         <div id="rl-grade" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
-        <div class="row"><button class="btn primary" id="rl-baixar" type="button" disabled>Baixar as capas</button></div>
+        <div class="row"><button class="btn primary" id="rl-baixar" type="button" disabled>Baixar as capas</button><button class="btn" id="rl-ver" type="button">Ver todas (segurar e salvar)</button></div>
         <p class="status" id="rl-st"></p>
       </section>
 
@@ -3346,23 +3346,18 @@
     const sd = (op.titulo || '') + '|' + (op.k || 0), R = t => hashN(sd, t), lay = op.foto ? 'foto' : ['centro', 'ficha', 'baixo'][((op.k || 0) + Math.floor(R('L') * 3)) % 3];
     try {
       // mesa: espelhada em metade das capas para o abajur mudar de lado
-      // mesa sem abajur no quadro: corte de couro sem lâmpada, ampliado; a luz entra por um canto sorteado
-      const MESAS = ['couroA2', 'couroA3', 'couroC1', 'couroC2', 'couroE1', 'couroE2'].filter(n => PECA(n)), esp = R('esp') > .5;
-      const f = MESAS.length ? PECA(MESAS[Math.floor(R('m') * MESAS.length)]) : PECA('couroR');
-      ctx.save(); if (esp) { ctx.translate(1080, 0); ctx.scale(-1, 1); }
-      if (f) { const sc = 1920 / f.naturalHeight * 1.06, w = f.naturalWidth * sc; ctx.drawImage(f, (1080 - w) / 2 - R('dx') * 80, -60, w, f.naturalHeight * sc); } else { ctx.fillStyle = '#24140a'; ctx.fillRect(0, 0, 1080, 1920); }
-      ctx.restore();
-      ctx.save(); ctx.globalCompositeOperation = 'multiply'; const lx = esp ? 900 : 180, sh = ctx.createRadialGradient(lx, 80, 120, lx, 80, 2100); sh.addColorStop(0, '#fff'); sh.addColorStop(.55, '#ddd2c3'); sh.addColorStop(1, '#6e5e4c'); ctx.fillStyle = sh; ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
-      ctx.save(); ctx.globalCompositeOperation = 'soft-light'; const gl = ctx.createRadialGradient(lx, 60, 20, lx, 60, 900); gl.addColorStop(0, 'rgba(255,214,150,.6)'); gl.addColorStop(1, 'rgba(255,214,150,0)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
+      // mesa fixa dos Reels: abajur verde no canto direito, livro aberto embaixo; nada solto por cima
+      const f = PECA('couroC3') || PECA('couroR'), lx = 860, ly = 330;
+      if (f) { const sc = 1920 / f.naturalHeight * 1.0, w = f.naturalWidth * sc; ctx.drawImage(f, f === PECA('couroC3') ? -162 : (1080 - w) / 2, 0, w, 1920); } else { ctx.fillStyle = '#24140a'; ctx.fillRect(0, 0, 1080, 1920); }
+      ctx.save(); ctx.globalCompositeOperation = 'multiply'; const sh = ctx.createRadialGradient(lx, ly, 150, lx, ly, 2000); sh.addColorStop(0, '#fff'); sh.addColorStop(.5, '#e4dacb'); sh.addColorStop(1, '#7a6a58'); ctx.fillStyle = sh; ctx.fillRect(0, 0, 1080, 1920); ctx.restore();
       const titulo = op.titulo || '', cat = String(op.cat || '').toUpperCase();
       // dois objetos diferentes, um em cima e um embaixo do texto
-      const pool = OBJ_REELS.slice(), pega = t => pool.splice(Math.floor(R(t) * pool.length), 1)[0];
-      const o1 = pega('o1'), o2 = pega('o2');
+      const objReels = () => {}, o1 = null, o2 = null; // objetos soltos removidos (a mesa já tem abajur e livro)
       if (lay === 'foto') {
         objReels(o2, R('x2') > .5 ? 860 : 220, 1700, R('r2'));
-        peca('polaroid_v', 540 + (R('px') - .5) * 40, 740, .94, -3 + R('pr') * 6, g => { const [x, y, w, h] = g.jan; ctx.save(); cover(op.foto, x, y, w, h); ctx.restore(); });
-        peca('tachinha', 540 + (R('tx') - .5) * 20, 318, .7, 0);
-        const hT = alturaTiras(titulo, 96, 60, 940, 380), y0 = 1590 - hT;
+        peca('polaroid_v', 470, 790, .84, -3 + R('pr') * 5, g => { const [x, y, w, h] = g.jan; ctx.save(); cover(op.foto, x, y, w, h); ctx.restore(); });
+        peca('tachinha', 470, 420, .7, 0);
+        const hT = alturaTiras(titulo, 92, 58, 940, 360), y0 = 1620 - hT;
         if (cat) tagReels(cat, y0 - 74, 540);
         tirasCentro(titulo, y0, 96, 60, 940, 380);
       } else if (lay === 'centro') {
@@ -3843,11 +3838,12 @@
     const p = rlParse($('rl-txt').value); rlTit = p.titulos.slice(0, 12); if (p.cat && !$('rl-cat').value) $('rl-cat').value = p.cat;
     const g = $('rl-grade'); g.innerHTML = ''; $('rl-baixar').disabled = !rlTit.length; $('rl-baixar').textContent = rlTit.length ? `Baixar as ${rlTit.length} capas` : 'Baixar as capas';
     if (!rlTit.length) return;
-    try { await carregaPecas(['couroR', 'couroA2', 'couroA3', 'couroC1', 'couroC2', 'couroE1', 'couroE2', 'polaroid_v', 'polaroid_h', 'tachinha', 'lupa', 'envelope', 'lacre', 'regua', 'esquadro', 'postit', 'fita']); } catch (e) {}
+    try { await carregaPecas(['couroR', 'couroC3', 'polaroid_v', 'polaroid_h', 'tachinha', 'lupa', 'envelope', 'lacre', 'regua', 'esquadro', 'postit', 'fita']); } catch (e) {}
     rlTit.forEach((t, k) => { try { const cv = capaReelsLote({ titulo: t, cat: $('rl-cat').value.trim(), foto: rlFoto, k }); const m = document.createElement('canvas'); m.width = 180; m.height = 320; m.getContext('2d').drawImage(cv, 0, 0, 180, 320); m.style.width = '100%'; m.style.borderRadius = '8px'; m.title = t; g.append(m); } catch (e) { $('rl-st').textContent = 'Erro ao desenhar: ' + (e.message || e); } });
   }
   ['rl-txt', 'rl-cat'].forEach(id => $(id).addEventListener('input', () => { clearTimeout(rlRender.t); rlRender.t = setTimeout(rlRender, 400); }));
   $('rl-foto-btn').onclick = () => $('rl-foto').click();
+  $('rl-ver').onclick = () => { if (!rlTit.length) return; const box = $('overlay-imgs'); box.innerHTML = ''; rlTit.forEach((t, k) => { const cv = capaReelsLote({ titulo: t, cat: $('rl-cat').value.trim(), foto: rlFoto, k }); const im = document.createElement('img'); im.src = cv.toDataURL('image/jpeg', .9); im.alt = t; const cap = document.createElement('small'); cap.textContent = `Capa ${k + 1}`; box.append(im, cap); }); $('share-ig').hidden = true; $('overlay-msg').innerHTML = 'Segure cada capa e toque em <strong>Salvar na galeria</strong>.'; $('overlay').hidden = false; document.body.style.overflow = 'hidden'; };
   $('rl-foto').onchange = e => { const f = e.target.files[0]; if (!f) return; const im = new Image(); im.onload = () => { rlFoto = im; $('rl-foto-tira').hidden = false; rlRender(); }; im.src = URL.createObjectURL(f); };
   $('rl-foto-tira').onclick = () => { rlFoto = null; $('rl-foto-tira').hidden = true; rlRender(); };
   $('rl-baixar').onclick = async () => {
@@ -3855,7 +3851,8 @@
     const files = [];
     for (let k = 0; k < rlTit.length; k++) { const cv = capaReelsLote({ titulo: rlTit[k], cat: $('rl-cat').value.trim(), foto: rlFoto, k }); const b = await new Promise(r => cv.toBlob(r, 'image/jpeg', .9)); files.push(new File([b], `capa-reels-${String(k + 1).padStart(2, '0')}.jpg`, { type: 'image/jpeg' })); }
     if (typeof canShareFiles === 'function' && canShareFiles(files)) { try { await navigator.share({ files }); $('rl-st').textContent = 'Pronto. Escolha "Salvar imagens" ou a Galeria.'; return; } catch (e) { if (e && e.name === 'AbortError') { $('rl-st').textContent = ''; return; } } }
-    let ok = 0; for (const f of files) { const r = await saveFile(f.name, f); if (r === 'ok') ok++; await new Promise(r => setTimeout(r, 350)); }
+    let ok = 0; for (const f of files) { $('rl-st').textContent = `Baixando ${ok + 1} de ${files.length}…`; const r = await saveFile(f.name, f); if (r === 'ok') ok++; await new Promise(r => setTimeout(r, 1200)); }
+    if (ok && ok < files.length) { $('rl-st').textContent = `${ok} de ${files.length} baixadas. Se faltar alguma, toque de novo ou use "Ver todas".`; }
     if (ok) { $('rl-st').textContent = `${ok} capas baixadas.`; return; }
     const box = $('overlay-imgs'); box.innerHTML = ''; files.forEach((f, k) => { const im = document.createElement('img'); im.src = URL.createObjectURL(f); im.alt = rlTit[k]; const cap = document.createElement('small'); cap.textContent = `Capa ${k + 1}`; box.append(im, cap); });
     $('share-ig').hidden = true; $('overlay-msg').innerHTML = 'Segure cada capa e toque em <strong>Salvar na galeria</strong>.'; $('overlay').hidden = false; document.body.style.overflow = 'hidden'; $('rl-st').textContent = '';
